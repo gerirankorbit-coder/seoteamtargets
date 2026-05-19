@@ -28,22 +28,22 @@ Open `http://<your-ip>:3000` on any device on the same network.
 ### Team Members
 | Username         | Password    | Display Name      |
 |------------------|-------------|-------------------|
-| `ali.lodhi`      | `ali123`    | Ali Lodhi         |
-| `abida.khalid`   | `abida123`  | Abida Khalid      |
-| `syed.salman`    | `salman123` | Syed Salman Ali   |
-| `usman.tariq`    | `usman123`  | Usman Tariq       |
-| `abdullah.asif`  | `asif123`   | Abdullah Asif     |
-| `abdullah.gull`  | `gull123`   | Abdullah Gull     |
-| `rizwan.haider`  | `rizwan123` | Rizwan Haider     |
-| `haseeb.ahmed`   | `haseeb123` | Haseeb Ahmed      |
-| `sana.effat`     | `sana123`   | Sana Effat        |
-| `m.kashif`       | `kashif123` | Muhammad Kashif   |
-| `sajid.saleem`   | `sajid123`  | Sajid Saleem      |
-| `toseef.ahmed`   | `toseef123` | Toseef Ahmed      |
-| `ahmad.rehman`   | `ahmad123`  | Ahmad Rehman      |
-| `naveed.liaqat`  | `naveed123` | Naveed Liaqat     |
-| `abler.khan`     | `abler123`  | Abler Khan        |
-| `ali.raza`       | `raza123`   | Ali Raza          |
+| `ali.lodhi`      | `ali@123#RO`    | Ali Lodhi         |
+| `abida.khalid`   | `abida@123#RO`  | Abida Khalid      |
+| `syed.salman`    | `salman@123#RO` | Syed Salman Ali   |
+| `usman.tariq`    | `usman@123#RO`  | Usman Tariq       |
+| `abdullah.asif`  | `asif@123#RO`   | Abdullah Asif     |
+| `abdullah.gull`  | `gull@123#RO`   | Abdullah Gull     |
+| `rizwan.haider`  | `rizwan@123#RO` | Rizwan Haider     |
+| `haseeb.ahmed`   | `haseeb@123#RO` | Haseeb Ahmed      |
+| `sana.effat`     | `sana@123#RO`   | Sana Effat        |
+| `m.kashif`       | `kashif@123#RO` | Muhammad Kashif   |
+| `sajid.saleem`   | `sajid@123#RO`  | Sajid Saleem      |
+| `toseef.ahmed`   | `toseef@123#RO` | Toseef Ahmed      |
+| `ahmad.rehman`   | `ahmad@123#RO`  | Ahmad Rehman      |
+| `naveed.liaqat`  | `naveed@123#RO` | Naveed Liaqat     |
+| `abler.khan`     | `abler@123#RO`  | Abler Khan        |
+| `ali.raza`       | `raza@123#RO`   | Ali Raza          |
 
 ---
 
