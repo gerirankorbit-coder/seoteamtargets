@@ -253,13 +253,13 @@
     max-height: 220px; overflow-y: auto;
   }
 
-  /* ── Manager Edit Modal ── */
+  /* ── Manager Cell Modal (preview + edit) ── */
   .em-overlay {
     position: fixed; inset: 0; z-index: 900;
-    background: rgba(0,0,0,0.68);
+    background: rgba(0,0,0,0.65);
     display: flex; align-items: center; justify-content: center;
     padding: 20px;
-    backdrop-filter: blur(3px);
+    backdrop-filter: blur(4px);
   }
   .em-overlay.hidden { display: none; }
 
@@ -274,16 +274,17 @@
     animation: emPop 0.18s ease;
   }
   @keyframes emPop {
-    from { transform: translateY(12px) scale(0.98); opacity: 0; }
+    from { transform: translateY(10px) scale(0.98); opacity: 0; }
     to   { transform: none; opacity: 1; }
   }
 
+  /* Header */
   .em-header {
-    padding: 13px 16px 11px;
+    padding: 12px 14px 11px;
     border-bottom: 1px solid var(--border);
     background: var(--surface-2);
     border-radius: var(--radius) var(--radius) 0 0;
-    display: flex; align-items: flex-start; gap: 10px; flex-shrink: 0;
+    display: flex; align-items: flex-start; gap: 8px; flex-shrink: 0;
   }
   .em-header-text { flex: 1; min-width: 0; }
   .em-title {
@@ -291,20 +292,31 @@
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .em-sub { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+
+  .em-header-actions { display: flex; gap: 5px; align-items: center; flex-shrink: 0; }
+  .em-pencil-btn {
+    background: rgba(0,212,255,0.08); border: 1px solid rgba(0,212,255,0.25);
+    color: var(--blue); border-radius: 6px;
+    cursor: pointer; font-size: 15px; padding: 3px 9px;
+    transition: all 0.15s; line-height: 1;
+  }
+  .em-pencil-btn:hover { background: rgba(0,212,255,0.18); border-color: rgba(0,212,255,0.5); }
   .em-close {
     background: none; border: none; color: var(--text-muted);
-    cursor: pointer; font-size: 14px; padding: 2px 6px;
-    border-radius: 4px; transition: all 0.12s; flex-shrink: 0; line-height: 1;
+    cursor: pointer; font-size: 14px; padding: 3px 7px;
+    border-radius: 4px; transition: all 0.12s; line-height: 1;
   }
   .em-close:hover { background: var(--surface-3); color: var(--text); }
 
+  /* Body */
   .em-body {
     padding: 16px; overflow-y: auto; flex: 1;
     display: flex; flex-direction: column; gap: 12px;
   }
 
+  /* Footer (edit mode only) */
   .em-footer {
-    padding: 10px 16px;
+    padding: 10px 14px;
     border-top: 1px solid var(--border);
     display: flex; gap: 8px; justify-content: flex-end;
     background: var(--surface-2);
@@ -312,6 +324,71 @@
     flex-shrink: 0;
   }
 
+  /* ── Preview content styles ── */
+  .em-preview { display: flex; flex-direction: column; gap: 12px; }
+
+  .em-pv-count {
+    font-size: 48px; font-weight: 900; color: var(--blue);
+    text-align: center; padding: 8px 0; letter-spacing: -2px;
+    line-height: 1; text-shadow: 0 0 40px rgba(0,212,255,0.25);
+  }
+  .em-pv-count-label {
+    text-align: center; font-size: 10px; font-weight: 600;
+    color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px;
+    margin-top: -6px;
+  }
+
+  .em-pv-note {
+    font-size: 13px; color: var(--text); line-height: 1.7;
+    white-space: pre-wrap; word-break: break-word;
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 12px 14px;
+  }
+
+  .em-pv-links {
+    font-size: 12px; color: var(--pink); font-weight: 600;
+    word-break: break-all; line-height: 1.6;
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 10px 14px;
+  }
+
+  .em-pv-rows { display: flex; flex-direction: column; gap: 4px; }
+  .em-pv-row {
+    display: flex; align-items: center; gap: 0;
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); overflow: hidden;
+  }
+  .em-pv-client {
+    flex: 1; font-size: 12px; font-weight: 600; color: var(--text);
+    padding: 8px 12px; border-right: 1px solid var(--border);
+  }
+  .em-pv-val {
+    font-size: 13px; font-weight: 800; color: var(--blue);
+    padding: 8px 14px; white-space: nowrap; min-width: 60px; text-align: right;
+  }
+  .em-pv-total {
+    font-size: 11px; font-weight: 700; color: var(--gold);
+    text-align: right; padding: 2px 2px 0;
+  }
+
+  .em-pv-sn {
+    background: rgba(255,184,0,0.05); border: 1px solid rgba(255,184,0,0.22);
+    border-radius: var(--radius-sm); padding: 10px 14px;
+    font-size: 12px; color: var(--text); line-height: 1.65;
+    white-space: pre-wrap; word-break: break-word;
+  }
+  .em-pv-sn-label {
+    display: block; font-size: 9px; font-weight: 700;
+    color: var(--gold); text-transform: uppercase; letter-spacing: 0.6px;
+    margin-bottom: 5px;
+  }
+
+  /* Divider between preview sections */
+  .em-pv-divider {
+    height: 1px; background: var(--border); margin: 0;
+  }
+
+  /* Edit mode row inputs */
   .em-row { display: flex; gap: 6px; align-items: center; }
 </style>
 </head>
@@ -396,19 +473,22 @@
   </div>
 </div>
 
-<!-- ── Manager edit modal ── -->
-<div id="em-overlay" class="em-overlay hidden" onclick="if(event.target===this)closeEditModal()">
+<!-- ── Manager cell modal (preview → edit) ── -->
+<div id="em-overlay" class="em-overlay hidden" onclick="if(event.target===this)closeModal()">
   <div class="em-modal">
     <div class="em-header">
       <div class="em-header-text">
-        <div class="em-title" id="em-title">Edit Task</div>
+        <div class="em-title" id="em-title">–</div>
         <div class="em-sub"   id="em-sub"></div>
       </div>
-      <button class="em-close" onclick="closeEditModal()">&#10005;</button>
+      <div class="em-header-actions">
+        <button class="em-pencil-btn" id="em-pencil-btn" onclick="switchToEditMode()" title="Edit this entry">&#9998;</button>
+        <button class="em-close"      onclick="closeModal()">&#10005;</button>
+      </div>
     </div>
     <div class="em-body" id="em-body"></div>
-    <div class="em-footer">
-      <button class="btn btn-ghost btn-sm"   onclick="closeEditModal()">Cancel</button>
+    <div class="em-footer" id="em-footer" style="display:none">
+      <button class="btn btn-ghost btn-sm"   onclick="switchToPreviewMode()">&#8592; Cancel</button>
       <button class="btn btn-primary btn-sm" id="em-save-btn" onclick="saveEditModal()">Save Changes</button>
     </div>
   </div>
@@ -594,13 +674,14 @@
     }
   }
 
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closePopover(); closeEditModal(); } });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closePopover(); closeModal(); } });
 
-  /* ══════════════════════════════════════════════════════════
-     Manager Edit Modal — lets manager edit any employee cell
-  ══════════════════════════════════════════════════════════ */
+  /* ══════════════════════════════════════════════════════════════
+     Manager Cell Modal  —  Preview → Edit two-mode flow
+  ══════════════════════════════════════════════════════════════ */
 
-  function openEditModal(cellEl) {
+  /* Open the modal in preview mode when manager clicks a data cell */
+  function openCellModal(cellEl) {
     closePopover();
     const username = cellEl.getAttribute('data-username');
     const date     = cellEl.getAttribute('data-date');
@@ -609,29 +690,127 @@
     const member   = members.find(m => m.username === username);
     if (!member) return;
 
-    const dayTasks = (allData[username] && allData[username][date]) ? allData[username][date] : {};
+    const dayTasks = (allData[username] && allData[username][date]) || {};
     const taskData = dayTasks[taskName] || {};
 
-    emState = { username, date, taskName, taskType, memberDisplay: member.display };
+    emState = { username, date, taskName, taskType, memberDisplay: member.display, taskData };
 
-    document.getElementById('em-title').textContent = '✏️  ' + taskName;
-    document.getElementById('em-sub').textContent   = member.display + '  ·  ' + formatFull(date);
-    document.getElementById('em-body').innerHTML    = buildEditForm(taskType, taskData);
+    document.getElementById('em-sub').textContent = member.display + '  ·  ' + formatFull(date);
     document.getElementById('em-overlay').classList.remove('hidden');
-
-    /* Focus first editable field */
-    const first = document.getElementById('em-body').querySelector('input, textarea');
-    if (first) setTimeout(() => first.focus(), 60);
+    showPreviewMode();
   }
 
-  function closeEditModal() {
+  /* ── Preview mode ── */
+  function showPreviewMode() {
+    if (!emState) return;
+    emState.mode = 'preview';
+
+    document.getElementById('em-title').textContent    = emState.taskName;
+    document.getElementById('em-body').innerHTML       = buildPreviewContent(emState.taskType, emState.taskData);
+    document.getElementById('em-footer').style.display = 'none';
+    document.getElementById('em-pencil-btn').style.display = '';   // visible
+  }
+
+  /* Build read-only preview HTML for any task type */
+  function buildPreviewContent(taskType, data) {
+    if (!data || Object.keys(data).length === 0) {
+      return '<p style="color:var(--text-dim);font-size:13px;text-align:center;padding:24px 0">No data submitted</p>';
+    }
+
+    let html = '<div class="em-preview">';
+
+    switch (taskType) {
+
+      case 'count':
+        html +=
+          '<div class="em-pv-count">'       + escHtml(String(data.value ?? '–')) + '</div>' +
+          '<div class="em-pv-count-label">count</div>';
+        break;
+
+      case 'note':
+        if (data.text) html += '<div class="em-pv-note">' + escHtml(data.text) + '</div>';
+        break;
+
+      case 'count_note':
+        html +=
+          '<div class="em-pv-count">'       + escHtml(String(data.value ?? '0')) + '</div>' +
+          '<div class="em-pv-count-label">count</div>';
+        if (data.text) html += '<div class="em-pv-note">' + escHtml(data.text) + '</div>';
+        break;
+
+      case 'links_note':
+        if (data.links) html += '<div class="em-pv-links">' + escHtml(data.links) + '</div>';
+        if (data.text)  html += '<div class="em-pv-note">'  + escHtml(data.text)  + '</div>';
+        break;
+
+      case 'links':
+      case 'layers': {
+        const rows = (data.rows || []).filter(r => r.client || r.value || r.links);
+        if (rows.length) {
+          html += '<div class="em-pv-rows">';
+          rows.forEach(r => {
+            const val = r.value || r.links || '';
+            html += '<div class="em-pv-row">' +
+              '<span class="em-pv-client">' + escHtml(r.client || '–') + '</span>' +
+              '<span class="em-pv-val">'    + escHtml(val || '–')      + '</span>' +
+              '</div>';
+          });
+          html += '</div>';
+          if (data.total !== undefined) {
+            html += '<div class="em-pv-total">Total: ' + escHtml(String(data.total)) + '</div>';
+          }
+        }
+        break;
+      }
+
+      default:
+        html += '<p style="color:var(--text-dim);font-size:12px">Unknown type</p>';
+    }
+
+    /* Section note — shown for any task type */
+    if (data.sectionNote) {
+      html += '<div class="em-pv-sn">' +
+        '<span class="em-pv-sn-label">Section Note</span>' +
+        escHtml(data.sectionNote) +
+        '</div>';
+    }
+
+    html += '</div>';
+    return html;
+  }
+
+  /* ── Switch to edit mode (pencil click) ── */
+  function switchToEditMode() {
+    if (!emState) return;
+    emState.mode = 'edit';
+
+    document.getElementById('em-title').textContent       = '✏️  ' + emState.taskName;
+    document.getElementById('em-body').innerHTML          = buildEditForm(emState.taskType, emState.taskData);
+    document.getElementById('em-footer').style.display    = 'flex';
+    document.getElementById('em-pencil-btn').style.display = 'none';  // hidden in edit mode
+
+    const first = document.getElementById('em-body').querySelector('input, textarea');
+    if (first) setTimeout(() => first.focus(), 50);
+  }
+
+  /* ── Cancel edit → back to preview (reads fresh saved data) ── */
+  function switchToPreviewMode() {
+    if (!emState) return;
+    /* Re-read from allData cache (no in-flight changes since we haven't saved) */
+    const dayTasks = (allData[emState.username] && allData[emState.username][emState.date]) || {};
+    emState.taskData = dayTasks[emState.taskName] || {};
+    showPreviewMode();
+  }
+
+  /* Close the modal entirely */
+  function closeModal() {
     document.getElementById('em-overlay').classList.add('hidden');
     emState = null;
   }
 
-  /* Build the edit form HTML based on task type */
+  /* ── Build the edit form HTML ── */
   function buildEditForm(taskType, data) {
-    const sn = data.sectionNote || '';
+    const sn = (data && data.sectionNote) || '';
     let html = '';
 
     switch (taskType) {
@@ -641,7 +820,7 @@
           '<div class="form-group">' +
           '  <label class="form-label">Count</label>' +
           '  <input class="inp" id="em-value" type="number" min="0"' +
-          '    value="' + escHtml(String(data.value ?? '')) + '" placeholder="0" autocomplete="off">' +
+          '    value="' + escHtml(String((data && data.value) ?? '')) + '" placeholder="0" autocomplete="off">' +
           '</div>';
         break;
 
@@ -650,7 +829,7 @@
           '<div class="form-group">' +
           '  <label class="form-label">Note Text</label>' +
           '  <textarea class="inp" id="em-text" rows="5" style="resize:vertical">' +
-          escHtml(data.text || '') + '</textarea>' +
+          escHtml((data && data.text) || '') + '</textarea>' +
           '</div>';
         break;
 
@@ -659,12 +838,12 @@
           '<div class="form-group">' +
           '  <label class="form-label">Count</label>' +
           '  <input class="inp" id="em-value" type="number" min="0"' +
-          '    value="' + escHtml(String(data.value ?? '')) + '" placeholder="0" autocomplete="off">' +
+          '    value="' + escHtml(String((data && data.value) ?? '')) + '" placeholder="0" autocomplete="off">' +
           '</div>' +
           '<div class="form-group">' +
           '  <label class="form-label">Note</label>' +
           '  <textarea class="inp" id="em-text" rows="4" style="resize:vertical">' +
-          escHtml(data.text || '') + '</textarea>' +
+          escHtml((data && data.text) || '') + '</textarea>' +
           '</div>';
         break;
 
@@ -673,18 +852,18 @@
           '<div class="form-group">' +
           '  <label class="form-label">Links / URLs</label>' +
           '  <input class="inp" id="em-links" type="text"' +
-          '    value="' + escHtml(data.links || '') + '" placeholder="Links / URLs / count…" autocomplete="off">' +
+          '    value="' + escHtml((data && data.links) || '') + '" placeholder="Links / URLs / count…" autocomplete="off">' +
           '</div>' +
           '<div class="form-group">' +
           '  <label class="form-label">Note</label>' +
           '  <textarea class="inp" id="em-text" rows="4" style="resize:vertical">' +
-          escHtml(data.text || '') + '</textarea>' +
+          escHtml((data && data.text) || '') + '</textarea>' +
           '</div>';
         break;
 
       case 'links':
       case 'layers': {
-        const rows = (data.rows && data.rows.length) ? data.rows : [{ client: '', value: '' }];
+        const rows = (data && data.rows && data.rows.length) ? data.rows : [{ client: '', value: '' }];
         const rowsHtml = rows.map(r => {
           const val = r.value !== undefined ? r.value : (r.links || '');
           return '<div class="em-row">' +
@@ -699,17 +878,17 @@
           '  <div id="em-rows" style="display:flex;flex-direction:column;gap:6px">' + rowsHtml + '</div>' +
           '  <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px">' +
           '    <button class="btn btn-ghost btn-sm" onclick="addEmRow()">+ Add Row</button>' +
-          '    <span style="font-size:11px;color:var(--text-muted)">Total: <strong id="em-total" style="color:var(--blue)">' + (data.total || 0) + '</strong></span>' +
+          '    <span style="font-size:11px;color:var(--text-muted)">Total: <strong id="em-total" style="color:var(--blue)">' + ((data && data.total) || 0) + '</strong></span>' +
           '  </div>' +
           '</div>';
         break;
       }
 
       default:
-        html += '<p style="color:var(--text-muted);font-size:12px">Unsupported task type: ' + escHtml(taskType) + '</p>';
+        html += '<p style="color:var(--text-muted);font-size:12px">Unsupported type: ' + escHtml(taskType) + '</p>';
     }
 
-    /* Section note — always shown at the bottom */
+    /* Section note always shown at the bottom */
     html +=
       '<div class="form-group">' +
       '  <label class="form-label" style="color:var(--gold)">Section Note ' +
@@ -723,9 +902,9 @@
     return html;
   }
 
-  /* Row helpers for links / layers edit */
+  /* ── Row helpers for links / layers edit ── */
   function addEmRow() {
-    const c   = document.getElementById('em-rows');
+    const c = document.getElementById('em-rows');
     if (!c) return;
     const div = document.createElement('div');
     div.className = 'em-row';
@@ -753,7 +932,7 @@
     if (!c || !el) return;
     let total = 0;
     c.querySelectorAll('.em-row').forEach(row => {
-      const inp = row.querySelectorAll('input')[1];
+      const inp  = row.querySelectorAll('input')[1];
       if (inp) {
         const nums = String(inp.value).match(/\d+/g);
         if (nums) total += nums.reduce((s, n) => s + parseInt(n, 10), 0);
@@ -762,10 +941,9 @@
     el.textContent = total;
   }
 
-  /* Read form values back into a task data object */
+  /* ── Collect edit-form values into a task data object ── */
   function collectEmData(taskType) {
-    const sn = (document.getElementById('em-section-note') || {}).value || '';
-    const sectionNote = sn.trim();
+    const sectionNote = ((document.getElementById('em-section-note') || {}).value || '').trim();
 
     switch (taskType) {
       case 'count':
@@ -812,16 +990,14 @@
     }
   }
 
-  /* Save the edited task data via /api/admin/save */
+  /* ── Save edited data via /api/admin/save ── */
   async function saveEditModal() {
     if (!emState) return;
     const { username, date, taskName, taskType, memberDisplay } = emState;
 
     const editedTask = collectEmData(taskType);
-
-    /* Merge into the full day tasks (preserve other tasks for that day) */
-    const dayTasks          = JSON.parse(JSON.stringify((allData[username] && allData[username][date]) || {}));
-    dayTasks[taskName]      = editedTask;
+    const dayTasks   = JSON.parse(JSON.stringify((allData[username] && allData[username][date]) || {}));
+    dayTasks[taskName] = editedTask;
 
     const btn = document.getElementById('em-save-btn');
     btn.disabled    = true;
@@ -835,11 +1011,11 @@
         credentials: 'same-origin',
       });
       if (res.ok) {
-        /* Update local cache so spreadsheet re-render shows new value */
+        /* Update local cache, close modal, refresh spreadsheet */
         if (!allData[username]) allData[username] = {};
         allData[username][date] = dayTasks;
 
-        closeEditModal();
+        closeModal();
         renderSpreadsheet();
         showToast('Saved — ' + memberDisplay + '  ·  ' + taskName, 'success');
       } else {
@@ -929,13 +1105,13 @@
               ' data-label="Note"' +
               ' onclick="event.stopPropagation();showCellNote(this)">NOTE</span></div>'
             : '';
-          /* All filled cells open the edit modal — data attrs carry context */
+          /* All filled cells open the cell modal (preview first) */
           const editAttrs =
             ' data-username="' + escHtml(m.username)  + '"' +
             ' data-date="'     + escHtml(d)            + '"' +
             ' data-taskname="' + escHtml(task.name)    + '"' +
             ' data-tasktype="' + escHtml(task.type)    + '"' +
-            ' onclick="openEditModal(this)"';
+            ' onclick="openCellModal(this)"';
           html += '<td class="filled-cell editable-cell' + (hasNote ? ' has-note' : '') + todayCls + '"' + editAttrs + '>' +
             '<div class="cell-line1">' + escHtml(cell.line1) + '</div>' + l2 + l3 + noteTag +
             '</td>';
