@@ -2,6 +2,7 @@ require('dotenv').config();
 const mongoose = require('mongoose');
 const express  = require('express');
 const session  = require('express-session');
+const MongoStore = require('connect-mongo');
 const path     = require('path');
 const cors     = require('cors');
 const os       = require('os');
@@ -204,8 +205,11 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'gmb-secret-key-2026',
   resave: false,
   saveUninitialized: false,
+  store: MongoStore.create({
+    mongoUrl: process.env.MONGODB_URI,
+  }),
   cookie: {
-    secure:  process.env.NODE_ENV === 'production',
+    secure:   process.env.NODE_ENV === 'production',
     httpOnly: true,
     sameSite: 'lax',
     maxAge:   8 * 60 * 60 * 1000,
