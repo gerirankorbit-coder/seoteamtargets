@@ -281,6 +281,26 @@
   }
   .btn-save:hover { transform: translateY(-1px); box-shadow: 0 6px 24px var(--pink-glow); }
   .btn-save:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  /* ── View mode card ── */
+  .task-body-view { padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
+  .view-row { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+  .view-client { font-size: 12px; font-weight: 600; color: var(--text); }
+  .view-value  { font-size: 12px; color: var(--blue); font-weight: 600; }
+  .view-total  { font-size: 11px; color: var(--gold); font-weight: 700; margin-top: 2px; }
+  .view-count  { font-size: 26px; font-weight: 800; color: var(--blue); text-align: center; padding: 6px 0; }
+  .view-note-text { font-size: 12px; color: var(--text-muted); line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+  .view-links  { font-size: 12px; color: var(--pink); font-weight: 600; word-break: break-all; }
+  .edit-pencil-btn {
+    background: none; border: 1px solid var(--border);
+    border-radius: 6px; padding: 2px 9px; font-size: 10px; font-weight: 600;
+    color: var(--text-muted); cursor: pointer; transition: all 0.15s; flex-shrink: 0;
+  }
+  .edit-pencil-btn:hover { color: var(--pink); border-color: rgba(233,30,140,0.4); background: var(--pink-dim); }
+  .view-section-note {
+    font-size: 11px; color: var(--gold); font-style: italic; line-height: 1.5;
+    padding: 6px 14px 10px; border-top: 1px solid rgba(255,184,0,0.15);
+  }
 </style>
 </head>
 <body>
@@ -384,6 +404,7 @@
   let memberUsername = '';
   let memberTab      = 'today';
   let historyLoaded  = false;
+  let currentDateData = {};
 
   function todayISO() {
     return new Date().toISOString().split('T')[0];
@@ -515,8 +536,77 @@
     }
   }
 
-  function renderCard(task, i, data) {
-    const hasNote = !!(data.sectionNote);
+  /* ── Check if a task has meaningful submitted data ── */
+  function taskHasData(type, data) {
+    if (!data) return false;
+    switch (type) {
+      case 'links':
+      case 'layers':
+        return !!(data.rows && data.rows.some(r => r.client || r.value || r.links));
+      case 'count':
+        return data.value !== undefined && data.value !== '' && data.value !== null;
+      case 'note':
+        return !!(data.text && data.text.trim());
+      case 'count_note':
+        return (data.value !== undefined && data.value !== '') || !!(data.text && data.text.trim());
+      case 'links_note':
+        return !!(data.links && data.links.trim()) || !!(data.text && data.text.trim());
+      default:
+        return false;
+    }
+  }
+
+  /* ── Render read-only summary of submitted data ── */
+  function renderDataSummary(type, data) {
+    if (!data) return '<span style="color:var(--text-dim);font-size:12px">–</span>';
+    switch (type) {
+      case 'links':
+      case 'layers': {
+        const rows = (data.rows || []).filter(r => r.client || r.value || r.links);
+        if (!rows.length) return '<span style="color:var(--text-dim);font-size:12px">–</span>';
+        const rowsHtml = rows.map(r => {
+          const val = r.value || r.links || '';
+          return '<div class="view-row">' +
+            '<span class="view-client">' + escHtml(r.client || '(no name)') + '</span>' +
+            (val ? '<span class="view-value">→ ' + escHtml(val) + '</span>' : '') +
+            '</div>';
+        }).join('');
+        return rowsHtml + (data.total ? '<div class="view-total">Total: ' + escHtml(String(data.total)) + '</div>' : '');
+      }
+      case 'count':
+        return '<div class="view-count">' + escHtml(String(data.value ?? 0)) + '</div>';
+      case 'note':
+        return '<div class="view-note-text">' + escHtml(data.text || '') + '</div>';
+      case 'count_note':
+        return '<div class="view-count">' + escHtml(String(data.value ?? 0)) + '</div>' +
+          (data.text ? '<div class="view-note-text">' + escHtml(data.text) + '</div>' : '');
+      case 'links_note':
+        return (data.links ? '<div class="view-links">' + escHtml(data.links) + '</div>' : '') +
+          (data.text ? '<div class="view-note-text">' + escHtml(data.text) + '</div>' : '');
+      default:
+        return '<span style="color:var(--text-dim);font-size:12px">–</span>';
+    }
+  }
+
+  /* ── View-mode card (read-only, with ✏️ Edit button) ── */
+  function renderCardView(task, i, data) {
+    const hasSectionNote = !!(data && data.sectionNote);
+    return '<div class="task-card view-mode" data-idx="' + i + '">' +
+      '<div class="task-card-header">' +
+      '  <span class="task-name">' + escHtml(task.name) + '</span>' +
+      '  <span class="task-type-badge type-' + escHtml(task.type) + '">' + escHtml(task.type) + '</span>' +
+      '  <button class="edit-pencil-btn" onclick="switchToEditMode(this.closest(\'.task-card\'))">&#9998; Edit</button>' +
+      '</div>' +
+      '<div class="task-body">' +
+      '  <div class="task-body-view">' + renderDataSummary(task.type, data) + '</div>' +
+      '</div>' +
+      (hasSectionNote ? '<div class="view-section-note">&#128221; ' + escHtml(data.sectionNote) + '</div>' : '') +
+      '</div>';
+  }
+
+  /* ── Edit-mode card (full inputs) ── */
+  function renderCardEdit(task, i, data) {
+    const hasNote = !!(data && data.sectionNote);
     return '<div class="task-card" data-idx="' + i + '">' +
       '<div class="task-card-header">' +
       '  <span class="task-name">' + escHtml(task.name) + '</span>' +
@@ -525,9 +615,27 @@
       '</div>' +
       '<div class="task-body">' + renderTypeBody(task, i, data) + '</div>' +
       '<div class="section-note-wrap" style="display:' + (hasNote ? 'block' : 'none') + '">' +
-      '  <textarea class="inp-section-note" placeholder="Section note (optional)…">' + escHtml(data.sectionNote || '') + '</textarea>' +
+      '  <textarea class="inp-section-note" placeholder="Section note (optional)…">' + escHtml((data && data.sectionNote) || '') + '</textarea>' +
       '</div>' +
       '</div>';
+  }
+
+  /* ── Dispatcher: show view card if data exists, edit card if empty ── */
+  function renderCard(task, i, data) {
+    return taskHasData(task.type, data) ? renderCardView(task, i, data) : renderCardEdit(task, i, data);
+  }
+
+  /* ── Switch a view-mode card to edit mode in-place ── */
+  function switchToEditMode(cardEl) {
+    const i    = parseInt(cardEl.dataset.idx, 10);
+    const task = memberTasks[i];
+    if (!task) return;
+    const data    = currentDateData[task.name] || {};
+    const newHtml = renderCardEdit(task, i, data);
+    const temp    = document.createElement('div');
+    temp.innerHTML = newHtml;
+    const newCard  = temp.firstElementChild;
+    cardEl.replaceWith(newCard);
   }
 
   function renderTasks(existing) {
@@ -598,7 +706,12 @@
     btn.innerHTML = '<span class="spinner" style="border-top-color:#fff;width:12px;height:12px;display:inline-block;vertical-align:middle;"></span>';
 
     const tasks = {};
-    document.querySelectorAll('.task-card').forEach((card) => {
+
+    /* Preserve data from view-mode cards (not currently being edited) */
+    Object.assign(tasks, currentDateData);
+
+    /* Override with live data from edit-mode cards */
+    document.querySelectorAll('.task-card:not(.view-mode)').forEach((card) => {
       const taskDef = memberTasks[parseInt(card.dataset.idx, 10)];
       if (!taskDef) return;
       tasks[taskDef.name] = extractCardData(card, taskDef.type);
@@ -617,8 +730,10 @@
       });
       if (res.status === 401) { window.location.href = '/login'; return; }
       if (res.ok) {
+        currentDateData = { ...tasks };
         showToast('Entry saved successfully!', 'success');
         updateSubmittedBadge(tasks);
+        renderTasks(tasks); // re-render so saved cards switch to view mode
         historyLoaded = false; // force history refresh after save
       } else {
         showToast('Save failed — please try again.', 'error');
@@ -654,6 +769,7 @@
       /* Update task list — picks up any additions/removals the manager made */
       if (me.tasks) memberTasks = me.tasks;
 
+      currentDateData = { ...existing };
       if (mnEl) mnEl.value = existing['_managerNote'] || '';
       renderTasks(existing);
       updateSubmittedBadge(existing);

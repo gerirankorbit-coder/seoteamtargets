@@ -443,6 +443,28 @@
     }
   }
 
+  /* ── Returns full note text for a cell (null if nothing to show) ── */
+  function getCellNoteContent(entry, taskType) {
+    if (!entry) return null;
+    const parts = [];
+    switch (taskType) {
+      case 'note':
+        /* Always show full text — cell display is truncated to 40 chars */
+        if (entry.text) parts.push(entry.text);
+        break;
+      case 'count_note':
+      case 'links_note':
+        /* Show note text only when it was truncated in the cell (>30 chars) */
+        if (entry.text && entry.text.length > 30) parts.push(entry.text);
+        break;
+    }
+    if (entry.sectionNote) {
+      if (parts.length) parts.push('—\nSection Note: ' + entry.sectionNote);
+      else              parts.push(entry.sectionNote);
+    }
+    return parts.length ? parts.join('\n\n') : null;
+  }
+
   /* ── Note popover ── */
   let _popoverCloseListener = null;
 
@@ -552,9 +574,10 @@
       dates.forEach(d => {
         const isToday  = d === today;
         const todayCls = isToday ? ' today-col' : '';
-        const entry    = mData[d] ? mData[d][task.name] : undefined;
-        const cell     = cellContent(entry, task.type);
-        const hasNote  = !!(entry && entry.sectionNote);
+        const entry       = mData[d] ? mData[d][task.name] : undefined;
+        const cell        = cellContent(entry, task.type);
+        const noteContent = getCellNoteContent(entry, task.type);
+        const hasNote     = !!noteContent;
 
         if (cell) {
           const l2 = cell.line2 ? '<div class="cell-line2">' + escHtml(cell.line2) + '</div>' : '';
@@ -562,7 +585,7 @@
           const noteTag = hasNote ? '<div><span class="cell-note-tag">NOTE</span></div>' : '';
           /* Use data attributes — escHtml encodes " as &quot; so the attribute is always valid */
           const dataAttrs = hasNote
-            ? ' data-note="' + escHtml(entry.sectionNote) + '" data-task="' + escHtml(task.name) + '" data-label="Section Note" onclick="showCellNote(this)"'
+            ? ' data-note="' + escHtml(noteContent) + '" data-task="' + escHtml(task.name) + '" data-label="Note" onclick="showCellNote(this)"'
             : '';
           html += '<td class="filled-cell' + (hasNote ? ' has-note' : '') + todayCls + '"' + dataAttrs + '>' +
             '<div class="cell-line1">' + escHtml(cell.line1) + '</div>' + l2 + l3 + noteTag +
