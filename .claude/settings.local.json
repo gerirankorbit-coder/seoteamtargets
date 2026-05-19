@@ -5,7 +5,8 @@
       "Bash(npm install *)",
       "PowerShell(cd D:\\\\Project\\\\SEOTargets; node --check server.js 2>&1; echo \"Exit: $LASTEXITCODE\")",
       "PowerShell(Get-Process -Name \"node\" -ErrorAction SilentlyContinue)",
-      "PowerShell(Stop-Process -Force)"
+      "PowerShell(Stop-Process -Force)",
+      "Bash(git rm *)"
     ]
   }
 }
