@@ -24,14 +24,14 @@ const EntrySchema = new mongoose.Schema({
   tasks:    { type: mongoose.Schema.Types.Mixed, default: {} },
 }, { timestamps: true });
 EntrySchema.index({ username: 1, date: 1 }, { unique: true });
-const Entry = mongoose.model('Entry', EntrySchema);
+const Entry = mongoose.models.Entry || mongoose.model('Entry', EntrySchema);
 
 // Config collection stores task overrides and any future app-wide settings.
 const ConfigSchema = new mongoose.Schema({
   key:   { type: String, required: true, unique: true },
   value: { type: mongoose.Schema.Types.Mixed },
 });
-const Config = mongoose.model('Config', ConfigSchema);
+const Config = mongoose.models.Config || mongoose.model('Config', ConfigSchema);
 
 // ── Task-override cache (loaded from DB on startup) ────────────────────────
 let taskOverrides = {};
