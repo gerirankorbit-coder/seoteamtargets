@@ -462,6 +462,25 @@ app.delete('/api/tasks/:displayName', requireManager, async (req, res) => {
   }
 });
 
+// Save data for any member — used by manager to edit submitted entries
+app.post('/api/admin/save', requireManager, async (req, res) => {
+  const { username, date, tasks } = req.body;
+  if (!username || !date || !tasks) return res.status(400).json({ error: 'Missing fields' });
+  const target = username.toLowerCase().trim();
+  if (!USERS[target]) return res.status(404).json({ error: 'User not found' });
+  try {
+    await Entry.findOneAndUpdate(
+      { username: target, date },
+      { username: target, date, tasks },
+      { upsert: true, new: true }
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Admin save error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
 // ── Start ──────────────────────────────────────────────────────────────────
 if (require.main === module) {
   app.listen(PORT, '0.0.0.0', () => {

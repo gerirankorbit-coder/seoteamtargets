@@ -89,7 +89,8 @@
 
   tbody td.filled-cell { background: rgba(0,212,255,0.05); }
   tbody td.filled-cell.has-note { cursor: pointer; }
-  tbody td.filled-cell.has-note:hover { background: rgba(0,212,255,0.12); }
+  tbody td.editable-cell { cursor: pointer; }
+  tbody td.editable-cell:hover { background: rgba(0,212,255,0.11) !important; }
   tbody td.empty-cell  { background: rgba(239,68,68,0.04); }
   tbody td.today-col   { border-left: 1px solid rgba(255,184,0,0.3) !important; border-right: 1px solid rgba(255,184,0,0.3) !important; }
   tbody td.mgr-note-cell { background: rgba(255,184,0,0.04) !important; cursor: pointer; }
@@ -251,6 +252,67 @@
     color: var(--text); white-space: pre-wrap; word-break: break-word;
     max-height: 220px; overflow-y: auto;
   }
+
+  /* ── Manager Edit Modal ── */
+  .em-overlay {
+    position: fixed; inset: 0; z-index: 900;
+    background: rgba(0,0,0,0.68);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+    backdrop-filter: blur(3px);
+  }
+  .em-overlay.hidden { display: none; }
+
+  .em-modal {
+    background: var(--surface);
+    border: 1px solid var(--border-2);
+    border-radius: var(--radius);
+    width: 100%; max-width: 460px;
+    max-height: 88vh;
+    display: flex; flex-direction: column;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.9), 0 0 0 1px rgba(255,255,255,0.04);
+    animation: emPop 0.18s ease;
+  }
+  @keyframes emPop {
+    from { transform: translateY(12px) scale(0.98); opacity: 0; }
+    to   { transform: none; opacity: 1; }
+  }
+
+  .em-header {
+    padding: 13px 16px 11px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-2);
+    border-radius: var(--radius) var(--radius) 0 0;
+    display: flex; align-items: flex-start; gap: 10px; flex-shrink: 0;
+  }
+  .em-header-text { flex: 1; min-width: 0; }
+  .em-title {
+    font-size: 13px; font-weight: 700; color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .em-sub { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+  .em-close {
+    background: none; border: none; color: var(--text-muted);
+    cursor: pointer; font-size: 14px; padding: 2px 6px;
+    border-radius: 4px; transition: all 0.12s; flex-shrink: 0; line-height: 1;
+  }
+  .em-close:hover { background: var(--surface-3); color: var(--text); }
+
+  .em-body {
+    padding: 16px; overflow-y: auto; flex: 1;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+
+  .em-footer {
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    display: flex; gap: 8px; justify-content: flex-end;
+    background: var(--surface-2);
+    border-radius: 0 0 var(--radius) var(--radius);
+    flex-shrink: 0;
+  }
+
+  .em-row { display: flex; gap: 6px; align-items: center; }
 </style>
 </head>
 <body>
@@ -334,6 +396,24 @@
   </div>
 </div>
 
+<!-- ── Manager edit modal ── -->
+<div id="em-overlay" class="em-overlay hidden" onclick="if(event.target===this)closeEditModal()">
+  <div class="em-modal">
+    <div class="em-header">
+      <div class="em-header-text">
+        <div class="em-title" id="em-title">Edit Task</div>
+        <div class="em-sub"   id="em-sub"></div>
+      </div>
+      <button class="em-close" onclick="closeEditModal()">&#10005;</button>
+    </div>
+    <div class="em-body" id="em-body"></div>
+    <div class="em-footer">
+      <button class="btn btn-ghost btn-sm"   onclick="closeEditModal()">Cancel</button>
+      <button class="btn btn-primary btn-sm" id="em-save-btn" onclick="saveEditModal()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
 <!-- Note popover -->
 <div id="note-popover" class="note-popover">
   <div class="popover-header">
@@ -371,6 +451,7 @@
   let editMemberIdx = 0;
   let chartDaily   = null;
   let chartMembers = null;
+  let emState      = null; // active edit-modal context
 
   /* ── Helpers ── */
   function todayISO() { return new Date().toISOString().split('T')[0]; }
@@ -513,7 +594,265 @@
     }
   }
 
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') closePopover(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closePopover(); closeEditModal(); } });
+
+  /* ══════════════════════════════════════════════════════════
+     Manager Edit Modal — lets manager edit any employee cell
+  ══════════════════════════════════════════════════════════ */
+
+  function openEditModal(cellEl) {
+    closePopover();
+    const username = cellEl.getAttribute('data-username');
+    const date     = cellEl.getAttribute('data-date');
+    const taskName = cellEl.getAttribute('data-taskname');
+    const taskType = cellEl.getAttribute('data-tasktype');
+    const member   = members.find(m => m.username === username);
+    if (!member) return;
+
+    const dayTasks = (allData[username] && allData[username][date]) ? allData[username][date] : {};
+    const taskData = dayTasks[taskName] || {};
+
+    emState = { username, date, taskName, taskType, memberDisplay: member.display };
+
+    document.getElementById('em-title').textContent = '✏️  ' + taskName;
+    document.getElementById('em-sub').textContent   = member.display + '  ·  ' + formatFull(date);
+    document.getElementById('em-body').innerHTML    = buildEditForm(taskType, taskData);
+    document.getElementById('em-overlay').classList.remove('hidden');
+
+    /* Focus first editable field */
+    const first = document.getElementById('em-body').querySelector('input, textarea');
+    if (first) setTimeout(() => first.focus(), 60);
+  }
+
+  function closeEditModal() {
+    document.getElementById('em-overlay').classList.add('hidden');
+    emState = null;
+  }
+
+  /* Build the edit form HTML based on task type */
+  function buildEditForm(taskType, data) {
+    const sn = data.sectionNote || '';
+    let html = '';
+
+    switch (taskType) {
+
+      case 'count':
+        html +=
+          '<div class="form-group">' +
+          '  <label class="form-label">Count</label>' +
+          '  <input class="inp" id="em-value" type="number" min="0"' +
+          '    value="' + escHtml(String(data.value ?? '')) + '" placeholder="0" autocomplete="off">' +
+          '</div>';
+        break;
+
+      case 'note':
+        html +=
+          '<div class="form-group">' +
+          '  <label class="form-label">Note Text</label>' +
+          '  <textarea class="inp" id="em-text" rows="5" style="resize:vertical">' +
+          escHtml(data.text || '') + '</textarea>' +
+          '</div>';
+        break;
+
+      case 'count_note':
+        html +=
+          '<div class="form-group">' +
+          '  <label class="form-label">Count</label>' +
+          '  <input class="inp" id="em-value" type="number" min="0"' +
+          '    value="' + escHtml(String(data.value ?? '')) + '" placeholder="0" autocomplete="off">' +
+          '</div>' +
+          '<div class="form-group">' +
+          '  <label class="form-label">Note</label>' +
+          '  <textarea class="inp" id="em-text" rows="4" style="resize:vertical">' +
+          escHtml(data.text || '') + '</textarea>' +
+          '</div>';
+        break;
+
+      case 'links_note':
+        html +=
+          '<div class="form-group">' +
+          '  <label class="form-label">Links / URLs</label>' +
+          '  <input class="inp" id="em-links" type="text"' +
+          '    value="' + escHtml(data.links || '') + '" placeholder="Links / URLs / count…" autocomplete="off">' +
+          '</div>' +
+          '<div class="form-group">' +
+          '  <label class="form-label">Note</label>' +
+          '  <textarea class="inp" id="em-text" rows="4" style="resize:vertical">' +
+          escHtml(data.text || '') + '</textarea>' +
+          '</div>';
+        break;
+
+      case 'links':
+      case 'layers': {
+        const rows = (data.rows && data.rows.length) ? data.rows : [{ client: '', value: '' }];
+        const rowsHtml = rows.map(r => {
+          const val = r.value !== undefined ? r.value : (r.links || '');
+          return '<div class="em-row">' +
+            '<input class="inp" style="flex:2;min-width:0" placeholder="Client name" value="' + escHtml(r.client || '') + '" autocomplete="off">' +
+            '<input class="inp" style="flex:2;min-width:0" placeholder="Count / Links" value="' + escHtml(val) + '" oninput="updateEmTotal()" autocomplete="off">' +
+            '<button class="btn btn-ghost btn-sm" style="flex-shrink:0;padding:5px 8px" onclick="removeEmRow(this)">&#10005;</button>' +
+            '</div>';
+        }).join('');
+        html +=
+          '<div class="form-group">' +
+          '  <label class="form-label">Rows</label>' +
+          '  <div id="em-rows" style="display:flex;flex-direction:column;gap:6px">' + rowsHtml + '</div>' +
+          '  <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px">' +
+          '    <button class="btn btn-ghost btn-sm" onclick="addEmRow()">+ Add Row</button>' +
+          '    <span style="font-size:11px;color:var(--text-muted)">Total: <strong id="em-total" style="color:var(--blue)">' + (data.total || 0) + '</strong></span>' +
+          '  </div>' +
+          '</div>';
+        break;
+      }
+
+      default:
+        html += '<p style="color:var(--text-muted);font-size:12px">Unsupported task type: ' + escHtml(taskType) + '</p>';
+    }
+
+    /* Section note — always shown at the bottom */
+    html +=
+      '<div class="form-group">' +
+      '  <label class="form-label" style="color:var(--gold)">Section Note ' +
+      '    <span style="font-weight:400;color:var(--text-dim)">(optional)</span>' +
+      '  </label>' +
+      '  <textarea class="inp" id="em-section-note" rows="2"' +
+      '    style="resize:vertical;border-color:rgba(255,184,0,0.25);background:rgba(255,184,0,0.04)">' +
+      escHtml(sn) + '</textarea>' +
+      '</div>';
+
+    return html;
+  }
+
+  /* Row helpers for links / layers edit */
+  function addEmRow() {
+    const c   = document.getElementById('em-rows');
+    if (!c) return;
+    const div = document.createElement('div');
+    div.className = 'em-row';
+    div.innerHTML =
+      '<input class="inp" style="flex:2;min-width:0" placeholder="Client name" autocomplete="off">' +
+      '<input class="inp" style="flex:2;min-width:0" placeholder="Count / Links" oninput="updateEmTotal()" autocomplete="off">' +
+      '<button class="btn btn-ghost btn-sm" style="flex-shrink:0;padding:5px 8px" onclick="removeEmRow(this)">&#10005;</button>';
+    c.appendChild(div);
+  }
+
+  function removeEmRow(btn) {
+    const row = btn.closest('.em-row');
+    const c   = document.getElementById('em-rows');
+    if (c && c.querySelectorAll('.em-row').length > 1) {
+      row.remove();
+    } else {
+      if (row) row.querySelectorAll('input').forEach(i => { i.value = ''; });
+    }
+    updateEmTotal();
+  }
+
+  function updateEmTotal() {
+    const c  = document.getElementById('em-rows');
+    const el = document.getElementById('em-total');
+    if (!c || !el) return;
+    let total = 0;
+    c.querySelectorAll('.em-row').forEach(row => {
+      const inp = row.querySelectorAll('input')[1];
+      if (inp) {
+        const nums = String(inp.value).match(/\d+/g);
+        if (nums) total += nums.reduce((s, n) => s + parseInt(n, 10), 0);
+      }
+    });
+    el.textContent = total;
+  }
+
+  /* Read form values back into a task data object */
+  function collectEmData(taskType) {
+    const sn = (document.getElementById('em-section-note') || {}).value || '';
+    const sectionNote = sn.trim();
+
+    switch (taskType) {
+      case 'count':
+        return { value: ((document.getElementById('em-value') || {}).value || '').trim(), sectionNote };
+
+      case 'note':
+        return { text: ((document.getElementById('em-text') || {}).value || '').trim(), sectionNote };
+
+      case 'count_note':
+        return {
+          value: ((document.getElementById('em-value') || {}).value || '').trim(),
+          text:  ((document.getElementById('em-text')  || {}).value || '').trim(),
+          sectionNote,
+        };
+
+      case 'links_note':
+        return {
+          links: ((document.getElementById('em-links') || {}).value || '').trim(),
+          text:  ((document.getElementById('em-text')  || {}).value || '').trim(),
+          sectionNote,
+        };
+
+      case 'links':
+      case 'layers': {
+        const rows  = [];
+        let   total = 0;
+        const c = document.getElementById('em-rows');
+        if (c) {
+          c.querySelectorAll('.em-row').forEach(row => {
+            const inps   = row.querySelectorAll('input');
+            const client = inps[0] ? inps[0].value.trim() : '';
+            const value  = inps[1] ? inps[1].value.trim() : '';
+            if (client || value) {
+              rows.push({ client, value });
+              const nums = String(value).match(/\d+/g);
+              if (nums) total += nums.reduce((s, n) => s + parseInt(n, 10), 0);
+            }
+          });
+        }
+        return { rows, total, sectionNote };
+      }
+
+      default: return { sectionNote };
+    }
+  }
+
+  /* Save the edited task data via /api/admin/save */
+  async function saveEditModal() {
+    if (!emState) return;
+    const { username, date, taskName, taskType, memberDisplay } = emState;
+
+    const editedTask = collectEmData(taskType);
+
+    /* Merge into the full day tasks (preserve other tasks for that day) */
+    const dayTasks          = JSON.parse(JSON.stringify((allData[username] && allData[username][date]) || {}));
+    dayTasks[taskName]      = editedTask;
+
+    const btn = document.getElementById('em-save-btn');
+    btn.disabled    = true;
+    btn.textContent = 'Saving…';
+
+    try {
+      const res = await fetch('/api/admin/save', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ username, date, tasks: dayTasks }),
+        credentials: 'same-origin',
+      });
+      if (res.ok) {
+        /* Update local cache so spreadsheet re-render shows new value */
+        if (!allData[username]) allData[username] = {};
+        allData[username][date] = dayTasks;
+
+        closeEditModal();
+        renderSpreadsheet();
+        showToast('Saved — ' + memberDisplay + '  ·  ' + taskName, 'success');
+      } else {
+        const body = await res.json().catch(() => ({}));
+        showToast(body.error || 'Save failed.', 'error');
+      }
+    } catch {
+      showToast('Network error.', 'error');
+    } finally {
+      btn.disabled    = false;
+      btn.textContent = 'Save Changes';
+    }
+  }
 
   /* ── Tab scroll ── */
   function scrollTabs(delta) {
@@ -582,12 +921,22 @@
         if (cell) {
           const l2 = cell.line2 ? '<div class="cell-line2">' + escHtml(cell.line2) + '</div>' : '';
           const l3 = cell.line3 ? '<div class="cell-line3">' + escHtml(cell.line3) + '</div>' : '';
-          const noteTag = hasNote ? '<div><span class="cell-note-tag">NOTE</span></div>' : '';
-          /* Use data attributes — escHtml encodes " as &quot; so the attribute is always valid */
-          const dataAttrs = hasNote
-            ? ' data-note="' + escHtml(noteContent) + '" data-task="' + escHtml(task.name) + '" data-label="Note" onclick="showCellNote(this)"'
+          /* NOTE badge has its own click (stopProp keeps cell edit modal from also firing) */
+          const noteTag = hasNote
+            ? '<div><span class="cell-note-tag" style="cursor:pointer"' +
+              ' data-note="'  + escHtml(noteContent)   + '"' +
+              ' data-task="'  + escHtml(task.name)     + '"' +
+              ' data-label="Note"' +
+              ' onclick="event.stopPropagation();showCellNote(this)">NOTE</span></div>'
             : '';
-          html += '<td class="filled-cell' + (hasNote ? ' has-note' : '') + todayCls + '"' + dataAttrs + '>' +
+          /* All filled cells open the edit modal — data attrs carry context */
+          const editAttrs =
+            ' data-username="' + escHtml(m.username)  + '"' +
+            ' data-date="'     + escHtml(d)            + '"' +
+            ' data-taskname="' + escHtml(task.name)    + '"' +
+            ' data-tasktype="' + escHtml(task.type)    + '"' +
+            ' onclick="openEditModal(this)"';
+          html += '<td class="filled-cell editable-cell' + (hasNote ? ' has-note' : '') + todayCls + '"' + editAttrs + '>' +
             '<div class="cell-line1">' + escHtml(cell.line1) + '</div>' + l2 + l3 + noteTag +
             '</td>';
         } else {
