@@ -205,8 +205,8 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'gmb-secret-key-2026',
   resave: false,
   saveUninitialized: false,
-  store: MongoStore.create({
-    mongoUrl: process.env.MONGODB_URI,
+  store: new MongoStore({
+    mongooseConnection: mongoose.connection,
   }),
   cookie: {
     secure:   process.env.NODE_ENV === 'production',
