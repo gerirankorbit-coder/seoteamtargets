@@ -2,7 +2,7 @@ require('dotenv').config();
 const mongoose = require('mongoose');
 const express  = require('express');
 const session  = require('express-session');
-const MongoStore = require('connect-mongo');
+const MongoStore = require('connect-mongo')(session);
 const path     = require('path');
 const cors     = require('cors');
 const os       = require('os');
