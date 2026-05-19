@@ -87,6 +87,18 @@
   .inp-login::placeholder { color: var(--text-dim); }
   .inp-login.error { border-color: #dc2626; }
 
+  /* ── Info banner (password changed notice) ── */
+  .info-msg {
+    background: rgba(0,212,255,0.08);
+    border: 1px solid rgba(0,212,255,0.3);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    font-size: 12px; color: var(--blue);
+    text-align: center;
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+
   /* ── Error message ── */
   .error-msg {
     background: rgba(220,38,38,0.1);
@@ -153,6 +165,8 @@
     <h1 class="card-title">Welcome Back</h1>
     <p class="card-subtitle">Sign in to your account</p>
 
+    <div class="info-msg" id="info-msg" style="display:none"></div>
+
     <div class="role-indicator" id="role-indicator">
       <span class="role-icon">🔐</span>
       <span>Signing in as <strong id="role-label">Team Member</strong></span>
@@ -182,8 +196,16 @@
 <div class="page-footer">Built by <strong>Abdullah Saleem</strong></div>
 
 <script>
-  // Set role label from query param (cosmetic only)
   const params = new URLSearchParams(window.location.search);
+
+  // Show password-changed notice if redirected from a forced logout
+  if (params.get('reason') === 'password_changed') {
+    const infoEl = document.getElementById('info-msg');
+    infoEl.textContent = '🔑 Your password has been changed. Please log in with your new password.';
+    infoEl.style.display = 'block';
+  }
+
+  // Set role label from query param (cosmetic only)
   const roleParam = params.get('role');
   if (roleParam === 'manager' || roleParam === 'assistant') {
     document.getElementById('role-label').textContent = 'Manager';

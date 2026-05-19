@@ -362,6 +362,23 @@
 </div>
 
 <script>
+  /* ── 401 / password-change interceptor ── */
+  (function() {
+    const _fetch = window.fetch;
+    window.fetch = async function(...args) {
+      const res = await _fetch(...args);
+      if (res.status === 401) {
+        try {
+          const body = await res.clone().json();
+          window.location.href = body.error === 'password_changed'
+            ? '/login?reason=password_changed'
+            : '/login';
+        } catch { window.location.href = '/login'; }
+      }
+      return res;
+    };
+  })();
+
   let memberTasks    = [];
   let selectedDate   = todayISO();
   let memberUsername = '';

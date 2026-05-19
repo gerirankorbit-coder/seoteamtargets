@@ -33,36 +33,52 @@ const ConfigSchema = new mongoose.Schema({
 });
 const Config = mongoose.models.Config || mongoose.model('Config', ConfigSchema);
 
-// ── Task-override cache (loaded from DB on startup) ────────────────────────
-let taskOverrides = {};
+// ── In-memory caches (loaded from DB on startup) ──────────────────────────
+let taskOverrides     = {};
+let passwordOverrides = {}; // { username: { password, passwordVersion } }
+
 mongoose.connection.once('open', async () => {
   try {
-    const doc = await Config.findOne({ key: 'taskOverrides' });
-    if (doc) taskOverrides = doc.value || {};
+    const [taskDoc, pwDoc] = await Promise.all([
+      Config.findOne({ key: 'taskOverrides' }),
+      Config.findOne({ key: 'passwordOverrides' }),
+    ]);
+    if (taskDoc) taskOverrides     = taskDoc.value || {};
+    if (pwDoc)   passwordOverrides = pwDoc.value   || {};
   } catch (_) {}
 });
 
 // ── Credentials ────────────────────────────────────────────────────────────
+// passwordVersion: 1 is the baseline. Incrementing it (via change-password API)
+// invalidates all existing sessions for that user immediately.
 const USERS = {
-  "manager":        { password: "mgr2024",   role: "manager",   display: "Manager" },
-  "assistant":      { password: "asst2024",  role: "assistant", display: "Assistant" },
-  "ali.lodhi":      { password: "ali@123#RO",    role: "member", display: "Ali Lodhi" },
-  "abida.khalid":   { password: "abida@123#RO",  role: "member", display: "Abida Khalid" },
-  "syed.salman":    { password: "salman@123#RO", role: "member", display: "Syed Salman Ali" },
-  "usman.tariq":    { password: "usman@123#RO",  role: "member", display: "Usman Tariq" },
-  "abdullah.asif":  { password: "asif@123#RO",   role: "member", display: "Abdullah Asif" },
-  "abdullah.gull":  { password: "gull@123#RO",   role: "member", display: "Abdullah Gull" },
-  "rizwan.haider":  { password: "rizwan@123#RO", role: "member", display: "Rizwan Haider" },
-  "haseeb.ahmed":   { password: "haseeb@123#RO", role: "member", display: "Haseeb Ahmed" },
-  "sana.effat":     { password: "sana@123#RO",   role: "member", display: "Sana Effat" },
-  "m.kashif":       { password: "kashif@123#RO", role: "member", display: "Muhammad Kashif" },
-  "sajid.saleem":   { password: "sajid@123#RO",  role: "member", display: "Sajid Saleem" },
-  "toseef.ahmed":   { password: "toseef@123#RO", role: "member", display: "Toseef Ahmed" },
-  "ahmad.rehman":   { password: "ahmad@123#RO",  role: "member", display: "Ahmad Rehman" },
-  "naveed.liaqat":  { password: "naveed@123#RO", role: "member", display: "Naveed Liaqat" },
-  "abler.khan":     { password: "abler@123#RO",  role: "member", display: "Abler Khan" },
-  "ali.raza":       { password: "raza@123#RO",   role: "member", display: "Ali Raza" },
+  "manager":        { password: "mgr2024",       role: "manager",   display: "Manager",          passwordVersion: 1 },
+  "assistant":      { password: "asst2024",       role: "assistant", display: "Assistant",         passwordVersion: 1 },
+  "ali.lodhi":      { password: "ali@123#RO",     role: "member",    display: "Ali Lodhi",         passwordVersion: 1 },
+  "abida.khalid":   { password: "abida@123#RO",   role: "member",    display: "Abida Khalid",      passwordVersion: 1 },
+  "syed.salman":    { password: "salman@123#RO",  role: "member",    display: "Syed Salman Ali",   passwordVersion: 1 },
+  "usman.tariq":    { password: "usman@123#RO",   role: "member",    display: "Usman Tariq",       passwordVersion: 1 },
+  "abdullah.asif":  { password: "asif@123#RO",    role: "member",    display: "Abdullah Asif",     passwordVersion: 1 },
+  "abdullah.gull":  { password: "gull@123#RO",    role: "member",    display: "Abdullah Gull",     passwordVersion: 1 },
+  "rizwan.haider":  { password: "rizwan@123#RO",  role: "member",    display: "Rizwan Haider",     passwordVersion: 1 },
+  "haseeb.ahmed":   { password: "haseeb@123#RO",  role: "member",    display: "Haseeb Ahmed",      passwordVersion: 1 },
+  "sana.effat":     { password: "sana@123#RO",    role: "member",    display: "Sana Effat",        passwordVersion: 1 },
+  "m.kashif":       { password: "kashif@123#RO",  role: "member",    display: "Muhammad Kashif",   passwordVersion: 1 },
+  "sajid.saleem":   { password: "sajid@123#RO",   role: "member",    display: "Sajid Saleem",      passwordVersion: 1 },
+  "toseef.ahmed":   { password: "toseef@123#RO",  role: "member",    display: "Toseef Ahmed",      passwordVersion: 1 },
+  "ahmad.rehman":   { password: "ahmad@123#RO",   role: "member",    display: "Ahmad Rehman",      passwordVersion: 1 },
+  "naveed.liaqat":  { password: "naveed@123#RO",  role: "member",    display: "Naveed Liaqat",     passwordVersion: 1 },
+  "abler.khan":     { password: "abler@123#RO",   role: "member",    display: "Abler Khan",        passwordVersion: 1 },
+  "ali.raza":       { password: "raza@123#RO",    role: "member",    display: "Ali Raza",          passwordVersion: 1 },
 };
+
+// Merged user lookup — base USERS overridden by any DB-stored password changes
+function getUser(username) {
+  const base = USERS[username];
+  if (!base) return null;
+  const ov = passwordOverrides[username];
+  return ov ? { ...base, ...ov } : { ...base };
+}
 
 // ── Team task definitions ──────────────────────────────────────────────────
 const TEAM = {
@@ -212,7 +228,7 @@ app.use(session({
     secure:   process.env.NODE_ENV === 'production',
     httpOnly: true,
     sameSite: 'lax',
-    maxAge:   8 * 60 * 60 * 1000,
+    maxAge:   30 * 24 * 60 * 60 * 1000, // 30 days — persists across browser restarts
   },
 }));
 
@@ -235,12 +251,14 @@ app.get('/login', (req, res) => {
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Missing credentials.' });
-  const user = USERS[username.toLowerCase().trim()];
+  const uname = username.toLowerCase().trim();
+  const user  = getUser(uname);
   if (!user || user.password !== password)
     return res.status(401).json({ error: 'Invalid username or password.' });
-  req.session.username = username.toLowerCase().trim();
-  req.session.role     = user.role;
-  req.session.display  = user.display;
+  req.session.username        = uname;
+  req.session.role            = user.role;
+  req.session.display         = user.display;
+  req.session.passwordVersion = user.passwordVersion || 1;
   const redirect = (user.role === 'manager' || user.role === 'assistant') ? '/dashboard' : '/member';
   res.json({ success: true, redirect });
 });
@@ -255,6 +273,15 @@ function requireAuth(req, res, next) {
   if (!req.session.role) {
     if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'Not authenticated' });
     return res.redirect('/login');
+  }
+  // Password-version check — if manager changed this user's password, invalidate their session
+  const currentUser = getUser(req.session.username);
+  const currentVer  = currentUser ? (currentUser.passwordVersion || 1) : -1;
+  const sessionVer  = req.session.passwordVersion ?? 1; // treat legacy sessions as version 1
+  if (!currentUser || sessionVer !== currentVer) {
+    req.session.destroy(() => {});
+    if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'password_changed' });
+    return res.redirect('/login?reason=password_changed');
   }
   next();
 }
@@ -314,6 +341,31 @@ app.get('/api/mydata/:date', async (req, res) => {
     res.json(entry ? (entry.tasks || {}) : {});
   } catch (_) {
     res.json({});
+  }
+});
+
+// Change a member's password — invalidates all their active sessions immediately
+app.post('/api/admin/change-password', requireManager, async (req, res) => {
+  const { username, newPassword } = req.body;
+  if (!username || !newPassword) return res.status(400).json({ error: 'Missing fields' });
+  if (newPassword.length < 6)    return res.status(400).json({ error: 'Password too short (min 6 chars)' });
+  const target = username.toLowerCase().trim();
+  if (!USERS[target]) return res.status(404).json({ error: 'User not found' });
+  const newVersion = Date.now(); // unique timestamp = new version token
+  passwordOverrides[target] = {
+    password:        newPassword,
+    passwordVersion: newVersion,
+  };
+  try {
+    await Config.findOneAndUpdate(
+      { key: 'passwordOverrides' },
+      { key: 'passwordOverrides', value: passwordOverrides },
+      { upsert: true, new: true }
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Change password error:', err);
+    res.status(500).json({ error: 'Database error' });
   }
 });
 

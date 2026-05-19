@@ -345,6 +345,23 @@
 </div>
 
 <script>
+  /* ── 401 / password-change interceptor ── */
+  (function() {
+    const _fetch = window.fetch;
+    window.fetch = async function(...args) {
+      const res = await _fetch(...args);
+      if (res.status === 401) {
+        try {
+          const body = await res.clone().json();
+          window.location.href = body.error === 'password_changed'
+            ? '/login?reason=password_changed'
+            : '/login';
+        } catch { window.location.href = '/login'; }
+      }
+      return res;
+    };
+  })();
+
   /* ── State ── */
   let members      = [];
   let allData      = {};
@@ -732,6 +749,14 @@
       '<div class="edit-actions">' +
       '  <button class="btn btn-primary btn-sm" onclick="saveTaskEdits()">Save Changes</button>' +
       '  <button class="btn btn-ghost btn-sm"   onclick="resetTaskEdits()">Reset to Default</button>' +
+      '</div>' +
+      '<div style="margin-top:24px;padding-top:18px;border-top:1px solid var(--border)">' +
+      '  <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">&#128273; Change Password</div>' +
+      '  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
+      '    <input class="inp" id="chpw-input" type="text" placeholder="New password (min 6 chars)" style="flex:1;min-width:180px;">' +
+      '    <button class="btn btn-ghost btn-sm" style="flex-shrink:0" onclick="changePassword()">Update Password</button>' +
+      '  </div>' +
+      '  <p style="font-size:10px;color:var(--text-dim);margin:6px 0 0">Changing the password will immediately log out this member from all devices.</p>' +
       '</div>';
   }
 
@@ -789,6 +814,32 @@
         }
         showToast('Reset to default tasks for ' + m.display, 'info');
         renderTaskEditor();
+      }
+    } catch {
+      showToast('Network error.', 'error');
+    }
+  }
+
+  /* ── Change Password ── */
+  async function changePassword() {
+    const m    = members[editMemberIdx];
+    const inp  = document.getElementById('chpw-input');
+    const newPw = inp ? inp.value.trim() : '';
+    if (!newPw)          { showToast('Enter a new password first.', 'error');              return; }
+    if (newPw.length < 6){ showToast('Password must be at least 6 characters.', 'error'); return; }
+    try {
+      const res  = await fetch('/api/admin/change-password', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ username: m.username, newPassword: newPw }),
+        credentials: 'same-origin',
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast('Password updated for ' + m.display + '. Their session is now invalidated.', 'success');
+        if (inp) inp.value = '';
+      } else {
+        showToast(data.error || 'Failed to update password.', 'error');
       }
     } catch {
       showToast('Network error.', 'error');
