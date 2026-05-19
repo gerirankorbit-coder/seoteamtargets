@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign In — Rank Orbit</title>
+<link rel="stylesheet" href="/style.css">
+<style>
+  body { display: flex; flex-direction: column; min-height: 100vh; }
+
+  /* ── Background ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse 60% 50% at 20% 50%, rgba(233,30,140,0.08) 0%, transparent 70%),
+      radial-gradient(ellipse 50% 60% at 80% 50%, rgba(0,212,255,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  /* ── Topbar ── */
+  .topbar { flex-shrink: 0; }
+
+  /* ── Centered wrap ── */
+  .login-wrap {
+    flex: 1;
+    display: flex; align-items: center; justify-content: center;
+    padding: 32px 16px 64px;
+    position: relative; z-index: 1;
+  }
+
+  /* ── Card ── */
+  .login-card {
+    width: 100%; max-width: 420px;
+    background: rgba(19,19,26,0.95);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 40px 36px 36px;
+    box-shadow: 0 8px 48px rgba(0,0,0,0.6), 0 0 80px rgba(233,30,140,0.05);
+    backdrop-filter: blur(20px);
+  }
+
+  .card-logo {
+    width: 60px; height: 60px;
+    background: linear-gradient(135deg, var(--pink), var(--blue));
+    border-radius: 18px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; font-weight: 900; color: #fff;
+    margin: 0 auto 20px;
+    box-shadow: 0 0 24px var(--pink-glow);
+  }
+  .card-title {
+    text-align: center; font-size: 22px; font-weight: 800;
+    margin-bottom: 4px; letter-spacing: -0.3px;
+  }
+  .card-subtitle { text-align: center; font-size: 13px; color: var(--text-muted); margin-bottom: 28px; }
+
+  /* ── Role indicator ── */
+  .role-indicator {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 10px 16px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    margin-bottom: 20px;
+    font-size: 13px; color: var(--text-muted);
+  }
+  .role-indicator .role-icon { font-size: 18px; }
+  .role-indicator strong { color: var(--text); }
+
+  /* ── Form ── */
+  .form-fields { display: flex; flex-direction: column; gap: 16px; margin-bottom: 20px; }
+
+  .inp-login {
+    width: 100%;
+    padding: 12px 16px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .inp-login:focus { border-color: var(--pink); box-shadow: 0 0 0 3px var(--pink-dim); }
+  .inp-login::placeholder { color: var(--text-dim); }
+  .inp-login.error { border-color: #dc2626; }
+
+  /* ── Error message ── */
+  .error-msg {
+    background: rgba(220,38,38,0.1);
+    border: 1px solid rgba(220,38,38,0.3);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    font-size: 13px; color: #f87171;
+    text-align: center;
+    display: none;
+    animation: shake 0.35s ease;
+  }
+  .error-msg.show { display: block; }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    20%     { transform: translateX(-6px); }
+    40%     { transform: translateX(6px); }
+    60%     { transform: translateX(-3px); }
+    80%     { transform: translateX(3px); }
+  }
+
+  /* ── Submit btn ── */
+  .btn-signin {
+    width: 100%; padding: 13px;
+    background: linear-gradient(135deg, var(--pink) 0%, #c2185b 100%);
+    color: #fff; border: none;
+    border-radius: var(--radius-sm);
+    font-size: 14px; font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 16px var(--pink-glow);
+    transition: all 0.18s;
+  }
+  .btn-signin:hover { transform: translateY(-1px); box-shadow: 0 6px 24px var(--pink-glow); }
+  .btn-signin:active { transform: none; }
+  .btn-signin:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  .back-link {
+    text-align: center; margin-top: 16px;
+  }
+  .back-link a {
+    color: var(--text-muted); font-size: 12px; text-decoration: none;
+    transition: color 0.15s;
+  }
+  .back-link a:hover { color: var(--pink); }
+
+  /* ── Footer ── */
+  .page-footer {
+    text-align: center; padding: 12px;
+    color: var(--text-dim); font-size: 11px;
+    position: relative; z-index: 1;
+  }
+  .page-footer strong { color: var(--text-muted); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-logo">RO</div>
+  <div class="topbar-title">Rank <span>Orbit</span></div>
+</div>
+
+<div class="login-wrap">
+  <div class="login-card">
+    <div class="card-logo">RO</div>
+    <h1 class="card-title">Welcome Back</h1>
+    <p class="card-subtitle">Sign in to your account</p>
+
+    <div class="role-indicator" id="role-indicator">
+      <span class="role-icon">🔐</span>
+      <span>Signing in as <strong id="role-label">Team Member</strong></span>
+    </div>
+
+    <div class="form-fields">
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input type="text" id="inp-username" class="inp-login" placeholder="e.g. ali.lodhi" autocomplete="username" autocapitalize="none" spellcheck="false">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" id="inp-password" class="inp-login" placeholder="••••••••" autocomplete="current-password">
+      </div>
+    </div>
+
+    <div class="error-msg" id="error-msg"></div>
+
+    <button class="btn-signin" id="btn-signin" onclick="submitLogin()">Sign In</button>
+
+    <div class="back-link">
+      <a href="/">← Back to home</a>
+    </div>
+  </div>
+</div>
+
+<div class="page-footer">Built by <strong>Abdullah Saleem</strong></div>
+
+<script>
+  // Set role label from query param (cosmetic only)
+  const params = new URLSearchParams(window.location.search);
+  const roleParam = params.get('role');
+  if (roleParam === 'manager' || roleParam === 'assistant') {
+    document.getElementById('role-label').textContent = 'Manager';
+    document.getElementById('role-indicator').querySelector('.role-icon').textContent = '🔑';
+  }
+
+  async function submitLogin() {
+    const username = document.getElementById('inp-username').value.trim();
+    const password = document.getElementById('inp-password').value;
+
+    if (!username || !password) {
+      showError('Please enter your username and password.');
+      return;
+    }
+
+    const btn = document.getElementById('btn-signin');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner" style="border-top-color:#fff;width:14px;height:14px;margin-right:6px;vertical-align:middle;"></span> Signing in…';
+    hideError();
+
+    try {
+      const res  = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+        credentials: 'same-origin',
+      });
+      const data = await res.json();
+      if (data.success) {
+        window.location.href = data.redirect;
+      } else {
+        showError(data.error || 'Invalid credentials. Please try again.');
+      }
+    } catch {
+      showError('Could not reach the server. Check your connection.');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Sign In';
+    }
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('error-msg');
+    el.textContent = msg;
+    el.style.display = 'block';
+    el.classList.remove('show');
+    void el.offsetWidth;
+    el.classList.add('show');
+    ['inp-username','inp-password'].forEach(id => document.getElementById(id).classList.add('error'));
+  }
+
+  function hideError() {
+    document.getElementById('error-msg').classList.remove('show');
+    document.getElementById('error-msg').style.display = 'none';
+    ['inp-username','inp-password'].forEach(id => document.getElementById(id).classList.remove('error'));
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter') submitLogin();
+  });
+
+  ['inp-username','inp-password'].forEach(id => {
+    document.getElementById(id).addEventListener('input', hideError);
+  });
+</script>
+</body>
+</html>

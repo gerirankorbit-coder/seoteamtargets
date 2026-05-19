@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(if \\(!\\(Test-Path \"D:\\\\Project\\\\SEOTargets\\\\public\"\\)\\) { New-Item -ItemType Directory -Path \"D:\\\\Project\\\\SEOTargets\\\\public\" | Out-Null; \"created\" } else { \"exists\" })",
+      "Bash(npm install *)",
+      "PowerShell(cd D:\\\\Project\\\\SEOTargets; node --check server.js 2>&1; echo \"Exit: $LASTEXITCODE\")",
+      "PowerShell(Get-Process -Name \"node\" -ErrorAction SilentlyContinue)",
+      "PowerShell(Stop-Process -Force)"
+    ]
+  }
+}

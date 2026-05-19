@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rank Orbit — SEO Team Progress</title>
+<link rel="stylesheet" href="/style.css">
+<style>
+  body { overflow: hidden; }
+
+  /* ── Particles ── */
+  #particles { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+  .particle {
+    position: absolute;
+    border-radius: 50%;
+    animation: floatUp linear infinite;
+    opacity: 0;
+  }
+  @keyframes floatUp {
+    0%   { transform: translateY(100vh) scale(0.3); opacity: 0; }
+    10%  { opacity: 0.7; }
+    90%  { opacity: 0.4; }
+    100% { transform: translateY(-60px) scale(1); opacity: 0; }
+  }
+
+  /* ── Grid background ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(233,30,140,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(233,30,140,0.04) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Hero ── */
+  .hero {
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center;
+    padding: 32px 20px 80px;
+    position: relative; z-index: 1;
+  }
+
+  .logo-ring {
+    position: relative;
+    width: 96px; height: 96px;
+    margin: 0 auto 28px;
+  }
+  .logo-ring::before {
+    content: '';
+    position: absolute; inset: -6px;
+    border-radius: 28px;
+    background: linear-gradient(135deg, var(--pink), var(--blue));
+    opacity: 0.3;
+    filter: blur(12px);
+    animation: pulse 3s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.3; transform: scale(1); }
+    50%       { opacity: 0.6; transform: scale(1.08); }
+  }
+  .logo-box {
+    position: relative;
+    width: 96px; height: 96px;
+    background: linear-gradient(135deg, var(--pink) 0%, #8B00FF 50%, var(--blue) 100%);
+    border-radius: 24px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 36px; font-weight: 900; color: #fff;
+    letter-spacing: -1px;
+    box-shadow: 0 0 40px var(--pink-glow), 0 0 80px rgba(0,212,255,0.2);
+  }
+
+  .hero-eyebrow {
+    font-size: 11px; font-weight: 700;
+    letter-spacing: 3px; text-transform: uppercase;
+    color: var(--pink);
+    margin-bottom: 12px;
+  }
+  .hero-title {
+    font-size: clamp(40px, 7vw, 64px);
+    font-weight: 900;
+    letter-spacing: -1.5px;
+    line-height: 1.05;
+    background: linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.7) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 6px;
+  }
+  .hero-title-accent {
+    background: linear-gradient(135deg, var(--pink) 0%, var(--blue) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .hero-subtitle {
+    font-size: 17px;
+    color: var(--text-muted);
+    margin-bottom: 48px;
+    max-width: 360px;
+  }
+
+  .cta-group { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+
+  .cta-card {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    padding: 20px 32px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    text-decoration: none;
+    color: var(--text);
+    transition: all 0.2s ease;
+    min-width: 180px;
+    position: relative;
+    overflow: hidden;
+  }
+  .cta-card::before {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(135deg, transparent 60%, rgba(255,255,255,0.03));
+    opacity: 0; transition: opacity 0.2s;
+  }
+  .cta-card:hover { transform: translateY(-3px); border-color: var(--border-2); }
+  .cta-card:hover::before { opacity: 1; }
+
+  .cta-card.primary { border-color: rgba(233,30,140,0.4); box-shadow: 0 0 24px var(--pink-dim); }
+  .cta-card.primary:hover { box-shadow: 0 8px 32px var(--pink-glow); border-color: var(--pink); }
+  .cta-card.secondary { border-color: rgba(0,212,255,0.3); box-shadow: 0 0 24px var(--blue-dim); }
+  .cta-card.secondary:hover { box-shadow: 0 8px 32px rgba(0,212,255,0.3); border-color: var(--blue); }
+
+  .cta-icon { font-size: 28px; }
+  .cta-label { font-size: 15px; font-weight: 700; }
+  .cta-desc  { font-size: 11px; color: var(--text-muted); }
+
+  /* ── Stats strip ── */
+  .stats-strip {
+    display: flex; gap: 32px; justify-content: center; flex-wrap: wrap;
+    margin-top: 52px;
+    padding-top: 40px;
+    border-top: 1px solid var(--border);
+    width: 100%; max-width: 500px;
+  }
+  .stat { text-align: center; }
+  .stat-num { font-size: 28px; font-weight: 800; background: linear-gradient(135deg, var(--pink), var(--blue)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .stat-lbl { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+  /* ── Footer ── */
+  .page-footer {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    text-align: center; padding: 12px;
+    color: var(--text-dim); font-size: 11px;
+    z-index: 1;
+  }
+  .page-footer strong { color: var(--text-muted); }
+</style>
+</head>
+<body>
+
+<div id="particles"></div>
+
+<div class="hero">
+  <div class="logo-ring">
+    <div class="logo-box">RO</div>
+  </div>
+
+  <p class="hero-eyebrow">SEO Agency Internal Tool</p>
+  <h1 class="hero-title">Rank <span class="hero-title-accent">Orbit</span></h1>
+  <p class="hero-subtitle">Team Progress Tracking — daily tasks, targets, and analytics in one place.</p>
+
+  <div class="cta-group">
+    <a href="/member" class="cta-card primary">
+      <span class="cta-icon">👤</span>
+      <span class="cta-label">Member Portal</span>
+      <span class="cta-desc">Log daily task progress</span>
+    </a>
+    <a href="/dashboard" class="cta-card secondary">
+      <span class="cta-icon">📊</span>
+      <span class="cta-label">Manager Dashboard</span>
+      <span class="cta-desc">View team analytics</span>
+    </a>
+  </div>
+
+  <div class="stats-strip">
+    <div class="stat"><div class="stat-num">16</div><div class="stat-lbl">Team Members</div></div>
+    <div class="stat"><div class="stat-num">6</div><div class="stat-lbl">Task Types</div></div>
+    <div class="stat"><div class="stat-num">31</div><div class="stat-lbl">Day History</div></div>
+  </div>
+</div>
+
+<div class="page-footer">Built by <strong>Abdullah Saleem</strong></div>
+
+<script>
+  const container = document.getElementById('particles');
+  const colors = ['#E91E8C', '#00D4FF', '#FFB800', '#8B00FF'];
+  for (let i = 0; i < 45; i++) {
+    const el = document.createElement('div');
+    el.className = 'particle';
+    const size = Math.random() * 3 + 1.5;
+    el.style.cssText = [
+      `width:${size}px`,
+      `height:${size}px`,
+      `left:${Math.random() * 100}%`,
+      `background:${colors[Math.floor(Math.random() * colors.length)]}`,
+      `animation-duration:${Math.random() * 14 + 10}s`,
+      `animation-delay:${Math.random() * 12}s`,
+    ].join(';');
+    container.appendChild(el);
+  }
+</script>
+</body>
+</html>

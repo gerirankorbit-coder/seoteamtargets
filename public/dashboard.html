@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — Rank Orbit</title>
+<link rel="stylesheet" href="/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  /* ── Content tabs ── */
+  .ctabs-bar {
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--border);
+    padding: 0 20px;
+    display: flex; align-items: flex-end; gap: 4px;
+    position: sticky; top: 97px; z-index: 80;
+  }
+  .ctab {
+    padding: 9px 16px; font-size: 12px; font-weight: 600;
+    color: var(--text-muted); background: none; border: none;
+    cursor: pointer; border-bottom: 2px solid transparent;
+    margin-bottom: -1px; transition: color 0.15s, border-color 0.15s;
+    border-radius: 4px 4px 0 0;
+  }
+  .ctab:hover  { color: var(--text); background: var(--surface-3); }
+  .ctab.active { color: var(--blue); border-bottom-color: var(--blue); }
+
+  /* ── Section header ── */
+  .section-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 16px 20px 10px;
+  }
+  .m-avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--pink), var(--blue));
+    color: #fff; font-size: 13px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .m-name { font-size: 18px; font-weight: 800; }
+  .m-meta { margin-left: auto; font-size: 11px; color: var(--text-muted);
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 2px 10px; }
+
+  /* ── Table wrapper ── */
+  .table-wrapper {
+    margin: 0 20px 32px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: auto;
+    max-height: calc(100vh - 260px);
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+  }
+
+  table { border-collapse: collapse; min-width: max-content; width: 100%; }
+
+  thead th {
+    position: sticky; top: 0; z-index: 20;
+    background: #0D0D18;
+    color: var(--text-muted); font-size: 10px; font-weight: 600;
+    padding: 8px 10px; text-align: center; white-space: nowrap;
+    border-right: 1px solid var(--border); line-height: 1.4;
+  }
+  thead th.today-col { background: #1a1200; color: var(--gold); }
+  thead th:first-child {
+    z-index: 30; text-align: left; background: #0D0D18;
+    min-width: 190px; width: 190px;
+    border-right: 2px solid var(--border-2);
+    position: sticky; left: 0;
+  }
+
+  tbody td {
+    min-width: 120px; width: 120px;
+    vertical-align: top; padding: 6px 8px;
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    font-size: 11px; line-height: 1.4;
+    cursor: default;
+  }
+  tbody td:first-child {
+    position: sticky; left: 0; z-index: 10;
+    background: var(--surface-2); font-weight: 600; font-size: 11px;
+    padding: 0 12px; height: 44px;
+    border-right: 2px solid var(--border-2);
+    vertical-align: middle;
+  }
+  tbody tr:nth-child(even) td:first-child { background: #16162A; }
+
+  tbody td.filled-cell { background: rgba(0,212,255,0.05); cursor: pointer; }
+  tbody td.filled-cell:hover { background: rgba(0,212,255,0.1); }
+  tbody td.empty-cell  { background: rgba(239,68,68,0.04); }
+  tbody td.today-col   { border-left: 1px solid rgba(255,184,0,0.3) !important; border-right: 1px solid rgba(255,184,0,0.3) !important; }
+
+  .cell-line1 { font-size: 10px; font-weight: 600; color: var(--text); word-break: break-word; }
+  .cell-line2 { font-size: 10px; color: var(--text-muted); font-weight: 500; margin-top: 2px; word-break: break-word; }
+  .cell-line3 { font-size: 10px; color: var(--gold); font-weight: 700; margin-top: 3px; }
+  .cell-empty { color: var(--text-dim); font-size: 11px; }
+
+  /* ── Tabs scroll wrapper ── */
+  .tabs-outer {
+    position: sticky; top: 56px; z-index: 150;
+    display: flex; align-items: stretch;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .tabs-outer .tabs-bar {
+    position: static; border-bottom: none;
+    flex: 1; min-width: 0;
+  }
+  .tabs-scroll-btn {
+    width: 30px; flex-shrink: 0;
+    background: var(--surface-2); border: none;
+    border-right: 1px solid var(--border);
+    color: var(--text-muted); font-size: 11px;
+    cursor: pointer; transition: background 0.15s, color 0.15s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .tabs-scroll-btn:last-child { border-right: none; border-left: 1px solid var(--border); }
+  .tabs-scroll-btn:hover { background: var(--surface-3); color: var(--text); }
+
+  /* ── Legend ── */
+  .legend {
+    display: flex; gap: 16px; padding: 0 20px 20px;
+    font-size: 11px; color: var(--text-muted); flex-wrap: wrap;
+  }
+  .legend-item { display: flex; align-items: center; gap: 5px; }
+  .legend-dot  { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+
+  /* ── Analytics ── */
+  .analytics-wrap { padding: 20px; }
+  .charts-grid {
+    display: grid; gap: 20px;
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  }
+  .chart-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 20px;
+  }
+  .chart-title { font-size: 13px; font-weight: 700; margin-bottom: 16px; color: var(--text); }
+  .chart-subtitle { font-size: 11px; color: var(--text-muted); margin-top: -12px; margin-bottom: 14px; }
+
+  /* ── Edit Tasks tab ── */
+  .edit-wrap {
+    display: grid; grid-template-columns: 220px 1fr; gap: 0;
+    margin: 20px; border: 1px solid var(--border); border-radius: var(--radius);
+    overflow: hidden; min-height: 500px; background: var(--surface);
+  }
+  .member-picker {
+    border-right: 1px solid var(--border);
+    background: var(--surface-2);
+    overflow-y: auto;
+  }
+  .member-picker-header { padding: 12px 14px; font-size: 11px; font-weight: 700;
+    color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border); }
+  .member-pick-btn {
+    display: block; width: 100%; text-align: left;
+    padding: 9px 14px; background: none; border: none;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-muted); font-size: 12px; cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+  }
+  .member-pick-btn:hover  { background: var(--surface-3); color: var(--text); }
+  .member-pick-btn.active { background: var(--pink-dim); color: var(--pink); font-weight: 600; }
+
+  .task-editor { padding: 20px; overflow-y: auto; }
+  .task-editor-header {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 16px; padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .task-editor-name { font-size: 16px; font-weight: 700; flex: 1; }
+  .task-editor-note { font-size: 11px; color: var(--text-muted); margin-bottom: 16px; }
+
+  .task-list-edit { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; }
+  .task-edit-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; background: var(--surface-2);
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+  }
+  .task-edit-name { flex: 1; font-size: 12px; font-weight: 600; }
+  .task-edit-type {
+    font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px;
+    text-transform: uppercase; letter-spacing: 0.3px; flex-shrink: 0;
+  }
+  .task-edit-rm {
+    background: none; border: none; color: var(--text-dim);
+    cursor: pointer; font-size: 14px; padding: 2px 6px;
+    border-radius: 4px; transition: all 0.12s; flex-shrink: 0;
+  }
+  .task-edit-rm:hover { background: rgba(239,68,68,0.15); color: #f87171; }
+
+  .add-task-form {
+    display: flex; gap: 8px; align-items: flex-end;
+    padding: 14px; background: var(--surface-2);
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    margin-bottom: 16px; flex-wrap: wrap;
+  }
+  .add-task-form .form-group { flex: 1; min-width: 120px; }
+  .add-task-form select.inp {
+    background: var(--surface); cursor: pointer;
+    appearance: none; padding-right: 28px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238A8AA8'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 10px center;
+  }
+
+  .edit-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  /* ── Cell expand modal ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; z-index: 500;
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-box {
+    background: var(--surface); border: 1px solid var(--border-2);
+    border-radius: var(--radius-lg); padding: 24px; max-width: 480px; width: 90%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+    animation: modalIn 0.2s ease;
+  }
+  @keyframes modalIn { from { opacity: 0; transform: scale(0.95) translateY(-10px); } to { opacity: 1; transform: none; } }
+  .modal-title { font-size: 15px; font-weight: 800; margin-bottom: 4px; }
+  .modal-date  { font-size: 11px; color: var(--text-muted); margin-bottom: 16px; }
+  .modal-body  { font-size: 13px; line-height: 1.7; color: var(--text); white-space: pre-wrap; word-break: break-word; }
+  .modal-close {
+    float: right; background: none; border: none; color: var(--text-muted);
+    font-size: 20px; cursor: pointer; margin: -4px -4px 0 0; padding: 4px 8px;
+    border-radius: 6px; transition: all 0.12s;
+  }
+  .modal-close:hover { background: var(--surface-2); color: var(--text); }
+</style>
+</head>
+<body>
+
+<!-- Topbar -->
+<div class="topbar">
+  <div class="topbar-logo">RO</div>
+  <div class="topbar-title">Rank <span>Orbit</span></div>
+  <div class="topbar-right">
+    <span class="badge badge-muted" id="user-badge">…</span>
+    <span class="badge badge-pink" id="role-badge">Manager</span>
+    <button class="btn-logout" onclick="logout()">Logout</button>
+  </div>
+</div>
+
+<!-- Member tabs -->
+<div class="tabs-outer">
+  <button class="tabs-scroll-btn" onclick="scrollTabs(-200)" title="Scroll left">&#9664;</button>
+  <div class="tabs-bar" id="tabs-bar">
+    <div class="state-overlay"><div class="spinner"></div></div>
+  </div>
+  <button class="tabs-scroll-btn" onclick="scrollTabs(200)" title="Scroll right">&#9654;</button>
+</div>
+
+<!-- Content tabs -->
+<div class="ctabs-bar">
+  <button class="ctab active" id="ctab-spreadsheet" onclick="switchTab('spreadsheet')">&#9783; Spreadsheet</button>
+  <button class="ctab"        id="ctab-analytics"   onclick="switchTab('analytics')">&#9642; Analytics</button>
+  <button class="ctab"        id="ctab-tasks"        onclick="switchTab('tasks')">&#9998; Edit Tasks</button>
+</div>
+
+<!-- Toast -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- ── Spreadsheet panel ── -->
+<div id="panel-spreadsheet">
+  <div class="section-header">
+    <div class="m-avatar" id="m-avatar">–</div>
+    <div class="m-name"   id="m-name">Select a member</div>
+    <div class="m-meta"   id="m-meta"></div>
+  </div>
+  <div class="table-wrapper" id="table-wrapper">
+    <div class="state-overlay"><div class="spinner"></div> Loading data…</div>
+  </div>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:rgba(0,212,255,0.15);border:1px solid rgba(0,212,255,0.3)"></div> Submitted</div>
+    <div class="legend-item"><div class="legend-dot" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25)"></div> Missing</div>
+    <div class="legend-item"><div class="legend-dot" style="background:rgba(255,184,0,0.2);border:1px solid rgba(255,184,0,0.4)"></div> Today</div>
+  </div>
+</div>
+
+<!-- ── Analytics panel ── -->
+<div id="panel-analytics" style="display:none">
+  <div class="analytics-wrap">
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">Daily Activity — Last 14 Days</div>
+        <div class="chart-subtitle">Number of members who submitted an entry each day</div>
+        <canvas id="chart-daily" height="200"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Submission Rate — Last 31 Days</div>
+        <div class="chart-subtitle">Percentage of days each member submitted an entry</div>
+        <canvas id="chart-members" height="200"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Edit Tasks panel ── -->
+<div id="panel-tasks" style="display:none">
+  <div class="edit-wrap">
+    <div class="member-picker">
+      <div class="member-picker-header">Members</div>
+      <div id="member-pick-list"></div>
+    </div>
+    <div class="task-editor" id="task-editor">
+      <div class="state-overlay">Select a member to edit their tasks</div>
+    </div>
+  </div>
+</div>
+
+<!-- Cell expand modal -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal()">&#10005;</button>
+    <div class="modal-title" id="modal-title"></div>
+    <div class="modal-date"  id="modal-date"></div>
+    <div class="modal-body"  id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+  /* ── State ── */
+  let members      = [];
+  let allData      = {};
+  let activeMember = 0;
+  let activeTab    = 'spreadsheet';
+  let editTasks    = [];
+  let editMemberIdx = 0;
+  let chartDaily   = null;
+  let chartMembers = null;
+
+  /* ── Helpers ── */
+  function todayISO() { return new Date().toISOString().split('T')[0]; }
+
+  function getLast31Days() {
+    const days = [], today = new Date();
+    for (let i = 0; i < 31; i++) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      days.push(d.toISOString().split('T')[0]);
+    }
+    return days;
+  }
+
+  function formatHeader(iso) {
+    const [y, m, d] = iso.split('-').map(Number);
+    const dt  = new Date(y, m - 1, d);
+    const dow = ['Su','Mo','Tu','We','Th','Fr','Sa'][dt.getDay()];
+    const mon = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m - 1];
+    return { dow, date: mon + ' ' + d };
+  }
+
+  function formatFull(iso) {
+    const [y, m, d] = iso.split('-').map(Number);
+    const dt  = new Date(y, m - 1, d);
+    const dow = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][dt.getDay()];
+    const mon = ['January','February','March','April','May','June','July','August','September','October','November','December'][m - 1];
+    return `${dow}, ${mon} ${d}, ${y}`;
+  }
+
+  function initials(name) {
+    return name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase();
+  }
+
+  function escHtml(s) {
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  /* ── Cell rendering ── */
+  function cellContent(taskData, taskType) {
+    if (!taskData) return null;
+    switch (taskType) {
+      case 'links':
+      case 'layers': {
+        const rows = taskData.rows || [];
+        const hasData = rows.some(r => r.client || r.value || r.links);
+        if (!hasData && !taskData.total) return null;
+        const clients = rows.map(r => r.client).filter(Boolean);
+        const values  = rows.map(r => (r.value || r.links || '')).filter(Boolean);
+        const total   = taskData.total || 0;
+        return {
+          line1: clients.length ? clients.join(', ') : '(entries)',
+          line2: values.length  ? values.join(', ')  : '',
+          line3: 'Total: ' + total
+        };
+      }
+      case 'count':
+        if (!taskData.value && taskData.value !== 0) return null;
+        return { line1: String(taskData.value), line2: '' };
+      case 'note':
+        if (!taskData.text) return null;
+        return { line1: taskData.text.slice(0, 40) + (taskData.text.length > 40 ? '…' : ''), line2: '' };
+      case 'count_note':
+        if (!taskData.value && !taskData.text) return null;
+        return { line1: taskData.value || '0', line2: taskData.text ? taskData.text.slice(0, 30) + (taskData.text.length > 30 ? '…' : '') : '' };
+      case 'links_note':
+        if (!taskData.links && !taskData.text) return null;
+        return { line1: String(taskData.links || ''), line2: taskData.text ? taskData.text.slice(0, 30) + (taskData.text.length > 30 ? '…' : '') : '' };
+      default: return null;
+    }
+  }
+
+  function cellModalText(taskData, taskType) {
+    if (!taskData) return '';
+    switch (taskType) {
+      case 'links':
+      case 'layers': {
+        const rows = taskData.rows || [];
+        const lines = rows.filter(r => r.client || r.value || r.links)
+          .map(r => (r.client || '(no client)') + '  →  ' + (r.value || r.links || '–'));
+        if (!lines.length) return '(no entries)';
+        return lines.join('\n') + '\n\nTotal: ' + (taskData.total || 0)
+          + (taskData.sectionNote ? '\n\nNote: ' + taskData.sectionNote : '');
+      }
+      case 'count':
+        return 'Count: ' + (taskData.value || '0') + (taskData.sectionNote ? '\n\nNote: ' + taskData.sectionNote : '');
+      case 'note':
+        return (taskData.text || '') + (taskData.sectionNote ? '\n\n[Section note]\n' + taskData.sectionNote : '');
+      case 'count_note':
+        return 'Count: ' + (taskData.value || '0') + (taskData.text ? '\n\n' + taskData.text : '')
+          + (taskData.sectionNote ? '\n\n[Note]\n' + taskData.sectionNote : '');
+      case 'links_note':
+        return 'Links: ' + (taskData.links || '') + (taskData.text ? '\n\n' + taskData.text : '')
+          + (taskData.sectionNote ? '\n\n[Note]\n' + taskData.sectionNote : '');
+      default: return JSON.stringify(taskData, null, 2);
+    }
+  }
+
+  /* ── Tab scroll ── */
+  function scrollTabs(delta) {
+    document.getElementById('tabs-bar').scrollBy({ left: delta, behavior: 'smooth' });
+  }
+
+  /* ── Member tabs ── */
+  function renderMemberTabs() {
+    document.getElementById('tabs-bar').innerHTML = members.map((m, i) =>
+      '<button class="tab ' + (i === activeMember ? 'active' : '') + '" onclick="selectMember(' + i + ')">' + escHtml(m.display) + '</button>'
+    ).join('');
+  }
+
+  function selectMember(idx) {
+    activeMember = idx;
+    renderMemberTabs();
+    if (activeTab === 'spreadsheet') renderSpreadsheet();
+  }
+
+  /* ── Content tab switch ── */
+  function switchTab(tab) {
+    activeTab = tab;
+    ['spreadsheet', 'analytics', 'tasks'].forEach(t => {
+      document.getElementById('panel-' + t).style.display = t === tab ? 'block' : 'none';
+      document.getElementById('ctab-' + t).classList.toggle('active', t === tab);
+    });
+    if (tab === 'analytics') renderAnalytics();
+    else if (tab === 'tasks') renderEditTasks();
+    else renderSpreadsheet();
+  }
+
+  /* ── Spreadsheet ── */
+  function renderSpreadsheet() {
+    if (!members.length) return;
+    const m      = members[activeMember];
+    const dates  = getLast31Days();
+    const today  = dates[0];
+    const mData  = allData[m.username] || {};
+    const tasks  = m.tasks || [];
+
+    document.getElementById('m-avatar').textContent = initials(m.display);
+    document.getElementById('m-name').textContent   = m.display;
+
+    let submitted = 0;
+    dates.forEach(d => { if (mData[d]) submitted++; });
+    document.getElementById('m-meta').textContent = tasks.length + ' tasks · ' + submitted + '/31 days submitted';
+
+    let html = '<table><thead><tr><th>Task</th>';
+    dates.forEach(d => {
+      const isToday = d === today;
+      const { dow, date } = formatHeader(d);
+      html += '<th class="' + (isToday ? 'today-col' : '') + '">' + dow + '<br>' + date + '</th>';
+    });
+    html += '</tr></thead><tbody>';
+
+    tasks.forEach(task => {
+      html += '<tr><td>' + escHtml(task.name) + '</td>';
+      dates.forEach(d => {
+        const isToday  = d === today;
+        const todayCls = isToday ? ' today-col' : '';
+        const entry    = mData[d]?.[task.name];
+        const cell     = cellContent(entry, task.type);
+
+        if (cell) {
+          const l2 = cell.line2 ? '<div class="cell-line2">' + escHtml(cell.line2) + '</div>' : '';
+          const l3 = cell.line3 ? '<div class="cell-line3">' + escHtml(cell.line3) + '</div>' : '';
+          html += '<td class="filled-cell' + todayCls + '" onclick="openModal(' +
+            JSON.stringify(escHtml(task.name)) + ',' +
+            JSON.stringify(escHtml(d)) + ',' +
+            JSON.stringify(escHtml(cellModalText(entry, task.type))) +
+            ')">' +
+            '<div class="cell-line1">' + escHtml(cell.line1) + '</div>' + l2 + l3 +
+            '</td>';
+        } else {
+          html += '<td class="empty-cell' + todayCls + '"><span class="cell-empty">–</span></td>';
+        }
+      });
+      html += '</tr>';
+    });
+
+    html += '</tbody></table>';
+    document.getElementById('table-wrapper').innerHTML = html;
+  }
+
+  /* ── Analytics ── */
+  function renderAnalytics() {
+    const dates31 = getLast31Days();
+    const dates14 = dates31.slice(0, 14).reverse();
+
+    /* Daily activity: members who submitted per day (last 14) */
+    const dailyCounts = dates14.map(d => {
+      return members.filter(m => {
+        const dayData = allData[m.username]?.[d];
+        return dayData && Object.keys(dayData).length > 0;
+      }).length;
+    });
+
+    const dailyLabels = dates14.map(d => {
+      const [, m, day] = d.split('-').map(Number);
+      const mon = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m - 1];
+      return mon + ' ' + day;
+    });
+
+    /* Member submission rate (last 31 days) */
+    const memberLabels = members.map(m => m.display.split(' ')[0]);
+    const memberRates  = members.map(m => {
+      const mData = allData[m.username] || {};
+      const count = dates31.filter(d => mData[d] && Object.keys(mData[d]).length > 0).length;
+      return Math.round((count / 31) * 100);
+    });
+
+    /* Destroy old charts */
+    if (chartDaily)   { chartDaily.destroy();   chartDaily   = null; }
+    if (chartMembers) { chartMembers.destroy();  chartMembers = null; }
+
+    const baseChartOpts = {
+      responsive: true,
+      plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1A1A25', titleColor: '#F0F0F8', bodyColor: '#8A8AA8', borderColor: '#2A2A3E', borderWidth: 1 } },
+      scales: {
+        x: { ticks: { color: '#8A8AA8', font: { size: 10 } }, grid: { color: 'rgba(42,42,62,0.5)' } },
+        y: { ticks: { color: '#8A8AA8', font: { size: 10 } }, grid: { color: 'rgba(42,42,62,0.5)' } },
+      },
+    };
+
+    chartDaily = new Chart(document.getElementById('chart-daily'), {
+      type: 'line',
+      data: {
+        labels: dailyLabels,
+        datasets: [{
+          label: 'Members submitted',
+          data: dailyCounts,
+          borderColor: '#00D4FF',
+          backgroundColor: 'rgba(0,212,255,0.08)',
+          borderWidth: 2, pointRadius: 4,
+          pointBackgroundColor: '#00D4FF',
+          tension: 0.3, fill: true,
+        }],
+      },
+      options: { ...baseChartOpts },
+    });
+
+    chartMembers = new Chart(document.getElementById('chart-members'), {
+      type: 'bar',
+      data: {
+        labels: memberLabels,
+        datasets: [{
+          label: 'Submission %',
+          data: memberRates,
+          backgroundColor: memberRates.map(r =>
+            r >= 80 ? 'rgba(74,222,128,0.7)' :
+            r >= 50 ? 'rgba(0,212,255,0.6)' :
+            r >= 25 ? 'rgba(255,184,0,0.6)' :
+                      'rgba(248,113,113,0.6)'),
+          borderRadius: 4,
+        }],
+      },
+      options: {
+        ...baseChartOpts,
+        scales: {
+          ...baseChartOpts.scales,
+          y: { ...baseChartOpts.scales.y, max: 100, ticks: { ...baseChartOpts.scales.y.ticks, callback: v => v + '%' } },
+        },
+        plugins: {
+          ...baseChartOpts.plugins,
+          tooltip: { ...baseChartOpts.plugins.tooltip, callbacks: { label: ctx => ctx.parsed.y + '%' } },
+        },
+      },
+    });
+  }
+
+  /* ── Edit Tasks tab ── */
+  function renderEditTasks() {
+    const list = document.getElementById('member-pick-list');
+    list.innerHTML = members.map((m, i) =>
+      '<button class="member-pick-btn ' + (i === editMemberIdx ? 'active' : '') + '" onclick="selectEditMember(' + i + ')">' + escHtml(m.display) + '</button>'
+    ).join('');
+    renderTaskEditor();
+  }
+
+  function selectEditMember(idx) {
+    editMemberIdx = idx;
+    editTasks = JSON.parse(JSON.stringify(members[idx].tasks || []));
+    document.querySelectorAll('.member-pick-btn').forEach((btn, i) => {
+      btn.classList.toggle('active', i === idx);
+    });
+    renderTaskEditor();
+  }
+
+  function renderTaskEditor() {
+    const m       = members[editMemberIdx];
+    if (!m) return;
+    editTasks = editTasks.length ? editTasks : JSON.parse(JSON.stringify(m.tasks || []));
+
+    const typeColors = {
+      links:'color:var(--pink);background:var(--pink-dim)',
+      layers:'color:var(--blue);background:var(--blue-dim)',
+      count:'color:var(--gold);background:var(--gold-dim)',
+      note:'color:#c084fc;background:rgba(168,85,247,0.15)',
+      count_note:'color:#4ade80;background:rgba(34,197,94,0.12)',
+      links_note:'color:#fb923c;background:rgba(251,146,60,0.12)',
+    };
+
+    const taskListHtml = editTasks.map((t, i) =>
+      '<div class="task-edit-row">' +
+      '  <span class="task-edit-name">' + escHtml(t.name) + '</span>' +
+      '  <span class="task-edit-type" style="' + (typeColors[t.type] || '') + '">' + escHtml(t.type) + '</span>' +
+      '  <button class="task-edit-rm" onclick="removeEditTask(' + i + ')" title="Remove">&#10005;</button>' +
+      '</div>'
+    ).join('') || '<p style="color:var(--text-muted);font-size:12px;padding:8px 0">No tasks assigned.</p>';
+
+    const typeOptions = ['links','layers','count','note','count_note','links_note']
+      .map(t => '<option value="' + t + '">' + t + '</option>').join('');
+
+    document.getElementById('task-editor').innerHTML =
+      '<div class="task-editor-header">' +
+      '  <div class="task-editor-name">' + escHtml(m.display) + '</div>' +
+      '  <span class="badge badge-muted">' + editTasks.length + ' tasks</span>' +
+      '</div>' +
+      '<p class="task-editor-note">Add or remove tasks for this member. Changes are saved separately from submission data.</p>' +
+      '<div class="task-list-edit" id="task-list-edit">' + taskListHtml + '</div>' +
+      '<div class="add-task-form">' +
+      '  <div class="form-group">' +
+      '    <label class="form-label">Task Name</label>' +
+      '    <input class="inp" id="new-task-name" placeholder="e.g. Guest Posting">' +
+      '  </div>' +
+      '  <div class="form-group" style="max-width:160px">' +
+      '    <label class="form-label">Type</label>' +
+      '    <select class="inp" id="new-task-type">' + typeOptions + '</select>' +
+      '  </div>' +
+      '  <button class="btn btn-primary btn-sm" style="align-self:flex-end;margin-bottom:0" onclick="addEditTask()">Add Task</button>' +
+      '</div>' +
+      '<div class="edit-actions">' +
+      '  <button class="btn btn-primary btn-sm" onclick="saveTaskEdits()">Save Changes</button>' +
+      '  <button class="btn btn-ghost btn-sm" onclick="resetTaskEdits()">Reset to Default</button>' +
+      '</div>';
+  }
+
+  function addEditTask() {
+    const nameEl = document.getElementById('new-task-name');
+    const typeEl = document.getElementById('new-task-type');
+    const name   = nameEl.value.trim();
+    if (!name) { nameEl.focus(); return; }
+    editTasks.push({ name, type: typeEl.value, label: typeEl.value });
+    nameEl.value = '';
+    renderTaskEditor();
+  }
+
+  function removeEditTask(idx) {
+    editTasks.splice(idx, 1);
+    renderTaskEditor();
+  }
+
+  async function saveTaskEdits() {
+    const m = members[editMemberIdx];
+    try {
+      const res = await fetch('/api/tasks/' + encodeURIComponent(m.display), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tasks: editTasks }),
+        credentials: 'same-origin',
+      });
+      if (res.ok) {
+        members[editMemberIdx].tasks = JSON.parse(JSON.stringify(editTasks));
+        showToast('Tasks saved for ' + m.display, 'success');
+      } else {
+        showToast('Save failed.', 'error');
+      }
+    } catch {
+      showToast('Network error.', 'error');
+    }
+  }
+
+  async function resetTaskEdits() {
+    const m = members[editMemberIdx];
+    try {
+      const res = await fetch('/api/tasks/' + encodeURIComponent(m.display), {
+        method: 'DELETE',
+        credentials: 'same-origin',
+      });
+      if (res.ok) {
+        const freshMembers = await fetch('/api/members', { credentials: 'same-origin' }).then(r => r.json());
+        const fm = freshMembers.find(x => x.username === m.username);
+        if (fm) { members[editMemberIdx] = fm; editTasks = JSON.parse(JSON.stringify(fm.tasks || [])); }
+        showToast('Reset to default tasks for ' + m.display, 'info');
+        renderTaskEditor();
+      }
+    } catch {
+      showToast('Network error.', 'error');
+    }
+  }
+
+  /* ── Modal ── */
+  function openModal(taskName, dateStr, text) {
+    document.getElementById('modal-title').textContent = taskName;
+    document.getElementById('modal-date').textContent  = formatFull(dateStr);
+    document.getElementById('modal-body').textContent  = text || '(no data)';
+    document.getElementById('modal-overlay').classList.add('open');
+  }
+
+  function closeModal(e) {
+    if (!e || e.target === document.getElementById('modal-overlay') || !e.target.closest) {
+      document.getElementById('modal-overlay').classList.remove('open');
+    }
+  }
+
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+  /* ── Toast ── */
+  function showToast(msg, type) {
+    type = type || 'info';
+    const c  = document.getElementById('toast-container');
+    const el = document.createElement('div');
+    el.className   = 'toast toast-' + type;
+    const icons = { success: '✓', error: '✕', info: 'ℹ' };
+    el.textContent = (icons[type] || 'ℹ') + '  ' + msg;
+    c.appendChild(el);
+    setTimeout(function() { el.classList.add('hiding'); setTimeout(function() { el.remove(); }, 220); }, 3500);
+  }
+
+  /* ── Logout ── */
+  async function logout() {
+    await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
+    window.location.href = '/login';
+  }
+
+  /* ── Load all data ── */
+  async function loadAll() {
+    try {
+      const [m, d] = await Promise.all([
+        fetch('/api/members', { credentials: 'same-origin' }).then(r => { if (r.status === 401) throw 401; return r.json(); }),
+        fetch('/api/all',     { credentials: 'same-origin' }).then(r => { if (r.status === 401) throw 401; return r.json(); }),
+      ]);
+      members = m;
+      allData = d;
+    } catch (e) {
+      if (e === 401) { window.location.href = '/login'; return; }
+      members = []; allData = {};
+    }
+  }
+
+  /* ── Init ── */
+  async function init() {
+    try {
+      const res = await fetch('/api/me', { credentials: 'same-origin' });
+      if (res.status === 401) { window.location.href = '/login'; return; }
+      const me = await res.json();
+      document.getElementById('user-badge').textContent  = me.display;
+      document.getElementById('role-badge').textContent  = me.role.charAt(0).toUpperCase() + me.role.slice(1);
+      document.getElementById('role-badge').className    = 'badge ' + (me.role === 'assistant' ? 'badge-blue' : 'badge-pink');
+    } catch { window.location.href = '/login'; return; }
+
+    await loadAll();
+    renderMemberTabs();
+    selectMember(0);
+    editMemberIdx = 0;
+    editTasks     = [];
+
+    /* Auto-refresh every 30 s */
+    setInterval(async function() {
+      await loadAll();
+      if (activeTab === 'spreadsheet') renderSpreadsheet();
+    }, 30000);
+  }
+
+  init();
+</script>
+</body>
+</html>

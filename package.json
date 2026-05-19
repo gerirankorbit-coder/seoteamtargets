@@ -1,0 +1,19 @@
+{
+  "name": "rank-orbit-seo-team",
+  "version": "2.0.0",
+  "description": "Rank Orbit — SEO Team Progress Tracking",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": "18.x"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
+    "express": "^4.18.2",
+    "express-session": "^1.18.0",
+    "mongoose": "^9.6.2"
+  }
+}

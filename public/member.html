@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Member Portal — Rank Orbit</title>
+<link rel="stylesheet" href="/style.css">
+<style>
+  body { display: flex; flex-direction: column; min-height: 100vh; }
+
+  /* ── Date bar ── */
+  .date-bar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 20px;
+    display: flex; align-items: center; gap: 10px;
+    position: sticky; top: 56px; z-index: 100;
+  }
+  .date-bar-label { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+  .date-nav {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 4px;
+  }
+  .date-nav-btn {
+    width: 28px; height: 28px;
+    background: none; border: none; border-radius: 6px;
+    color: var(--text-muted); cursor: pointer; font-size: 14px;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s, color 0.15s;
+  }
+  .date-nav-btn:hover { background: var(--surface-3); color: var(--text); }
+  .date-display {
+    font-size: 13px; font-weight: 600; color: var(--text);
+    padding: 4px 8px; min-width: 130px; text-align: center;
+    cursor: pointer; border-radius: 6px; transition: background 0.15s;
+  }
+  .date-display:hover { background: var(--surface-3); }
+  #date-picker-input {
+    position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none;
+  }
+  .today-btn {
+    padding: 5px 12px;
+    background: var(--pink-dim); border: 1px solid rgba(233,30,140,0.3);
+    border-radius: 6px; font-size: 11px; font-weight: 600; color: var(--pink);
+    cursor: pointer; transition: all 0.15s; white-space: nowrap;
+  }
+  .today-btn:hover { background: rgba(233,30,140,0.25); }
+  .date-bar-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .submitted-badge {
+    font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px;
+  }
+  .submitted-yes { background: rgba(22,163,74,0.15); color: #4ade80; border: 1px solid rgba(22,163,74,0.3); }
+  .submitted-no  { background: rgba(239,68,68,0.12); color: #f87171; border: 1px solid rgba(239,68,68,0.25); }
+
+  /* ── Content ── */
+  .content { padding: 20px; flex: 1; max-width: 960px; margin: 0 auto; width: 100%; }
+
+  /* ── Task card ── */
+  .tasks-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); }
+
+  .task-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .task-card:focus-within { border-color: var(--border-2); }
+
+  .task-card-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 14px 10px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-2);
+  }
+  .task-name { font-size: 13px; font-weight: 700; flex: 1; line-height: 1.3; }
+  .task-type-badge {
+    font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+    padding: 2px 7px; border-radius: 4px;
+  }
+  .type-links      { background: var(--pink-dim);  color: var(--pink); }
+  .type-layers     { background: var(--blue-dim);  color: var(--blue); }
+  .type-count      { background: var(--gold-dim);  color: var(--gold); }
+  .type-note       { background: rgba(168,85,247,0.15); color: #c084fc; }
+  .type-count_note { background: rgba(34,197,94,0.12);  color: #4ade80; }
+  .type-links_note { background: rgba(251,146,60,0.12);  color: #fb923c; }
+
+  .note-toggle {
+    font-size: 10px; font-weight: 600; color: var(--text-dim);
+    background: none; border: 1px solid var(--border);
+    border-radius: 4px; padding: 2px 8px; cursor: pointer;
+    white-space: nowrap; transition: all 0.15s; flex-shrink: 0;
+  }
+  .note-toggle:hover { color: var(--text-muted); border-color: var(--border-2); }
+  .note-toggle.active { color: var(--gold); border-color: rgba(255,184,0,0.4); background: var(--gold-dim); }
+
+  .task-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+
+  /* ── Multi-row (links / layers) ── */
+  .rows-container { display: flex; flex-direction: column; gap: 6px; }
+  .client-row { display: flex; gap: 6px; align-items: center; }
+  .inp-client {
+    flex: 2; padding: 7px 10px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text); font-size: 12px; font-family: inherit;
+    outline: none; transition: border-color 0.15s;
+  }
+  .inp-client:focus { border-color: var(--pink); }
+  .inp-client::placeholder { color: var(--text-dim); }
+  .inp-value {
+    flex: 2; padding: 7px 10px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text); font-size: 12px; font-family: inherit;
+    outline: none; transition: border-color 0.15s;
+  }
+  .inp-value:focus { border-color: var(--blue); }
+  .inp-value::placeholder { color: var(--text-dim); }
+  .btn-rm-row {
+    width: 26px; height: 26px; flex-shrink: 0;
+    background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2);
+    border-radius: 6px; color: #f87171; font-size: 11px;
+    cursor: pointer; transition: all 0.15s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .btn-rm-row:hover { background: rgba(239,68,68,0.2); }
+
+  .row-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; }
+  .btn-add-row {
+    font-size: 11px; font-weight: 600; color: var(--pink);
+    background: var(--pink-dim); border: 1px solid rgba(233,30,140,0.3);
+    border-radius: 6px; padding: 4px 10px; cursor: pointer; transition: all 0.15s;
+  }
+  .btn-add-row:hover { background: rgba(233,30,140,0.25); }
+  .total-label { font-size: 11px; color: var(--text-muted); }
+  .total-label strong { color: var(--blue); font-size: 13px; }
+
+  /* ── Count input ── */
+  .inp-count {
+    width: 100%; padding: 8px 12px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text); font-size: 14px;
+    font-family: inherit; font-weight: 600; outline: none;
+    transition: border-color 0.15s; text-align: center;
+  }
+  .inp-count:focus { border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-dim); }
+  .inp-count::placeholder { color: var(--text-dim); font-weight: 400; }
+
+  /* ── Note textarea ── */
+  .inp-note {
+    width: 100%; padding: 8px 12px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text); font-size: 12px;
+    font-family: inherit; outline: none; resize: vertical; min-height: 72px;
+    transition: border-color 0.15s; line-height: 1.5;
+  }
+  .inp-note:focus { border-color: #c084fc; box-shadow: 0 0 0 3px rgba(168,85,247,0.12); }
+  .inp-note::placeholder { color: var(--text-dim); }
+
+  /* ── Links input ── */
+  .inp-links {
+    width: 100%; padding: 8px 12px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text); font-size: 12px;
+    font-family: inherit; outline: none; transition: border-color 0.15s;
+  }
+  .inp-links:focus { border-color: var(--pink); }
+  .inp-links::placeholder { color: var(--text-dim); }
+
+  /* ── Section note ── */
+  .section-note-wrap { padding: 0 14px 12px; }
+  .inp-section-note {
+    width: 100%; padding: 8px 12px;
+    background: rgba(255,184,0,0.04); border: 1px solid rgba(255,184,0,0.2);
+    border-radius: var(--radius-sm); color: var(--text); font-size: 12px;
+    font-family: inherit; outline: none; resize: vertical; min-height: 56px;
+    transition: border-color 0.15s; line-height: 1.5;
+  }
+  .inp-section-note:focus { border-color: var(--gold); }
+  .inp-section-note::placeholder { color: var(--text-dim); font-style: italic; }
+
+  /* ── Save bar ── */
+  .save-bar {
+    position: sticky; bottom: 0; z-index: 100;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex; align-items: center; gap: 12px;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.4);
+  }
+  .save-bar-info { font-size: 12px; color: var(--text-muted); flex: 1; }
+  .save-bar-info strong { color: var(--text); }
+  .btn-save {
+    padding: 10px 24px;
+    background: linear-gradient(135deg, var(--pink) 0%, #c2185b 100%);
+    color: #fff; border: none; border-radius: var(--radius-sm);
+    font-size: 13px; font-weight: 700; cursor: pointer;
+    box-shadow: 0 4px 16px var(--pink-glow); transition: all 0.18s;
+  }
+  .btn-save:hover { transform: translateY(-1px); box-shadow: 0 6px 24px var(--pink-glow); }
+  .btn-save:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-logo">RO</div>
+  <div class="topbar-title">Rank <span>Orbit</span></div>
+  <div class="topbar-right">
+    <span class="badge badge-muted" id="member-name-badge">…</span>
+    <span class="badge badge-blue">Member</span>
+    <button class="btn-logout" onclick="logout()">Logout</button>
+  </div>
+</div>
+
+<div class="date-bar">
+  <span class="date-bar-label">Date:</span>
+  <div class="date-nav">
+    <button class="date-nav-btn" onclick="shiftDate(-1)">&#8249;</button>
+    <div class="date-display" id="date-display" onclick="openDatePicker()">–</div>
+    <button class="date-nav-btn" onclick="shiftDate(+1)">&#8250;</button>
+  </div>
+  <input type="date" id="date-picker-input" onchange="onDatePickerChange(this.value)">
+  <button class="today-btn" onclick="goToday()">Today</button>
+  <div class="date-bar-right">
+    <span class="submitted-badge" id="submitted-badge" style="display:none"></span>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<div class="content">
+  <div class="tasks-grid" id="tasks-grid">
+    <div class="state-overlay" style="grid-column:1/-1"><div class="spinner"></div> Loading…</div>
+  </div>
+</div>
+
+<div class="save-bar">
+  <div class="save-bar-info">Saving entry for <strong id="save-date-label">–</strong></div>
+  <button class="btn-save" id="btn-save" onclick="saveEntry()">Save Entry</button>
+</div>
+
+<script>
+  let memberTasks  = [];
+  let selectedDate = todayISO();
+
+  function todayISO() {
+    return new Date().toISOString().split('T')[0];
+  }
+
+  function formatDisplay(iso) {
+    const [y, m, d] = iso.split('-').map(Number);
+    const dt  = new Date(y, m - 1, d);
+    const dow = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dt.getDay()];
+    const mon = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m - 1];
+    return `${dow}, ${mon} ${d}, ${y}`;
+  }
+
+  function escHtml(s) {
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function extractInt(str) {
+    return (String(str).match(/\d+/g) || []).reduce((s, n) => s + parseInt(n, 10), 0);
+  }
+
+  /* ── Date navigation ── */
+  function setDate(iso) {
+    selectedDate = iso;
+    document.getElementById('date-display').textContent    = formatDisplay(iso);
+    document.getElementById('save-date-label').textContent = formatDisplay(iso);
+    document.getElementById('date-picker-input').value     = iso;
+    loadDateData();
+  }
+
+  function shiftDate(delta) {
+    const d = new Date(selectedDate + 'T12:00:00');
+    d.setDate(d.getDate() + delta);
+    setDate(d.toISOString().split('T')[0]);
+  }
+
+  function goToday()                { setDate(todayISO()); }
+  function openDatePicker()         { const el = document.getElementById('date-picker-input'); el.showPicker ? el.showPicker() : el.click(); }
+  function onDatePickerChange(val)  { if (val) setDate(val); }
+
+  /* ── Row helpers ── */
+  function clientRowInnerHtml(taskIdx, client, value) {
+    return `<input class="inp-client" placeholder="Client name" value="${escHtml(client)}">` +
+           `<input class="inp-value"  placeholder="Count / Links" value="${escHtml(value)}" oninput="updateTotal(${taskIdx})">` +
+           `<button class="btn-rm-row" onclick="removeRow(this,${taskIdx})">&#10005;</button>`;
+  }
+
+  function addRow(taskIdx) {
+    const c   = document.getElementById('rows-' + taskIdx);
+    const div = document.createElement('div');
+    div.className   = 'client-row';
+    div.innerHTML   = clientRowInnerHtml(taskIdx, '', '');
+    c.appendChild(div);
+  }
+
+  function removeRow(btn, taskIdx) {
+    const row = btn.closest('.client-row');
+    const c   = document.getElementById('rows-' + taskIdx);
+    if (c.querySelectorAll('.client-row').length > 1) {
+      row.remove();
+    } else {
+      row.querySelector('.inp-client').value = '';
+      row.querySelector('.inp-value').value  = '';
+    }
+    updateTotal(taskIdx);
+  }
+
+  function updateTotal(taskIdx) {
+    const c  = document.getElementById('rows-' + taskIdx);
+    if (!c) return;
+    const el = document.getElementById('total-' + taskIdx);
+    if (!el) return;
+    let total = 0;
+    c.querySelectorAll('.inp-value').forEach(inp => { total += extractInt(inp.value); });
+    el.textContent = total;
+  }
+
+  function toggleNote(btn) {
+    const wrap   = btn.closest('.task-card').querySelector('.section-note-wrap');
+    const hidden = !wrap || wrap.style.display === 'none' || wrap.style.display === '';
+    if (wrap) wrap.style.display = hidden ? 'block' : 'none';
+    btn.classList.toggle('active', hidden);
+    btn.textContent = hidden ? '− Note' : '+ Note';
+  }
+
+  /* ── Render type body ── */
+  function renderTypeBody(task, i, data) {
+    switch (task.type) {
+      case 'links':
+      case 'layers': {
+        const rows  = data.rows && data.rows.length ? data.rows : [{ client: '', value: '' }];
+        const total = data.total || 0;
+        const rowsHtml = rows.map(r => {
+          const val = r.value !== undefined ? r.value : (r.links || '');
+          return '<div class="client-row">' + clientRowInnerHtml(i, r.client || '', val) + '</div>';
+        }).join('');
+        return '<div class="rows-container" id="rows-' + i + '">' + rowsHtml + '</div>' +
+               '<div class="row-footer">' +
+               '  <button class="btn-add-row" onclick="addRow(' + i + ')">+ Add Client</button>' +
+               '  <span class="total-label">Total: <strong id="total-' + i + '">' + total + '</strong></span>' +
+               '</div>';
+      }
+      case 'count':
+        return '<input class="inp-count" type="number" min="0" placeholder="0" value="' + escHtml(data.value || '') + '">';
+      case 'note':
+        return '<textarea class="inp-note" placeholder="Enter notes here…">' + escHtml(data.text || '') + '</textarea>';
+      case 'count_note':
+        return '<input class="inp-count" type="number" min="0" placeholder="0" value="' + escHtml(data.value || '') + '">' +
+               '<textarea class="inp-note" placeholder="Additional notes…">' + escHtml(data.text || '') + '</textarea>';
+      case 'links_note':
+        return '<input class="inp-links" placeholder="Links / URLs / count…" value="' + escHtml(data.links || '') + '">' +
+               '<textarea class="inp-note" placeholder="Notes…">' + escHtml(data.text || '') + '</textarea>';
+      default:
+        return '<span style="color:var(--text-muted);font-size:12px">Unknown type: ' + escHtml(task.type) + '</span>';
+    }
+  }
+
+  function renderCard(task, i, data) {
+    const hasNote = !!(data.sectionNote);
+    return '<div class="task-card" data-idx="' + i + '">' +
+      '<div class="task-card-header">' +
+      '  <span class="task-name">' + escHtml(task.name) + '</span>' +
+      '  <span class="task-type-badge type-' + escHtml(task.type) + '">' + escHtml(task.type) + '</span>' +
+      '  <button class="note-toggle' + (hasNote ? ' active' : '') + '" onclick="toggleNote(this)">' + (hasNote ? '&#8722; Note' : '+ Note') + '</button>' +
+      '</div>' +
+      '<div class="task-body">' + renderTypeBody(task, i, data) + '</div>' +
+      '<div class="section-note-wrap" style="display:' + (hasNote ? 'block' : 'none') + '">' +
+      '  <textarea class="inp-section-note" placeholder="Section note (optional)…">' + escHtml(data.sectionNote || '') + '</textarea>' +
+      '</div>' +
+      '</div>';
+  }
+
+  function renderTasks(existing) {
+    const grid = document.getElementById('tasks-grid');
+    if (!memberTasks.length) {
+      grid.innerHTML = '<div class="state-overlay" style="grid-column:1/-1">No tasks assigned to your account.</div>';
+      return;
+    }
+    grid.innerHTML = memberTasks.map((task, i) => renderCard(task, i, existing[task.name] || {})).join('');
+  }
+
+  function updateSubmittedBadge(existing) {
+    const badge   = document.getElementById('submitted-badge');
+    const hasData = Object.values(existing).some(v => {
+      if (!v) return false;
+      if (v.rows && v.rows.length) return v.rows.some(r => r.client || r.value || r.links);
+      return !!(v.value || v.text || v.links);
+    });
+    badge.style.display = 'inline';
+    badge.className     = 'submitted-badge ' + (hasData ? 'submitted-yes' : 'submitted-no');
+    badge.textContent   = hasData ? 'Entry exists' : 'No entry yet';
+  }
+
+  /* ── Extract data from DOM ── */
+  function extractCardData(card, type) {
+    const sectionNote = (card.querySelector('.inp-section-note') || {}).value
+      ? card.querySelector('.inp-section-note').value.trim() : '';
+    switch (type) {
+      case 'links':
+      case 'layers': {
+        const rows = [];
+        let total  = 0;
+        card.querySelectorAll('.client-row').forEach(row => {
+          const client = (row.querySelector('.inp-client') || {}).value
+            ? row.querySelector('.inp-client').value.trim() : '';
+          const value  = (row.querySelector('.inp-value') || {}).value
+            ? row.querySelector('.inp-value').value.trim() : '';
+          if (client || value) rows.push({ client, value });
+          total += extractInt(value);
+        });
+        return { rows, total, sectionNote };
+      }
+      case 'count': {
+        const value = (card.querySelector('.inp-count') || {}).value || '';
+        return { value: String(value).trim(), sectionNote };
+      }
+      case 'note': {
+        const text = (card.querySelector('.inp-note') || {}).value || '';
+        return { text: text.trim(), sectionNote };
+      }
+      case 'count_note': {
+        const value = (card.querySelector('.inp-count') || {}).value || '';
+        const text  = (card.querySelector('.inp-note') || {}).value  || '';
+        return { value: String(value).trim(), text: text.trim(), sectionNote };
+      }
+      case 'links_note': {
+        const links = (card.querySelector('.inp-links') || {}).value || '';
+        const text  = (card.querySelector('.inp-note') || {}).value  || '';
+        return { links: links.trim(), text: text.trim(), sectionNote };
+      }
+      default: return { sectionNote };
+    }
+  }
+
+  /* ── Save ── */
+  async function saveEntry() {
+    const btn = document.getElementById('btn-save');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner" style="border-top-color:#fff;width:12px;height:12px;display:inline-block;vertical-align:middle;"></span>';
+
+    const tasks = {};
+    document.querySelectorAll('.task-card').forEach((card, i) => {
+      const taskDef = memberTasks[parseInt(card.dataset.idx, 10)];
+      if (!taskDef) return;
+      tasks[taskDef.name] = extractCardData(card, taskDef.type);
+    });
+
+    try {
+      const res = await fetch('/api/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date: selectedDate, tasks }),
+        credentials: 'same-origin',
+      });
+      if (res.status === 401) { window.location.href = '/login'; return; }
+      if (res.ok) {
+        showToast('Entry saved successfully!', 'success');
+        updateSubmittedBadge(tasks);
+      } else {
+        showToast('Save failed — please try again.', 'error');
+      }
+    } catch {
+      showToast('Network error. Check your connection.', 'error');
+    } finally {
+      btn.disabled    = false;
+      btn.textContent = 'Save Entry';
+    }
+  }
+
+  /* ── Load data for selected date ── */
+  async function loadDateData() {
+    document.getElementById('tasks-grid').innerHTML =
+      '<div class="state-overlay" style="grid-column:1/-1"><div class="spinner"></div> Loading…</div>';
+    try {
+      const res = await fetch('/api/mydata/' + selectedDate, { credentials: 'same-origin' });
+      if (res.status === 401) { window.location.href = '/login'; return; }
+      const existing = await res.json();
+      renderTasks(existing);
+      updateSubmittedBadge(existing);
+    } catch {
+      renderTasks({});
+      updateSubmittedBadge({});
+    }
+  }
+
+  /* ── Init ── */
+  async function init() {
+    try {
+      const res = await fetch('/api/me', { credentials: 'same-origin' });
+      if (res.status === 401) { window.location.href = '/login'; return; }
+      const me  = await res.json();
+      memberTasks = me.tasks || [];
+      document.getElementById('member-name-badge').textContent = me.display;
+      document.title = me.display + ' — Rank Orbit';
+    } catch {
+      window.location.href = '/login';
+      return;
+    }
+    setDate(todayISO());
+  }
+
+  /* ── Toast ── */
+  function showToast(msg, type) {
+    type = type || 'info';
+    const c  = document.getElementById('toast-container');
+    const el = document.createElement('div');
+    el.className = 'toast toast-' + type;
+    const icons  = { success: '✓', error: '✕', info: 'ℹ' };
+    el.textContent = (icons[type] || 'ℹ') + '  ' + msg;
+    c.appendChild(el);
+    setTimeout(function() {
+      el.classList.add('hiding');
+      setTimeout(function() { el.remove(); }, 220);
+    }, 3000);
+  }
+
+  async function logout() {
+    await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
+    window.location.href = '/login';
+  }
+
+  init();
+</script>
+</body>
+</html>
