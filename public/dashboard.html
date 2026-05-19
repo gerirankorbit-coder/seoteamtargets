@@ -429,6 +429,15 @@
   /* ── Note popover ── */
   let _popoverCloseListener = null;
 
+  /* Entry point called from cell onclick — reads data attrs, no string args needed */
+  function showCellNote(el) {
+    const note  = el.getAttribute('data-note')  || '';
+    const task  = el.getAttribute('data-task')  || 'Note';
+    const label = el.getAttribute('data-label') || 'Section Note';
+    if (!note) return;
+    openNotePopover(el, task, note, label);
+  }
+
   function openNotePopover(cellEl, taskName, noteText, labelText) {
     const pop = document.getElementById('note-popover');
     document.getElementById('popover-task-name').textContent = taskName;
@@ -534,10 +543,11 @@
           const l2 = cell.line2 ? '<div class="cell-line2">' + escHtml(cell.line2) + '</div>' : '';
           const l3 = cell.line3 ? '<div class="cell-line3">' + escHtml(cell.line3) + '</div>' : '';
           const noteTag = hasNote ? '<div><span class="cell-note-tag">NOTE</span></div>' : '';
-          const clickAttr = hasNote
-            ? ' onclick="openNotePopover(this,' + JSON.stringify(task.name) + ',' + JSON.stringify(entry.sectionNote) + ',\'Section Note\')"'
+          /* Use data attributes — escHtml encodes " as &quot; so the attribute is always valid */
+          const dataAttrs = hasNote
+            ? ' data-note="' + escHtml(entry.sectionNote) + '" data-task="' + escHtml(task.name) + '" data-label="Section Note" onclick="showCellNote(this)"'
             : '';
-          html += '<td class="filled-cell' + (hasNote ? ' has-note' : '') + todayCls + '"' + clickAttr + '>' +
+          html += '<td class="filled-cell' + (hasNote ? ' has-note' : '') + todayCls + '"' + dataAttrs + '>' +
             '<div class="cell-line1">' + escHtml(cell.line1) + '</div>' + l2 + l3 + noteTag +
             '</td>';
         } else {
@@ -556,8 +566,11 @@
         const todayCls = isToday ? ' today-col' : '';
         const note     = mData[d] ? (mData[d]['_managerNote'] || '') : '';
         if (note) {
-          html += '<td class="mgr-note-cell' + todayCls + '" onclick="openNotePopover(this,\'Note for Manager\',' +
-            JSON.stringify(note) + ',\'Employee Note — ' + escHtml(m.display) + '\')">' +
+          html += '<td class="mgr-note-cell' + todayCls + '"' +
+            ' data-note="'  + escHtml(note) + '"' +
+            ' data-task="Note for Manager"' +
+            ' data-label="' + escHtml('Employee Note — ' + m.display) + '"' +
+            ' onclick="showCellNote(this)">' +
             '<div style="font-size:10px;color:var(--gold);word-break:break-word;">' +
             escHtml(note.length > 55 ? note.slice(0, 55) + '…' : note) +
             '</div></td>';

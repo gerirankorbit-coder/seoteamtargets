@@ -619,18 +619,25 @@
     document.getElementById('tasks-grid').innerHTML =
       '<div class="state-overlay" style="grid-column:1/-1"><div class="spinner"></div> Loading…</div>';
 
-    // Clear manager note while loading
     const mnEl = document.getElementById('manager-note-input');
     if (mnEl) mnEl.value = '';
 
     try {
-      const res = await fetch('/api/mydata/' + selectedDate, { credentials: 'same-origin' });
-      if (res.status === 401) { window.location.href = '/login'; return; }
-      const existing = await res.json();
+      /* Fetch task definitions + entry data in parallel so manager changes reflect immediately */
+      const [meRes, dataRes] = await Promise.all([
+        fetch('/api/me',              { credentials: 'same-origin' }),
+        fetch('/api/mydata/' + selectedDate, { credentials: 'same-origin' }),
+      ]);
 
-      /* Populate manager note */
+      if (meRes.status === 401 || dataRes.status === 401) { window.location.href = '/login'; return; }
+
+      const me       = await meRes.json();
+      const existing = await dataRes.json();
+
+      /* Update task list — picks up any additions/removals the manager made */
+      if (me.tasks) memberTasks = me.tasks;
+
       if (mnEl) mnEl.value = existing['_managerNote'] || '';
-
       renderTasks(existing);
       updateSubmittedBadge(existing);
     } catch {
