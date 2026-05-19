@@ -317,6 +317,24 @@ app.get('/api/mydata/:date', async (req, res) => {
   }
 });
 
+// Manager: save / override any member's submitted data for a date
+app.post('/api/manager-save/:username', requireManager, async (req, res) => {
+  const { date, tasks } = req.body;
+  const target = req.params.username;
+  if (!date || !tasks) return res.status(400).json({ error: 'Missing fields' });
+  try {
+    await Entry.findOneAndUpdate(
+      { username: target, date },
+      { username: target, date, tasks },
+      { upsert: true, new: true }
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Manager save error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
 // Fetch all dates for a specific username (members: own only; managers: any)
 app.get('/api/data/:username', async (req, res) => {
   const target = req.params.username;

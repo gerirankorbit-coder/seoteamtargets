@@ -87,15 +87,24 @@
   }
   tbody tr:nth-child(even) td:first-child { background: #16162A; }
 
-  tbody td.filled-cell { background: rgba(0,212,255,0.05); cursor: pointer; }
-  tbody td.filled-cell:hover { background: rgba(0,212,255,0.1); }
+  tbody td.filled-cell { background: rgba(0,212,255,0.05); }
+  tbody td.filled-cell.has-note { cursor: pointer; }
+  tbody td.filled-cell.has-note:hover { background: rgba(0,212,255,0.12); }
   tbody td.empty-cell  { background: rgba(239,68,68,0.04); }
   tbody td.today-col   { border-left: 1px solid rgba(255,184,0,0.3) !important; border-right: 1px solid rgba(255,184,0,0.3) !important; }
+  tbody td.mgr-note-cell { background: rgba(255,184,0,0.04) !important; cursor: pointer; }
+  tbody td.mgr-note-cell:hover { background: rgba(255,184,0,0.09) !important; }
 
   .cell-line1 { font-size: 10px; font-weight: 600; color: var(--text); word-break: break-word; }
   .cell-line2 { font-size: 10px; color: var(--text-muted); font-weight: 500; margin-top: 2px; word-break: break-word; }
   .cell-line3 { font-size: 10px; color: var(--gold); font-weight: 700; margin-top: 3px; }
   .cell-empty { color: var(--text-dim); font-size: 11px; }
+  .cell-note-tag {
+    display: inline-block; margin-top: 4px; font-size: 9px; font-weight: 700;
+    color: var(--gold); background: var(--gold-dim);
+    border: 1px solid rgba(255,184,0,0.3); border-radius: 3px; padding: 1px 5px;
+    letter-spacing: 0.2px;
+  }
 
   /* ── Tabs scroll wrapper ── */
   .tabs-outer {
@@ -207,29 +216,41 @@
 
   .edit-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 
-  /* ── Cell expand modal ── */
-  .modal-overlay {
-    display: none; position: fixed; inset: 0; z-index: 500;
-    background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
-    align-items: center; justify-content: center;
+  /* ── Note popover ── */
+  .note-popover {
+    position: fixed; z-index: 600;
+    background: var(--surface);
+    border: 1px solid var(--border-2);
+    border-radius: var(--radius);
+    padding: 0;
+    max-width: 340px; min-width: 220px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.7);
+    display: none;
+    animation: popIn 0.15s ease;
   }
-  .modal-overlay.open { display: flex; }
-  .modal-box {
-    background: var(--surface); border: 1px solid var(--border-2);
-    border-radius: var(--radius-lg); padding: 24px; max-width: 480px; width: 90%;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.8);
-    animation: modalIn 0.2s ease;
+  .note-popover.open { display: block; }
+  @keyframes popIn { from { opacity: 0; transform: translateY(-6px) scale(0.97); } to { opacity: 1; transform: none; } }
+  .popover-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px; border-bottom: 1px solid var(--border);
+    background: var(--surface-2); border-radius: var(--radius) var(--radius) 0 0;
   }
-  @keyframes modalIn { from { opacity: 0; transform: scale(0.95) translateY(-10px); } to { opacity: 1; transform: none; } }
-  .modal-title { font-size: 15px; font-weight: 800; margin-bottom: 4px; }
-  .modal-date  { font-size: 11px; color: var(--text-muted); margin-bottom: 16px; }
-  .modal-body  { font-size: 13px; line-height: 1.7; color: var(--text); white-space: pre-wrap; word-break: break-word; }
-  .modal-close {
-    float: right; background: none; border: none; color: var(--text-muted);
-    font-size: 20px; cursor: pointer; margin: -4px -4px 0 0; padding: 4px 8px;
-    border-radius: 6px; transition: all 0.12s;
+  .popover-task-name { font-size: 11px; font-weight: 700; color: var(--text); flex: 1; }
+  .popover-close {
+    background: none; border: none; color: var(--text-muted);
+    cursor: pointer; font-size: 13px; padding: 2px 5px;
+    border-radius: 4px; transition: all 0.12s; line-height: 1;
   }
-  .modal-close:hover { background: var(--surface-2); color: var(--text); }
+  .popover-close:hover { background: var(--surface-3); color: var(--text); }
+  .popover-label {
+    padding: 8px 14px 2px; font-size: 9px; font-weight: 700;
+    color: var(--gold); text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .popover-body {
+    padding: 6px 14px 14px; font-size: 12px; line-height: 1.7;
+    color: var(--text); white-space: pre-wrap; word-break: break-word;
+    max-height: 220px; overflow-y: auto;
+  }
 </style>
 </head>
 <body>
@@ -278,6 +299,7 @@
     <div class="legend-item"><div class="legend-dot" style="background:rgba(0,212,255,0.15);border:1px solid rgba(0,212,255,0.3)"></div> Submitted</div>
     <div class="legend-item"><div class="legend-dot" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25)"></div> Missing</div>
     <div class="legend-item"><div class="legend-dot" style="background:rgba(255,184,0,0.2);border:1px solid rgba(255,184,0,0.4)"></div> Today</div>
+    <div class="legend-item"><span class="cell-note-tag">NOTE</span> Has note — click cell to view</div>
   </div>
 </div>
 
@@ -312,14 +334,14 @@
   </div>
 </div>
 
-<!-- Cell expand modal -->
-<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
-  <div class="modal-box">
-    <button class="modal-close" onclick="closeModal()">&#10005;</button>
-    <div class="modal-title" id="modal-title"></div>
-    <div class="modal-date"  id="modal-date"></div>
-    <div class="modal-body"  id="modal-body"></div>
+<!-- Note popover -->
+<div id="note-popover" class="note-popover">
+  <div class="popover-header">
+    <span class="popover-task-name" id="popover-task-name">Note</span>
+    <button class="popover-close" onclick="closePopover()">&#10005;</button>
   </div>
+  <div class="popover-label" id="popover-label">Section Note</div>
+  <div class="popover-body"  id="popover-body"></div>
 </div>
 
 <script>
@@ -404,31 +426,46 @@
     }
   }
 
-  function cellModalText(taskData, taskType) {
-    if (!taskData) return '';
-    switch (taskType) {
-      case 'links':
-      case 'layers': {
-        const rows = taskData.rows || [];
-        const lines = rows.filter(r => r.client || r.value || r.links)
-          .map(r => (r.client || '(no client)') + '  →  ' + (r.value || r.links || '–'));
-        if (!lines.length) return '(no entries)';
-        return lines.join('\n') + '\n\nTotal: ' + (taskData.total || 0)
-          + (taskData.sectionNote ? '\n\nNote: ' + taskData.sectionNote : '');
+  /* ── Note popover ── */
+  let _popoverCloseListener = null;
+
+  function openNotePopover(cellEl, taskName, noteText, labelText) {
+    const pop = document.getElementById('note-popover');
+    document.getElementById('popover-task-name').textContent = taskName;
+    document.getElementById('popover-label').textContent     = labelText || 'Note';
+    document.getElementById('popover-body').textContent      = noteText  || '(no note)';
+
+    const rect   = cellEl.getBoundingClientRect();
+    const popW   = 340;
+    let left     = rect.left;
+    let top      = rect.bottom + 4;
+
+    if (left + popW > window.innerWidth - 10) left = window.innerWidth - popW - 10;
+    if (top + 240 > window.innerHeight - 10)  top  = rect.top - 244;
+
+    pop.style.top  = top  + 'px';
+    pop.style.left = left + 'px';
+    pop.classList.add('open');
+
+    // Close on outside click
+    if (_popoverCloseListener) document.removeEventListener('click', _popoverCloseListener);
+    _popoverCloseListener = function(e) {
+      if (!pop.contains(e.target) && e.target !== cellEl && !cellEl.contains(e.target)) {
+        closePopover();
       }
-      case 'count':
-        return 'Count: ' + (taskData.value || '0') + (taskData.sectionNote ? '\n\nNote: ' + taskData.sectionNote : '');
-      case 'note':
-        return (taskData.text || '') + (taskData.sectionNote ? '\n\n[Section note]\n' + taskData.sectionNote : '');
-      case 'count_note':
-        return 'Count: ' + (taskData.value || '0') + (taskData.text ? '\n\n' + taskData.text : '')
-          + (taskData.sectionNote ? '\n\n[Note]\n' + taskData.sectionNote : '');
-      case 'links_note':
-        return 'Links: ' + (taskData.links || '') + (taskData.text ? '\n\n' + taskData.text : '')
-          + (taskData.sectionNote ? '\n\n[Note]\n' + taskData.sectionNote : '');
-      default: return JSON.stringify(taskData, null, 2);
+    };
+    setTimeout(() => document.addEventListener('click', _popoverCloseListener), 50);
+  }
+
+  function closePopover() {
+    document.getElementById('note-popover').classList.remove('open');
+    if (_popoverCloseListener) {
+      document.removeEventListener('click', _popoverCloseListener);
+      _popoverCloseListener = null;
     }
   }
+
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closePopover(); });
 
   /* ── Tab scroll ── */
   function scrollTabs(delta) {
@@ -489,18 +526,19 @@
       dates.forEach(d => {
         const isToday  = d === today;
         const todayCls = isToday ? ' today-col' : '';
-        const entry    = mData[d]?.[task.name];
+        const entry    = mData[d] ? mData[d][task.name] : undefined;
         const cell     = cellContent(entry, task.type);
+        const hasNote  = !!(entry && entry.sectionNote);
 
         if (cell) {
           const l2 = cell.line2 ? '<div class="cell-line2">' + escHtml(cell.line2) + '</div>' : '';
           const l3 = cell.line3 ? '<div class="cell-line3">' + escHtml(cell.line3) + '</div>' : '';
-          html += '<td class="filled-cell' + todayCls + '" onclick="openModal(' +
-            JSON.stringify(escHtml(task.name)) + ',' +
-            JSON.stringify(escHtml(d)) + ',' +
-            JSON.stringify(escHtml(cellModalText(entry, task.type))) +
-            ')">' +
-            '<div class="cell-line1">' + escHtml(cell.line1) + '</div>' + l2 + l3 +
+          const noteTag = hasNote ? '<div><span class="cell-note-tag">NOTE</span></div>' : '';
+          const clickAttr = hasNote
+            ? ' onclick="openNotePopover(this,' + JSON.stringify(task.name) + ',' + JSON.stringify(entry.sectionNote) + ',\'Section Note\')"'
+            : '';
+          html += '<td class="filled-cell' + (hasNote ? ' has-note' : '') + todayCls + '"' + clickAttr + '>' +
+            '<div class="cell-line1">' + escHtml(cell.line1) + '</div>' + l2 + l3 + noteTag +
             '</td>';
         } else {
           html += '<td class="empty-cell' + todayCls + '"><span class="cell-empty">–</span></td>';
@@ -508,6 +546,27 @@
       });
       html += '</tr>';
     });
+
+    /* ── Manager Note row — only shown if any date has one ── */
+    const hasAnyMgrNote = dates.some(d => mData[d] && mData[d]['_managerNote']);
+    if (hasAnyMgrNote) {
+      html += '<tr><td style="color:var(--gold);font-style:italic;font-size:10px;font-weight:700;">📋 Note for Manager</td>';
+      dates.forEach(d => {
+        const isToday  = d === today;
+        const todayCls = isToday ? ' today-col' : '';
+        const note     = mData[d] ? (mData[d]['_managerNote'] || '') : '';
+        if (note) {
+          html += '<td class="mgr-note-cell' + todayCls + '" onclick="openNotePopover(this,\'Note for Manager\',' +
+            JSON.stringify(note) + ',\'Employee Note — ' + escHtml(m.display) + '\')">' +
+            '<div style="font-size:10px;color:var(--gold);word-break:break-word;">' +
+            escHtml(note.length > 55 ? note.slice(0, 55) + '…' : note) +
+            '</div></td>';
+        } else {
+          html += '<td class="empty-cell' + todayCls + '"><span class="cell-empty">–</span></td>';
+        }
+      });
+      html += '</tr>';
+    }
 
     html += '</tbody></table>';
     document.getElementById('table-wrapper').innerHTML = html;
@@ -518,13 +577,12 @@
     const dates31 = getLast31Days();
     const dates14 = dates31.slice(0, 14).reverse();
 
-    /* Daily activity: members who submitted per day (last 14) */
-    const dailyCounts = dates14.map(d => {
-      return members.filter(m => {
-        const dayData = allData[m.username]?.[d];
+    const dailyCounts = dates14.map(d =>
+      members.filter(m => {
+        const dayData = allData[m.username] && allData[m.username][d];
         return dayData && Object.keys(dayData).length > 0;
-      }).length;
-    });
+      }).length
+    );
 
     const dailyLabels = dates14.map(d => {
       const [, m, day] = d.split('-').map(Number);
@@ -532,7 +590,6 @@
       return mon + ' ' + day;
     });
 
-    /* Member submission rate (last 31 days) */
     const memberLabels = members.map(m => m.display.split(' ')[0]);
     const memberRates  = members.map(m => {
       const mData = allData[m.username] || {};
@@ -540,7 +597,6 @@
       return Math.round((count / 31) * 100);
     });
 
-    /* Destroy old charts */
     if (chartDaily)   { chartDaily.destroy();   chartDaily   = null; }
     if (chartMembers) { chartMembers.destroy();  chartMembers = null; }
 
@@ -579,8 +635,8 @@
           data: memberRates,
           backgroundColor: memberRates.map(r =>
             r >= 80 ? 'rgba(74,222,128,0.7)' :
-            r >= 50 ? 'rgba(0,212,255,0.6)' :
-            r >= 25 ? 'rgba(255,184,0,0.6)' :
+            r >= 50 ? 'rgba(0,212,255,0.6)'  :
+            r >= 25 ? 'rgba(255,184,0,0.6)'  :
                       'rgba(248,113,113,0.6)'),
           borderRadius: 4,
         }],
@@ -618,7 +674,7 @@
   }
 
   function renderTaskEditor() {
-    const m       = members[editMemberIdx];
+    const m = members[editMemberIdx];
     if (!m) return;
     editTasks = editTasks.length ? editTasks : JSON.parse(JSON.stringify(m.tasks || []));
 
@@ -662,7 +718,7 @@
       '</div>' +
       '<div class="edit-actions">' +
       '  <button class="btn btn-primary btn-sm" onclick="saveTaskEdits()">Save Changes</button>' +
-      '  <button class="btn btn-ghost btn-sm" onclick="resetTaskEdits()">Reset to Default</button>' +
+      '  <button class="btn btn-ghost btn-sm"   onclick="resetTaskEdits()">Reset to Default</button>' +
       '</div>';
   }
 
@@ -693,6 +749,8 @@
       if (res.ok) {
         members[editMemberIdx].tasks = JSON.parse(JSON.stringify(editTasks));
         showToast('Tasks saved for ' + m.display, 'success');
+        /* Immediately refresh spreadsheet if this member is active */
+        if (editMemberIdx === activeMember) renderSpreadsheet();
       } else {
         showToast('Save failed.', 'error');
       }
@@ -711,7 +769,11 @@
       if (res.ok) {
         const freshMembers = await fetch('/api/members', { credentials: 'same-origin' }).then(r => r.json());
         const fm = freshMembers.find(x => x.username === m.username);
-        if (fm) { members[editMemberIdx] = fm; editTasks = JSON.parse(JSON.stringify(fm.tasks || [])); }
+        if (fm) {
+          members[editMemberIdx] = fm;
+          editTasks = JSON.parse(JSON.stringify(fm.tasks || []));
+          if (editMemberIdx === activeMember) renderSpreadsheet();
+        }
         showToast('Reset to default tasks for ' + m.display, 'info');
         renderTaskEditor();
       }
@@ -719,22 +781,6 @@
       showToast('Network error.', 'error');
     }
   }
-
-  /* ── Modal ── */
-  function openModal(taskName, dateStr, text) {
-    document.getElementById('modal-title').textContent = taskName;
-    document.getElementById('modal-date').textContent  = formatFull(dateStr);
-    document.getElementById('modal-body').textContent  = text || '(no data)';
-    document.getElementById('modal-overlay').classList.add('open');
-  }
-
-  function closeModal(e) {
-    if (!e || e.target === document.getElementById('modal-overlay') || !e.target.closest) {
-      document.getElementById('modal-overlay').classList.remove('open');
-    }
-  }
-
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
   /* ── Toast ── */
   function showToast(msg, type) {

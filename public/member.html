@@ -53,6 +53,23 @@
   .submitted-yes { background: rgba(22,163,74,0.15); color: #4ade80; border: 1px solid rgba(22,163,74,0.3); }
   .submitted-no  { background: rgba(239,68,68,0.12); color: #f87171; border: 1px solid rgba(239,68,68,0.25); }
 
+  /* ── Member tabs ── */
+  .member-tabs {
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--border);
+    padding: 0 20px;
+    display: flex; gap: 4px; align-items: flex-end;
+  }
+  .mtab {
+    padding: 9px 16px; font-size: 12px; font-weight: 600;
+    color: var(--text-muted); background: none; border: none;
+    cursor: pointer; border-bottom: 2px solid transparent;
+    margin-bottom: -1px; transition: color 0.15s, border-color 0.15s;
+    border-radius: 4px 4px 0 0;
+  }
+  .mtab.active { color: var(--blue); border-bottom-color: var(--blue); }
+  .mtab:hover  { color: var(--text); background: var(--surface-3); }
+
   /* ── Content ── */
   .content { padding: 20px; flex: 1; max-width: 960px; margin: 0 auto; width: 100%; }
 
@@ -137,7 +154,7 @@
 
   /* ── Count input ── */
   .inp-count {
-    width: 100%; padding: 8px 12px;
+    width: 100%; padding: 8px 12px; box-sizing: border-box;
     background: var(--surface-2); border: 1px solid var(--border);
     border-radius: var(--radius-sm); color: var(--text); font-size: 14px;
     font-family: inherit; font-weight: 600; outline: none;
@@ -148,7 +165,7 @@
 
   /* ── Note textarea ── */
   .inp-note {
-    width: 100%; padding: 8px 12px;
+    width: 100%; padding: 8px 12px; box-sizing: border-box;
     background: var(--surface-2); border: 1px solid var(--border);
     border-radius: var(--radius-sm); color: var(--text); font-size: 12px;
     font-family: inherit; outline: none; resize: vertical; min-height: 72px;
@@ -159,7 +176,7 @@
 
   /* ── Links input ── */
   .inp-links {
-    width: 100%; padding: 8px 12px;
+    width: 100%; padding: 8px 12px; box-sizing: border-box;
     background: var(--surface-2); border: 1px solid var(--border);
     border-radius: var(--radius-sm); color: var(--text); font-size: 12px;
     font-family: inherit; outline: none; transition: border-color 0.15s;
@@ -170,7 +187,7 @@
   /* ── Section note ── */
   .section-note-wrap { padding: 0 14px 12px; }
   .inp-section-note {
-    width: 100%; padding: 8px 12px;
+    width: 100%; padding: 8px 12px; box-sizing: border-box;
     background: rgba(255,184,0,0.04); border: 1px solid rgba(255,184,0,0.2);
     border-radius: var(--radius-sm); color: var(--text); font-size: 12px;
     font-family: inherit; outline: none; resize: vertical; min-height: 56px;
@@ -178,6 +195,71 @@
   }
   .inp-section-note:focus { border-color: var(--gold); }
   .inp-section-note::placeholder { color: var(--text-dim); font-style: italic; }
+
+  /* ── Manager note card ── */
+  .manager-note-card {
+    background: var(--surface);
+    border: 1px solid rgba(255,184,0,0.35);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-top: 14px;
+    box-shadow: 0 0 24px rgba(255,184,0,0.06);
+  }
+  .manager-note-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 14px;
+    border-bottom: 1px solid rgba(255,184,0,0.2);
+    background: rgba(255,184,0,0.06);
+  }
+  .manager-note-icon { font-size: 18px; line-height: 1; }
+  .manager-note-title { font-size: 13px; font-weight: 700; color: var(--gold); flex: 1; }
+  .manager-note-desc {
+    font-size: 11px; color: var(--text-muted);
+    padding: 10px 14px 4px; margin: 0; line-height: 1.5;
+  }
+  .manager-note-body { padding: 6px 14px 14px; }
+  .inp-manager-note {
+    width: 100%; padding: 10px 12px; box-sizing: border-box;
+    background: rgba(255,184,0,0.04); border: 1px solid rgba(255,184,0,0.2);
+    border-radius: var(--radius-sm); color: var(--text); font-size: 12px;
+    font-family: inherit; outline: none; resize: vertical; min-height: 84px;
+    transition: border-color 0.15s; line-height: 1.6;
+  }
+  .inp-manager-note:focus { border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-dim); }
+  .inp-manager-note::placeholder { color: var(--text-dim); font-style: italic; }
+
+  /* ── History panel ── */
+  .history-wrap { padding: 20px; max-width: 960px; margin: 0 auto; width: 100%; }
+  .history-title {
+    font-size: 15px; font-weight: 700; margin-bottom: 16px;
+    display: flex; align-items: center; gap: 8px; color: var(--text);
+  }
+  .history-table-wrap {
+    border: 1px solid var(--border); border-radius: var(--radius);
+    overflow: auto; background: var(--surface); box-shadow: var(--shadow-sm);
+  }
+  .history-table { border-collapse: collapse; width: 100%; min-width: 580px; }
+  .history-table th {
+    background: #0D0D18; color: var(--text-muted);
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;
+    padding: 9px 14px; text-align: left; border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .history-table td {
+    padding: 8px 14px; font-size: 11px; border-bottom: 1px solid var(--border);
+    vertical-align: top; line-height: 1.6;
+  }
+  .history-table tr:last-child td { border-bottom: none; }
+  .history-table tbody tr:hover td { background: rgba(255,255,255,0.025); }
+  .hist-date { font-weight: 700; color: var(--blue); white-space: nowrap; min-width: 120px; }
+  .hist-task { font-weight: 600; color: var(--text); }
+  .hist-val  { color: var(--text-muted); word-break: break-word; max-width: 260px; }
+  .hist-note { color: var(--gold); font-style: italic; max-width: 180px; word-break: break-word; }
+  .hist-mgr-note { color: var(--gold); word-break: break-word; }
+  .history-empty {
+    text-align: center; padding: 48px 20px;
+    color: var(--text-muted); font-size: 13px;
+  }
 
   /* ── Save bar ── */
   .save-bar {
@@ -227,22 +309,64 @@
   </div>
 </div>
 
+<!-- Section tabs -->
+<div class="member-tabs">
+  <button class="mtab active" id="mtab-today"   onclick="switchMemberTab('today')">Today's Entry</button>
+  <button class="mtab"        id="mtab-history" onclick="switchMemberTab('history')">&#128197; My History</button>
+</div>
+
 <div class="toast-container" id="toast-container"></div>
 
-<div class="content">
-  <div class="tasks-grid" id="tasks-grid">
-    <div class="state-overlay" style="grid-column:1/-1"><div class="spinner"></div> Loading…</div>
+<!-- ── Today panel ── -->
+<div id="panel-today">
+  <div class="content">
+    <div class="tasks-grid" id="tasks-grid">
+      <div class="state-overlay" style="grid-column:1/-1"><div class="spinner"></div> Loading…</div>
+    </div>
+
+    <!-- Note for Manager card -->
+    <div class="manager-note-card">
+      <div class="manager-note-header">
+        <span class="manager-note-icon">📋</span>
+        <span class="manager-note-title">Note for Manager</span>
+      </div>
+      <p class="manager-note-desc">
+        Write any specific activity update, task shortage reason, suggestion, or recommendation for your manager.
+        This note is visible only to the manager.
+      </p>
+      <div class="manager-note-body">
+        <textarea
+          class="inp-manager-note"
+          id="manager-note-input"
+          placeholder="e.g. Couldn't complete guest posts today due to site downtime. Will compensate tomorrow. / Suggest increasing Reddit quota this week."
+        ></textarea>
+      </div>
+    </div>
   </div>
 </div>
 
-<div class="save-bar">
+<!-- ── History panel ── -->
+<div id="panel-history" style="display:none">
+  <div class="history-wrap">
+    <div class="history-title">&#128202; My Submission History</div>
+    <div id="history-content">
+      <div class="history-empty"><div class="spinner"></div><br>Loading history…</div>
+    </div>
+  </div>
+</div>
+
+<!-- Save bar (hidden on history tab) -->
+<div class="save-bar" id="save-bar">
   <div class="save-bar-info">Saving entry for <strong id="save-date-label">–</strong></div>
   <button class="btn-save" id="btn-save" onclick="saveEntry()">Save Entry</button>
 </div>
 
 <script>
-  let memberTasks  = [];
-  let selectedDate = todayISO();
+  let memberTasks    = [];
+  let selectedDate   = todayISO();
+  let memberUsername = '';
+  let memberTab      = 'today';
+  let historyLoaded  = false;
 
   function todayISO() {
     return new Date().toISOString().split('T')[0];
@@ -264,6 +388,20 @@
     return (String(str).match(/\d+/g) || []).reduce((s, n) => s + parseInt(n, 10), 0);
   }
 
+  /* ── Member tabs ── */
+  function switchMemberTab(tab) {
+    memberTab = tab;
+    document.getElementById('panel-today').style.display   = tab === 'today'   ? 'block' : 'none';
+    document.getElementById('panel-history').style.display = tab === 'history' ? 'block' : 'none';
+    document.getElementById('save-bar').style.display      = tab === 'today'   ? 'flex'  : 'none';
+    document.getElementById('mtab-today').classList.toggle('active',   tab === 'today');
+    document.getElementById('mtab-history').classList.toggle('active', tab === 'history');
+    if (tab === 'history') {
+      historyLoaded = false; // always refresh on tab switch
+      loadHistory();
+    }
+  }
+
   /* ── Date navigation ── */
   function setDate(iso) {
     selectedDate = iso;
@@ -279,9 +417,9 @@
     setDate(d.toISOString().split('T')[0]);
   }
 
-  function goToday()                { setDate(todayISO()); }
-  function openDatePicker()         { const el = document.getElementById('date-picker-input'); el.showPicker ? el.showPicker() : el.click(); }
-  function onDatePickerChange(val)  { if (val) setDate(val); }
+  function goToday()               { setDate(todayISO()); }
+  function openDatePicker()        { const el = document.getElementById('date-picker-input'); el.showPicker ? el.showPicker() : el.click(); }
+  function onDatePickerChange(val) { if (val) setDate(val); }
 
   /* ── Row helpers ── */
   function clientRowInnerHtml(taskIdx, client, value) {
@@ -293,8 +431,8 @@
   function addRow(taskIdx) {
     const c   = document.getElementById('rows-' + taskIdx);
     const div = document.createElement('div');
-    div.className   = 'client-row';
-    div.innerHTML   = clientRowInnerHtml(taskIdx, '', '');
+    div.className = 'client-row';
+    div.innerHTML = clientRowInnerHtml(taskIdx, '', '');
     c.appendChild(div);
   }
 
@@ -325,7 +463,7 @@
     const hidden = !wrap || wrap.style.display === 'none' || wrap.style.display === '';
     if (wrap) wrap.style.display = hidden ? 'block' : 'none';
     btn.classList.toggle('active', hidden);
-    btn.textContent = hidden ? '− Note' : '+ Note';
+    btn.textContent = hidden ? '&#8722; Note' : '+ Note';
   }
 
   /* ── Render type body ── */
@@ -386,7 +524,8 @@
 
   function updateSubmittedBadge(existing) {
     const badge   = document.getElementById('submitted-badge');
-    const hasData = Object.values(existing).some(v => {
+    const hasData = Object.entries(existing).some(([k, v]) => {
+      if (k.startsWith('_')) return false; // skip reserved keys
       if (!v) return false;
       if (v.rows && v.rows.length) return v.rows.some(r => r.client || r.value || r.links);
       return !!(v.value || v.text || v.links);
@@ -398,7 +537,7 @@
 
   /* ── Extract data from DOM ── */
   function extractCardData(card, type) {
-    const sectionNote = (card.querySelector('.inp-section-note') || {}).value
+    const sectionNote = card.querySelector('.inp-section-note')
       ? card.querySelector('.inp-section-note').value.trim() : '';
     switch (type) {
       case 'links':
@@ -406,31 +545,29 @@
         const rows = [];
         let total  = 0;
         card.querySelectorAll('.client-row').forEach(row => {
-          const client = (row.querySelector('.inp-client') || {}).value
-            ? row.querySelector('.inp-client').value.trim() : '';
-          const value  = (row.querySelector('.inp-value') || {}).value
-            ? row.querySelector('.inp-value').value.trim() : '';
+          const client = row.querySelector('.inp-client') ? row.querySelector('.inp-client').value.trim() : '';
+          const value  = row.querySelector('.inp-value')  ? row.querySelector('.inp-value').value.trim()  : '';
           if (client || value) rows.push({ client, value });
           total += extractInt(value);
         });
         return { rows, total, sectionNote };
       }
       case 'count': {
-        const value = (card.querySelector('.inp-count') || {}).value || '';
+        const value = card.querySelector('.inp-count') ? card.querySelector('.inp-count').value : '';
         return { value: String(value).trim(), sectionNote };
       }
       case 'note': {
-        const text = (card.querySelector('.inp-note') || {}).value || '';
+        const text = card.querySelector('.inp-note') ? card.querySelector('.inp-note').value : '';
         return { text: text.trim(), sectionNote };
       }
       case 'count_note': {
-        const value = (card.querySelector('.inp-count') || {}).value || '';
-        const text  = (card.querySelector('.inp-note') || {}).value  || '';
+        const value = card.querySelector('.inp-count') ? card.querySelector('.inp-count').value : '';
+        const text  = card.querySelector('.inp-note')  ? card.querySelector('.inp-note').value  : '';
         return { value: String(value).trim(), text: text.trim(), sectionNote };
       }
       case 'links_note': {
-        const links = (card.querySelector('.inp-links') || {}).value || '';
-        const text  = (card.querySelector('.inp-note') || {}).value  || '';
+        const links = card.querySelector('.inp-links') ? card.querySelector('.inp-links').value : '';
+        const text  = card.querySelector('.inp-note')  ? card.querySelector('.inp-note').value  : '';
         return { links: links.trim(), text: text.trim(), sectionNote };
       }
       default: return { sectionNote };
@@ -440,15 +577,19 @@
   /* ── Save ── */
   async function saveEntry() {
     const btn = document.getElementById('btn-save');
-    btn.disabled = true;
+    btn.disabled  = true;
     btn.innerHTML = '<span class="spinner" style="border-top-color:#fff;width:12px;height:12px;display:inline-block;vertical-align:middle;"></span>';
 
     const tasks = {};
-    document.querySelectorAll('.task-card').forEach((card, i) => {
+    document.querySelectorAll('.task-card').forEach((card) => {
       const taskDef = memberTasks[parseInt(card.dataset.idx, 10)];
       if (!taskDef) return;
       tasks[taskDef.name] = extractCardData(card, taskDef.type);
     });
+
+    /* Include manager note */
+    const mnEl = document.getElementById('manager-note-input');
+    tasks['_managerNote'] = mnEl ? mnEl.value.trim() : '';
 
     try {
       const res = await fetch('/api/save', {
@@ -461,6 +602,7 @@
       if (res.ok) {
         showToast('Entry saved successfully!', 'success');
         updateSubmittedBadge(tasks);
+        historyLoaded = false; // force history refresh after save
       } else {
         showToast('Save failed — please try again.', 'error');
       }
@@ -476,10 +618,19 @@
   async function loadDateData() {
     document.getElementById('tasks-grid').innerHTML =
       '<div class="state-overlay" style="grid-column:1/-1"><div class="spinner"></div> Loading…</div>';
+
+    // Clear manager note while loading
+    const mnEl = document.getElementById('manager-note-input');
+    if (mnEl) mnEl.value = '';
+
     try {
       const res = await fetch('/api/mydata/' + selectedDate, { credentials: 'same-origin' });
       if (res.status === 401) { window.location.href = '/login'; return; }
       const existing = await res.json();
+
+      /* Populate manager note */
+      if (mnEl) mnEl.value = existing['_managerNote'] || '';
+
       renderTasks(existing);
       updateSubmittedBadge(existing);
     } catch {
@@ -488,20 +639,114 @@
     }
   }
 
-  /* ── Init ── */
-  async function init() {
+  /* ── History ── */
+  async function loadHistory() {
+    if (historyLoaded) return;
+    historyLoaded = true;
+
+    const c = document.getElementById('history-content');
+    c.innerHTML = '<div class="history-empty"><div class="spinner"></div><br>Loading…</div>';
+
     try {
-      const res = await fetch('/api/me', { credentials: 'same-origin' });
+      const res = await fetch('/api/data/' + encodeURIComponent(memberUsername), { credentials: 'same-origin' });
       if (res.status === 401) { window.location.href = '/login'; return; }
-      const me  = await res.json();
-      memberTasks = me.tasks || [];
-      document.getElementById('member-name-badge').textContent = me.display;
-      document.title = me.display + ' — Rank Orbit';
-    } catch {
-      window.location.href = '/login';
-      return;
+      const data = await res.json(); // { "2026-05-19": { taskName: data, _managerNote: "" } }
+
+      const dates = Object.keys(data).sort((a, b) => b.localeCompare(a)); // newest first
+
+      if (!dates.length) {
+        c.innerHTML = '<div class="history-empty">No history yet. Submit your first entry and it will appear here.</div>';
+        return;
+      }
+
+      let tableRows = '';
+      let totalRendered = 0;
+
+      dates.forEach(date => {
+        const dayData     = data[date] || {};
+        const managerNote = dayData['_managerNote'] || '';
+
+        /* Filter tasks that have actual data */
+        const taskRows = memberTasks.filter(t => {
+          const v = dayData[t.name];
+          if (!v) return false;
+          if (v.rows && v.rows.length) return v.rows.some(r => r.client || r.value || r.links);
+          return (v.value !== undefined && v.value !== '') || !!v.text || !!v.links;
+        });
+
+        if (!taskRows.length && !managerNote) return;
+
+        const rowCount  = taskRows.length + (managerNote ? 1 : 0);
+        const dateLabel = formatDisplay(date);
+        let firstRow    = true;
+
+        taskRows.forEach(t => {
+          const v = dayData[t.name];
+          tableRows += '<tr>';
+          if (firstRow) {
+            tableRows += '<td class="hist-date" rowspan="' + rowCount + '">' + escHtml(dateLabel) + '</td>';
+            firstRow = false;
+          }
+          tableRows += '<td class="hist-task">' + escHtml(t.name) + '</td>' +
+                       '<td class="hist-val">'  + escHtml(historyValue(v, t.type)) + '</td>' +
+                       '<td class="hist-note">' + escHtml(v.sectionNote || '') + '</td></tr>';
+          totalRendered++;
+        });
+
+        if (managerNote) {
+          tableRows += '<tr>';
+          if (firstRow) {
+            tableRows += '<td class="hist-date" rowspan="1">' + escHtml(dateLabel) + '</td>';
+            firstRow = false;
+          }
+          tableRows += '<td class="hist-task" style="color:var(--gold)">📋 Note for Manager</td>' +
+                       '<td class="hist-mgr-note" colspan="2">' + escHtml(managerNote) + '</td></tr>';
+          totalRendered++;
+        }
+      });
+
+      if (!totalRendered) {
+        c.innerHTML = '<div class="history-empty">No data found in your history.</div>';
+        return;
+      }
+
+      c.innerHTML =
+        '<div class="history-table-wrap">' +
+        '<table class="history-table">' +
+        '<thead><tr><th>Date</th><th>Task</th><th>Value / Data</th><th>Note</th></tr></thead>' +
+        '<tbody>' + tableRows + '</tbody>' +
+        '</table></div>';
+
+    } catch (e) {
+      c.innerHTML = '<div class="history-empty">Failed to load history. Please try again.</div>';
     }
-    setDate(todayISO());
+  }
+
+  function historyValue(v, type) {
+    if (!v) return '';
+    switch (type) {
+      case 'links':
+      case 'layers': {
+        if (!v.rows || !v.rows.length) return '';
+        const parts = v.rows
+          .filter(r => r.client || r.value || r.links)
+          .map(r => {
+            const val = r.value || r.links || '';
+            return r.client ? r.client + (val ? ' → ' + val : '') : val;
+          });
+        return parts.join(' | ') + (v.total ? '  (Total: ' + v.total + ')' : '');
+      }
+      case 'count':
+        return v.value !== undefined ? String(v.value) : '';
+      case 'note':
+        return v.text || '';
+      case 'count_note':
+        return [v.value !== undefined ? String(v.value) : '', v.text].filter(Boolean).join('  —  ');
+      case 'links_note':
+        return [v.links, v.text].filter(Boolean).join('  —  ');
+      default:
+        return '';
+    }
   }
 
   /* ── Toast ── */
@@ -522,6 +767,23 @@
   async function logout() {
     await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
     window.location.href = '/login';
+  }
+
+  /* ── Init ── */
+  async function init() {
+    try {
+      const res = await fetch('/api/me', { credentials: 'same-origin' });
+      if (res.status === 401) { window.location.href = '/login'; return; }
+      const me  = await res.json();
+      memberTasks    = me.tasks || [];
+      memberUsername = me.username;
+      document.getElementById('member-name-badge').textContent = me.display;
+      document.title = me.display + ' — Rank Orbit';
+    } catch {
+      window.location.href = '/login';
+      return;
+    }
+    setDate(todayISO());
   }
 
   init();
