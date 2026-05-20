@@ -50,6 +50,8 @@ const AttendanceSchema = new mongoose.Schema({
   workMode:             { type: String, enum: ['WFH', 'WFO'] },
   startTime:            { type: String }, // "HH:MM"
   endTime:              { type: String }, // "HH:MM"
+  sessions:             [{ startTime: String, endTime: String, workMode: String }],
+  note:                 { type: String, default: '' },
   checkOuts:            [{ outTime: String, inTime: String }],
   totalCheckOutMinutes: { type: Number, default: 0 },
   totalWorkingMinutes:  { type: Number, default: 0 },
@@ -111,6 +113,14 @@ mongoose.connection.once('open', async () => {
       };
     });
     console.log('✓ Loaded', Object.keys(usersCache).length, 'users into cache');
+
+    // Feature 6: Ensure manager display name is "Abdullah Saleem" (migration for existing DBs)
+    const managerDoc = await User.findOne({ username: 'manager' });
+    if (managerDoc && managerDoc.display !== 'Abdullah Saleem') {
+      await User.updateOne({ username: 'manager' }, { $set: { display: 'Abdullah Saleem' } });
+      if (usersCache['manager']) usersCache['manager'].display = 'Abdullah Saleem';
+      console.log('✓ Migrated manager display name to Abdullah Saleem');
+    }
   } catch (err) {
     console.error('Startup error:', err);
   }
@@ -120,7 +130,7 @@ mongoose.connection.once('open', async () => {
 // passwordVersion: 1 is the baseline. Incrementing it (via change-password API)
 // invalidates all existing sessions for that user immediately.
 const USERS = {
-  "manager":        { password: "mgr2024",       role: "manager",   display: "Manager",          passwordVersion: 1 },
+  "manager":        { password: "mgr2024",       role: "manager",   display: "Abdullah Saleem",   passwordVersion: 1 },
   "assistant":      { password: "asst2024",       role: "assistant", display: "Assistant",         passwordVersion: 1 },
   "ali.lodhi":      { password: "ali@123#RO",     role: "member",    display: "Ali Lodhi",         passwordVersion: 1 },
   "abida.khalid":   { password: "abida@123#RO",   role: "member",    display: "Abida Khalid",      passwordVersion: 1 },
@@ -600,22 +610,53 @@ function timeToMinutes(timeStr) {
   return (h || 0) * 60 + (m || 0);
 }
 
+// Recalculate totalWorkingMinutes accounting for sessions and breaks
+function recalcWorkMins(record) {
+  const sessions = record.sessions || [];
+  if (sessions.length > 0) {
+    let total = 0;
+    sessions.forEach(s => {
+      if (s.startTime && s.endTime)
+        total += Math.max(0, timeToMinutes(s.endTime) - timeToMinutes(s.startTime));
+    });
+    record.totalWorkingMinutes = Math.max(0, total - (record.totalCheckOutMinutes || 0));
+  } else if (record.startTime && record.endTime) {
+    const rawMins = Math.max(0, timeToMinutes(record.endTime) - timeToMinutes(record.startTime));
+    record.totalWorkingMinutes = Math.max(0, rawMins - (record.totalCheckOutMinutes || 0));
+  }
+}
+
 // ── Attendance routes ──────────────────────────────────────────────────────
 
-// POST /api/attendance/start — start working today
+// POST /api/attendance/start — start a working session (supports multiple sessions per day)
 app.post('/api/attendance/start', async (req, res) => {
-  const { workMode, time } = req.body;
+  const { workMode, time, date: reqDate } = req.body;
   if (!workMode || !['WFH', 'WFO'].includes(workMode))
     return res.status(400).json({ error: 'workMode must be WFH or WFO' });
-  const date      = new Date().toISOString().split('T')[0];
+  // Feature 3: accept date from client for night-shift support; default to today
+  const date      = (reqDate && /^\d{4}-\d{2}-\d{2}$/.test(reqDate)) ? reqDate : new Date().toISOString().split('T')[0];
   const startTime = time || currentTimeStr();
   try {
     const existing = await Attendance.findOne({ username: req.session.username, date });
-    if (existing && existing.startTime)
-      return res.status(400).json({ error: 'Already started working today' });
+    // Block if there is already an open (unended) session
+    if (existing) {
+      const sessions       = existing.sessions || [];
+      const hasOpenSession = sessions.some(s => s.startTime && !s.endTime);
+      const hasLegacyOpen  = sessions.length === 0 && existing.startTime && !existing.endTime;
+      if (hasOpenSession || hasLegacyOpen) {
+        return res.status(400).json({ error: 'A session is already active. End the current session first.' });
+      }
+    }
+    const isFirst = !existing || !existing.startTime;
+    const update  = {
+      $push:        { sessions: { startTime, endTime: '', workMode } },
+      $setOnInsert: { username: req.session.username, date },
+    };
+    // First session of the day — also set root fields for backward compat
+    if (isFirst) update.$set = { workMode, startTime };
     const record = await Attendance.findOneAndUpdate(
       { username: req.session.username, date },
-      { $set: { workMode, startTime }, $setOnInsert: { username: req.session.username, date } },
+      update,
       { upsert: true, new: true }
     );
     res.json({ success: true, record });
@@ -625,20 +666,34 @@ app.post('/api/attendance/start', async (req, res) => {
   }
 });
 
-// POST /api/attendance/end — end working today
+// POST /api/attendance/end — end the current active session
 app.post('/api/attendance/end', async (req, res) => {
-  const { time } = req.body;
-  const date    = new Date().toISOString().split('T')[0];
+  const { time, date: reqDate } = req.body;
+  const date    = (reqDate && /^\d{4}-\d{2}-\d{2}$/.test(reqDate)) ? reqDate : new Date().toISOString().split('T')[0];
   const endTime = time || currentTimeStr();
   try {
     const record = await Attendance.findOne({ username: req.session.username, date });
-    if (!record || !record.startTime)
-      return res.status(400).json({ error: 'No start time found for today' });
-    if (record.endTime)
-      return res.status(400).json({ error: 'Already ended working today' });
-    const rawMins = Math.max(0, timeToMinutes(endTime) - timeToMinutes(record.startTime));
-    record.endTime             = endTime;
-    record.totalWorkingMinutes = Math.max(0, rawMins - (record.totalCheckOutMinutes || 0));
+    if (!record) return res.status(400).json({ error: 'No attendance record found for that date' });
+    const sessions = record.sessions || [];
+    if (sessions.length > 0) {
+      // Multi-session mode: end the last open session
+      let openIdx = -1;
+      for (let i = sessions.length - 1; i >= 0; i--) {
+        if (sessions[i].startTime && !sessions[i].endTime) { openIdx = i; break; }
+      }
+      if (openIdx === -1) return res.status(400).json({ error: 'No active session to end' });
+      sessions[openIdx].endTime = endTime;
+      record.sessions = sessions;
+      record.markModified('sessions');
+      record.endTime  = endTime; // backward compat
+      recalcWorkMins(record);
+    } else {
+      // Legacy single-session mode (records created before multi-session)
+      if (!record.startTime) return res.status(400).json({ error: 'No start time found' });
+      if (record.endTime)    return res.status(400).json({ error: 'Session already ended' });
+      record.endTime = endTime;
+      recalcWorkMins(record);
+    }
     await record.save();
     res.json({ success: true, record });
   } catch (err) {
@@ -649,8 +704,8 @@ app.post('/api/attendance/end', async (req, res) => {
 
 // POST /api/attendance/checkout — take a break
 app.post('/api/attendance/checkout', async (req, res) => {
-  const { time } = req.body;
-  const date    = new Date().toISOString().split('T')[0];
+  const { time, date: reqDate } = req.body;
+  const date    = (reqDate && /^\d{4}-\d{2}-\d{2}$/.test(reqDate)) ? reqDate : new Date().toISOString().split('T')[0];
   const outTime = time || currentTimeStr();
   try {
     const record = await Attendance.findOne({ username: req.session.username, date });
@@ -673,8 +728,8 @@ app.post('/api/attendance/checkout', async (req, res) => {
 
 // POST /api/attendance/checkin — return from break
 app.post('/api/attendance/checkin', async (req, res) => {
-  const { time } = req.body;
-  const date   = new Date().toISOString().split('T')[0];
+  const { time, date: reqDate } = req.body;
+  const date   = (reqDate && /^\d{4}-\d{2}-\d{2}$/.test(reqDate)) ? reqDate : new Date().toISOString().split('T')[0];
   const inTime = time || currentTimeStr();
   try {
     const record = await Attendance.findOne({ username: req.session.username, date });
@@ -688,11 +743,44 @@ app.post('/api/attendance/checkin', async (req, res) => {
         totalCoMins += Math.max(0, timeToMinutes(co.inTime) - timeToMinutes(co.outTime));
     });
     record.totalCheckOutMinutes = totalCoMins;
+    recalcWorkMins(record);
     record.markModified('checkOuts');
     await record.save();
     res.json({ success: true, record });
   } catch (err) {
     console.error('Attendance checkin error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// GET /api/attendance/checkout-count — number of team members currently checked out (for live banner)
+app.get('/api/attendance/checkout-count', requireAuth, async (req, res) => {
+  const date = new Date().toISOString().split('T')[0];
+  try {
+    const records = await Attendance.find({ date });
+    const count   = records.filter(r =>
+      (r.checkOuts || []).some(co => co.outTime && !co.inTime)
+    ).length;
+    res.json({ count });
+  } catch (err) {
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// PUT /api/attendance/note/:id — save overtime / half-day note (member: own record; manager: any)
+app.put('/api/attendance/note/:id', requireAuth, async (req, res) => {
+  const { note } = req.body;
+  if (note === undefined) return res.status(400).json({ error: 'note is required' });
+  try {
+    const record = await Attendance.findById(req.params.id);
+    if (!record) return res.status(404).json({ error: 'Record not found' });
+    if (req.session.role === 'member' && record.username !== req.session.username)
+      return res.status(403).json({ error: 'Access denied' });
+    record.note = String(note).trim();
+    await record.save();
+    res.json({ success: true, record });
+  } catch (err) {
+    console.error('Attendance note error:', err);
     res.status(500).json({ error: 'Database error' });
   }
 });
@@ -784,9 +872,8 @@ app.put('/api/attendance/edit/:id', async (req, res) => {
     });
     record[field] = newValue;
     // Recalculate totals when times change
-    if (['startTime', 'endTime'].includes(field) && record.startTime && record.endTime) {
-      const rawMins = Math.max(0, timeToMinutes(record.endTime) - timeToMinutes(record.startTime));
-      record.totalWorkingMinutes = Math.max(0, rawMins - (record.totalCheckOutMinutes || 0));
+    if (['startTime', 'endTime', 'sessions'].includes(field)) {
+      recalcWorkMins(record);
     }
     if (field === 'checkOuts') {
       let totalCoMins = 0;
@@ -795,10 +882,7 @@ app.put('/api/attendance/edit/:id', async (req, res) => {
           totalCoMins += Math.max(0, timeToMinutes(co.inTime) - timeToMinutes(co.outTime));
       });
       record.totalCheckOutMinutes = totalCoMins;
-      if (record.startTime && record.endTime) {
-        const rawMins = Math.max(0, timeToMinutes(record.endTime) - timeToMinutes(record.startTime));
-        record.totalWorkingMinutes = Math.max(0, rawMins - totalCoMins);
-      }
+      recalcWorkMins(record);
     }
     record.markModified('editHistory');
     record.markModified('checkOuts');

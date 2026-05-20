@@ -426,6 +426,16 @@
   }
   .et-error.show { display: block; }
 
+  /* Checkout counter banner */
+  .checkout-banner {
+    background: rgba(251,146,60,0.1);
+    border-bottom: 1px solid rgba(251,146,60,0.22);
+    padding: 7px 20px;
+    font-size: 12px; font-weight: 600;
+    color: #fb923c; text-align: center;
+    display: none;
+  }
+
   /* History sub-tabs */
   .mh-tabs {
     display: flex; gap: 0; border-bottom: 1px solid var(--border);
@@ -497,12 +507,47 @@
     margin-bottom: 4px;
   }
   .mat-hist-item strong { color: var(--text); }
+
+  /* Attendance note modal (member) */
+  .mem-note-overlay {
+    position: fixed; inset: 0; z-index: 970;
+    background: rgba(0,0,0,0.65);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px; backdrop-filter: blur(4px);
+  }
+  .mem-note-overlay.hidden { display: none; }
+  .mem-note-modal {
+    background: var(--surface); border: 1px solid var(--border-2);
+    border-radius: var(--radius); width: 100%; max-width: 380px;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.9);
+    animation: wmPop 0.18s ease;
+    display: flex; flex-direction: column;
+  }
+  .mem-note-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; border-bottom: 1px solid var(--border);
+    background: var(--surface-2);
+  }
+  .mem-note-title { font-size: 13px; font-weight: 700; }
+  .mem-note-close {
+    background: none; border: none; color: var(--text-muted);
+    cursor: pointer; font-size: 14px; padding: 2px 6px;
+    border-radius: 4px; transition: all 0.12s;
+  }
+  .mem-note-close:hover { background: var(--surface-3); color: var(--text); }
+  .mem-note-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .mem-note-footer {
+    display: flex; gap: 8px; justify-content: flex-end;
+    padding: 10px 14px; border-top: 1px solid var(--border);
+    background: var(--surface-2);
+  }
 </style>
 </head>
 <body>
 
 <div class="topbar">
-  <div class="topbar-logo">RO</div>
+  <!-- TODO: add logo.png to public folder for the Rank Orbit logo -->
+  <img src="/logo.png" alt="RO" class="topbar-logo" style="width:36px;height:36px;object-fit:contain;border-radius:10px" onerror="this.outerHTML='<div class=&quot;topbar-logo&quot;>RO</div>'">
   <div class="topbar-title">Rank <span>Orbit</span></div>
   <div class="topbar-right">
     <span class="badge badge-muted" id="member-name-badge">…</span>
@@ -510,6 +555,9 @@
     <button class="btn-logout" onclick="logout()">Logout</button>
   </div>
 </div>
+
+<!-- Checkout counter banner (Feature 1) -->
+<div class="checkout-banner" id="checkout-banner">&#9646;&#9646; <span id="checkout-count-text">0 team members</span> currently on break</div>
 
 <!-- ── Attendance bar ── -->
 <div class="attendance-bar" id="attendance-bar">
@@ -519,13 +567,19 @@
   <div class="att-btn-group" id="att-btn-group">
     <button class="att-btn att-btn-start" onclick="openWorkModeModal()">&#9654; Start Working</button>
   </div>
+  <button id="att-note-btn" style="display:none;background:none;border:1px solid var(--border);border-radius:var(--radius-sm);padding:5px 10px;color:var(--text-muted);font-size:12px;cursor:pointer;transition:all 0.15s;flex-shrink:0" onclick="openMemNote()" title="Add attendance note">&#128221;</button>
 </div>
 
 <!-- Work mode selection popup -->
 <div id="wm-overlay" class="wm-overlay hidden" onclick="if(event.target===this)closeWorkModeModal()">
   <div class="wm-popup">
-    <div class="wm-title">Where are you working?</div>
-    <div class="wm-sub">Select your work mode for today</div>
+    <div class="wm-title">Start Working</div>
+    <div class="wm-sub">Select date and work mode</div>
+    <div class="form-group" style="margin-bottom:18px;text-align:left">
+      <label class="form-label" style="font-size:11px;color:var(--text-muted)">Date</label>
+      <input type="date" id="wm-date-input" class="inp" style="font-size:13px;width:100%">
+      <p style="font-size:10px;color:var(--text-dim);margin:5px 0 0">Night shift? Select your shift's start date.</p>
+    </div>
     <div class="wm-choices">
       <button class="wm-choice-btn wm-wfh" onclick="startWorking('WFH')">
         🏠<br><span style="font-size:13px;letter-spacing:1px">WFH</span>
@@ -640,6 +694,27 @@
   </div>
 </div>
 
+<!-- Member attendance note modal (Feature 4) -->
+<div id="mem-note-overlay" class="mem-note-overlay hidden" onclick="if(event.target===this)closeMemNote()">
+  <div class="mem-note-modal">
+    <div class="mem-note-header">
+      <span class="mem-note-title">&#128221; Attendance Note</span>
+      <button class="mem-note-close" onclick="closeMemNote()">&#10005;</button>
+    </div>
+    <div class="mem-note-body">
+      <div class="form-group">
+        <label class="form-label">Note <span style="color:var(--text-dim);font-weight:400;text-transform:none;font-size:10px">(overtime, half-day reason…)</span></label>
+        <textarea class="inp" id="mem-note-input" rows="3" placeholder="e.g. Overtime for project deadline" style="resize:vertical"></textarea>
+      </div>
+      <div class="et-error" id="mem-note-error"></div>
+    </div>
+    <div class="mem-note-footer">
+      <button class="today-btn" style="color:var(--text-muted);background:var(--surface-2);border-color:var(--border)" onclick="closeMemNote()">Cancel</button>
+      <button class="btn-save" id="mem-note-save-btn" onclick="saveMemNote()" style="padding:8px 20px;font-size:12px">Save Note</button>
+    </div>
+  </div>
+</div>
+
 <!-- Member attendance edit modal -->
 <div id="mat-overlay" class="mat-overlay hidden" onclick="if(event.target===this)closeMemberAttEdit()">
   <div class="mat-modal">
@@ -688,11 +763,13 @@
   let memberTab      = 'today';
   let historyLoaded  = false;
   let currentDateData = {};
-  let attRecord        = null; // today's attendance record
+  let attRecord        = null; // current day's attendance record
+  let attRecordDate    = null; // the date of attRecord (may differ from selectedDate)
   let etState          = null; // { field, label } for edit time modal
   let historyTab       = 'tasks';
   let matRecord        = null;
   let attHistoryLoaded = false;
+  let checkoutPollTimer = null;
 
   function todayISO() {
     return new Date().toISOString().split('T')[0];
@@ -1207,50 +1284,82 @@
     const r          = attRecord;
     const statusWrap = document.getElementById('att-status-wrap');
     const btnGroup   = document.getElementById('att-btn-group');
+    const noteBtn    = document.getElementById('att-note-btn');
 
-    if (!r || !r.startTime) {
+    if (!r) {
       statusWrap.innerHTML = '<span style="font-size:12px;color:var(--text-dim)">No attendance recorded today.</span>';
       btnGroup.innerHTML   = '<button class="att-btn att-btn-start" onclick="openWorkModeModal()">&#9654; Start Working</button>';
+      if (noteBtn) noteBtn.style.display = 'none';
       return;
     }
 
+    const sessions        = r.sessions || [];
+    const hasSessionData  = sessions.length > 0;
+    const hasStart        = hasSessionData ? true : !!r.startTime;
+
+    if (!hasStart) {
+      statusWrap.innerHTML = '<span style="font-size:12px;color:var(--text-dim)">No attendance recorded today.</span>';
+      btnGroup.innerHTML   = '<button class="att-btn att-btn-start" onclick="openWorkModeModal()">&#9654; Start Working</button>';
+      if (noteBtn) noteBtn.style.display = 'none';
+      return;
+    }
+
+    const allSessionsComplete = hasSessionData
+      ? sessions.every(s => s.endTime)
+      : !!r.endTime;
     const hasOpenCheckout = (r.checkOuts || []).some(co => co.outTime && !co.inTime);
-    const isEnded         = !!r.endTime;
+    const isEnded         = allSessionsComplete;
 
     let statusHtml = '';
-    if (isEnded)              statusHtml = '<span class="att-status-ended">&#9632; Session Ended</span>';
-    else if (hasOpenCheckout) statusHtml = '<span class="att-status-checkout">&#9646;&#9646; Checked Out</span>';
+    if (isEnded)              statusHtml = '<span class="att-status-ended">&#9632; Day Complete</span>';
+    else if (hasOpenCheckout) statusHtml = '<span class="att-status-checkout">&#9646;&#9646; On Break</span>';
     else                      statusHtml = '<span class="att-status-working">&#9679; Working</span>';
 
-    const modeCls   = r.workMode === 'WFH' ? 'att-mode-wfh' : 'att-mode-wfo';
-    const modeBadge = '<span class="att-mode-badge ' + modeCls + '">' + escHtml(r.workMode || '') + '</span>';
-
-    const startChip = r.startTime
-      ? '<span class="att-time-chip">Start: <strong>' + escHtml(r.startTime) + '</strong>' +
-        (!isEnded ? '<span class="att-edit-icon" onclick="openEditTimeModal(\'startTime\',\'Start Time\')" title="Edit">&#9998;</span>' : '') +
-        '</span>'
-      : '';
-
-    const endChip = r.endTime
-      ? '<span class="att-time-chip">End: <strong>' + escHtml(r.endTime) + '</strong>' +
-        '<span class="att-edit-icon" onclick="openEditTimeModal(\'endTime\',\'End Time\')" title="Edit">&#9998;</span>' +
-        '</span>'
-      : '';
+    // Build session chips
+    let sessionChips = '';
+    if (hasSessionData) {
+      sessionChips = sessions.map((s, i) => {
+        const modeCls  = s.workMode === 'WFH' ? 'att-mode-wfh' : 'att-mode-wfo';
+        const duration = s.endTime && s.startTime
+          ? formatMins(Math.max(0, timeToMinutes(s.endTime) - timeToMinutes(s.startTime))) : null;
+        return '<span class="att-time-chip">' +
+          (sessions.length > 1 ? '<span style="font-size:9px;color:var(--text-dim)">S' + (i + 1) + '</span> ' : '') +
+          '<span class="att-mode-badge ' + modeCls + '">' + escHtml(s.workMode || '') + '</span> ' +
+          escHtml(s.startTime || '') + (s.endTime ? '–' + escHtml(s.endTime) : '') +
+          (duration ? ' <span style="color:#4ade80;font-size:10px">(' + duration + ')</span>' : '') +
+          '</span>';
+      }).join('<span class="att-sep">|</span>');
+    } else {
+      // Backward compat: old-style record
+      const modeCls   = r.workMode === 'WFH' ? 'att-mode-wfh' : 'att-mode-wfo';
+      const modeBadge = '<span class="att-mode-badge ' + modeCls + '">' + escHtml(r.workMode || '') + '</span>';
+      const startChip = r.startTime
+        ? '<span class="att-time-chip">Start: <strong>' + escHtml(r.startTime) + '</strong>' +
+          (!isEnded ? '<span class="att-edit-icon" onclick="openEditTimeModal(\'startTime\',\'Start Time\')" title="Edit">&#9998;</span>' : '') +
+          '</span>' : '';
+      const endChip = r.endTime
+        ? '<span class="att-time-chip">End: <strong>' + escHtml(r.endTime) + '</strong>' +
+          '<span class="att-edit-icon" onclick="openEditTimeModal(\'endTime\',\'End Time\')" title="Edit">&#9998;</span>' +
+          '</span>' : '';
+      sessionChips = [modeBadge, startChip, endChip].filter(Boolean).join(' ');
+    }
 
     const breakChip = r.totalCheckOutMinutes
       ? '<span class="att-time-chip" style="color:var(--gold)">Break: <strong style="color:var(--gold)">' + formatMins(r.totalCheckOutMinutes) + '</strong></span>'
       : '';
-
     const totalChip = r.totalWorkingMinutes
       ? '<span class="att-time-chip" style="color:#4ade80">Total: <strong style="color:#4ade80">' + formatMins(r.totalWorkingMinutes) + '</strong></span>'
       : '';
 
-    const chips = [startChip, endChip, breakChip, totalChip].filter(Boolean);
-    const chipsHtml = chips.map((c, i) =>
-      c + (i < chips.length - 1 ? '<span class="att-sep">|</span>' : '')
-    ).join(' ');
+    const parts = [statusHtml, sessionChips, breakChip, totalChip].filter(Boolean);
+    statusWrap.innerHTML = parts.join('  ');
 
-    statusWrap.innerHTML = modeBadge + ' ' + statusHtml + '  ' + chipsHtml;
+    // Note button visibility
+    if (noteBtn) {
+      noteBtn.style.display = '';
+      noteBtn.style.color   = r.note ? 'var(--gold)' : 'var(--text-muted)';
+      noteBtn.title         = r.note ? 'Note: ' + r.note : 'Add attendance note';
+    }
 
     let btns = '';
     if (!isEnded) {
@@ -1262,29 +1371,34 @@
           '<button class="att-btn att-btn-end"      onclick="endWorking()">&#9632; End Working</button>';
       }
     } else {
-      btns = '<span style="font-size:11px;color:var(--text-dim);padding:7px 0">Day complete</span>';
+      btns = '<button class="att-btn att-btn-start" onclick="openWorkModeModal()">&#9654; Start New Session</button>';
     }
     btnGroup.innerHTML = btns;
   }
 
   /* ── Work mode popup ── */
-  function openWorkModeModal()  { document.getElementById('wm-overlay').classList.remove('hidden'); }
+  function openWorkModeModal() {
+    document.getElementById('wm-date-input').value = todayISO();
+    document.getElementById('wm-overlay').classList.remove('hidden');
+  }
   function closeWorkModeModal() { document.getElementById('wm-overlay').classList.add('hidden'); }
 
   /* ── Attendance action handlers ── */
   async function startWorking(workMode) {
+    const date = document.getElementById('wm-date-input').value || todayISO();
     closeWorkModeModal();
     const time = nowTimeStr();
     try {
       const res  = await fetch('/api/attendance/start', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ workMode, time }),
+        body:    JSON.stringify({ workMode, time, date }),
         credentials: 'same-origin',
       });
       const data = await res.json();
       if (res.ok) {
-        attRecord = data.record;
+        attRecord     = data.record;
+        attRecordDate = data.record.date;
         renderAttendanceBar();
         showToast('Started working (' + workMode + ') at ' + time, 'success');
       } else {
@@ -1294,13 +1408,14 @@
   }
 
   async function endWorking() {
-    if (!confirm('End your working session for today?')) return;
+    if (!confirm('End your working session?')) return;
     const time = nowTimeStr();
+    const date = attRecord ? attRecord.date : todayISO();
     try {
       const res  = await fetch('/api/attendance/end', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ time }),
+        body:    JSON.stringify({ time, date }),
         credentials: 'same-origin',
       });
       const data = await res.json();
@@ -1316,11 +1431,12 @@
 
   async function checkOut() {
     const time = nowTimeStr();
+    const date = attRecord ? attRecord.date : todayISO();
     try {
       const res  = await fetch('/api/attendance/checkout', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ time }),
+        body:    JSON.stringify({ time, date }),
         credentials: 'same-origin',
       });
       const data = await res.json();
@@ -1336,11 +1452,12 @@
 
   async function checkIn() {
     const time = nowTimeStr();
+    const date = attRecord ? attRecord.date : todayISO();
     try {
       const res  = await fetch('/api/attendance/checkin', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ time }),
+        body:    JSON.stringify({ time, date }),
         credentials: 'same-origin',
       });
       const data = await res.json();
@@ -1404,6 +1521,50 @@
     } finally {
       btn.disabled    = false;
       btn.textContent = 'Save';
+    }
+  }
+
+  /* ── Member attendance note ── */
+  function openMemNote() {
+    if (!attRecord) return;
+    document.getElementById('mem-note-input').value = attRecord.note || '';
+    const errEl = document.getElementById('mem-note-error');
+    errEl.textContent = ''; errEl.classList.remove('show');
+    document.getElementById('mem-note-overlay').classList.remove('hidden');
+    setTimeout(() => document.getElementById('mem-note-input').focus(), 50);
+  }
+
+  function closeMemNote() {
+    document.getElementById('mem-note-overlay').classList.add('hidden');
+  }
+
+  async function saveMemNote() {
+    if (!attRecord) return;
+    const note  = (document.getElementById('mem-note-input').value || '').trim();
+    const btn   = document.getElementById('mem-note-save-btn');
+    const errEl = document.getElementById('mem-note-error');
+    errEl.textContent = ''; errEl.classList.remove('show');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    try {
+      const res = await fetch('/api/attendance/note/' + attRecord._id, {
+        method:  'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ note }),
+        credentials: 'same-origin',
+      });
+      const data = await res.json();
+      if (res.ok) {
+        attRecord.note = note;
+        renderAttendanceBar();
+        closeMemNote();
+        showToast('Note saved.', 'success');
+      } else {
+        errEl.textContent = data.error || 'Save failed.'; errEl.classList.add('show');
+      }
+    } catch {
+      errEl.textContent = 'Network error.'; errEl.classList.add('show');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Save Note';
     }
   }
 
@@ -1612,6 +1773,23 @@
     window.location.href = '/login';
   }
 
+  /* ── Checkout counter (Feature 1) ── */
+  async function refreshCheckoutCount() {
+    try {
+      const res  = await fetch('/api/attendance/checkout-count', { credentials: 'same-origin' });
+      if (!res.ok) return;
+      const data = await res.json();
+      const banner  = document.getElementById('checkout-banner');
+      const textEl  = document.getElementById('checkout-count-text');
+      if (data.count > 0) {
+        textEl.textContent = data.count + ' team member' + (data.count > 1 ? 's' : '');
+        banner.style.display = 'block';
+      } else {
+        banner.style.display = 'none';
+      }
+    } catch { /* silently ignore */ }
+  }
+
   /* ── Init ── */
   async function init() {
     try {
@@ -1628,6 +1806,8 @@
     }
     setDate(todayISO());
     loadAttendance();
+    refreshCheckoutCount();
+    setInterval(refreshCheckoutCount, 30000); // auto-refresh every 30s
   }
 
   init();

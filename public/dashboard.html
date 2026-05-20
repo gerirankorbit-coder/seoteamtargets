@@ -556,7 +556,8 @@
 
 <!-- Topbar -->
 <div class="topbar">
-  <div class="topbar-logo">RO</div>
+  <!-- TODO: add logo.png to public folder for the Rank Orbit logo -->
+  <img src="/logo.png" alt="RO" class="topbar-logo" style="width:36px;height:36px;object-fit:contain;border-radius:10px" onerror="this.outerHTML='<div class=&quot;topbar-logo&quot;>RO</div>'">
   <div class="topbar-title">Rank <span>Orbit</span></div>
   <div class="topbar-right">
     <span class="badge badge-muted" id="user-badge">…</span>
@@ -702,6 +703,31 @@
     <div class="em-footer" style="display:flex">
       <button class="btn btn-ghost btn-sm"   onclick="closeAttEditModal()">Cancel</button>
       <button class="btn btn-primary btn-sm" id="att-edit-save-btn" onclick="saveAttEdit()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Attendance note modal ── -->
+<div id="att-note-overlay" class="att-edit-overlay hidden" onclick="if(event.target===this)closeAttNoteModal()">
+  <div class="att-edit-modal" style="max-width:400px">
+    <div class="em-header">
+      <div class="em-header-text">
+        <div class="em-title" id="att-note-title">Attendance Note</div>
+        <div class="em-sub"   id="att-note-sub"></div>
+      </div>
+      <div class="em-header-actions">
+        <button class="em-close" onclick="closeAttNoteModal()">&#10005;</button>
+      </div>
+    </div>
+    <div class="em-body" style="gap:12px;padding:16px">
+      <div class="form-group">
+        <label class="form-label">Note <span style="color:var(--text-dim);font-weight:400;text-transform:none;letter-spacing:0;font-size:10px">(overtime reason, half day, etc.)</span></label>
+        <textarea class="inp" id="att-note-input" rows="4" placeholder="e.g. Overtime for client deadline, Half day due to appointment…" style="resize:vertical;min-height:90px"></textarea>
+      </div>
+    </div>
+    <div class="em-footer" style="display:flex">
+      <button class="btn btn-ghost btn-sm"   onclick="closeAttNoteModal()">Cancel</button>
+      <button class="btn btn-primary btn-sm" id="att-note-save-btn" onclick="saveAttNote()">Save Note</button>
     </div>
   </div>
 </div>
@@ -949,7 +975,7 @@
     }
   }
 
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closePopover(); closeModal(); closeAddMemberModal(); closeAttEditModal(); } });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closePopover(); closeModal(); closeAddMemberModal(); closeAttEditModal(); closeAttNoteModal(); } });
 
   /* ══════════════════════════════════════════════════════════════
      Manager Cell Modal  —  Preview → Edit two-mode flow
@@ -1519,6 +1545,17 @@
           ' onclick="openAttEditModal(this.dataset.recid,this.dataset.uname)">&#9998; Edit</button>'
         : '';
 
+      const hasNote = r && r.note;
+      const noteBtn = r
+        ? '<button class="btn btn-ghost btn-sm" style="font-size:10px;padding:3px 8px;' + (hasNote ? 'color:var(--gold)' : '') + '"' +
+          ' data-recid="' + escHtml(String(r._id)) + '"' +
+          ' data-uname="' + escHtml(m.username) + '"' +
+          ' data-date="'  + escHtml(r.date)      + '"' +
+          ' title="' + (hasNote ? escHtml(r.note) : 'Add note') + '"' +
+          ' onclick="openAttNoteModal(this.dataset.recid,this.dataset.uname,this.dataset.date,this)">' +
+          (hasNote ? '&#128221;' : '+') + '</button>'
+        : '';
+
       return '<tr>' +
         '<td style="font-weight:600">' + escHtml(m.display) + '</td>' +
         '<td>' + modePill + '</td>' +
@@ -1527,6 +1564,7 @@
         '<td class="att-break-time">' + (breakMin ? formatMins(breakMin) : '–') + '</td>' +
         '<td class="att-working-time">' + (workMin ? formatMins(workMin) : '–') + '</td>' +
         '<td>' + status + '</td>' +
+        '<td>' + noteBtn + '</td>' +
         '<td>' + editBtn + '</td>' +
         '</tr>';
     }).join('');
@@ -1536,7 +1574,7 @@
       '<table class="att-table">' +
       '<thead><tr>' +
       '<th>Member</th><th>Mode</th><th>Start</th><th>End</th>' +
-      '<th>Break</th><th>Total Working</th><th>Status</th><th>Action</th>' +
+      '<th>Break</th><th>Total Working</th><th>Status</th><th>Note</th><th>Action</th>' +
       '</tr></thead>' +
       '<tbody>' + rows + '</tbody>' +
       '</table></div>';
@@ -1587,7 +1625,10 @@
         ? '<button class="btn btn-ghost btn-sm" style="font-size:10px;padding:3px 8px"' +
           ' data-recid="' + escHtml(String(r._id)) + '"' +
           ' data-uname="' + escHtml(r.username) + '"' +
-          ' onclick="openAttEditModal(this.dataset.recid,this.dataset.uname)">&#9998;</button>'
+          ' onclick="openAttEditModal(this.dataset.recid,this.dataset.uname)">&#9998;</button>' +
+          (r.note ? ' <span title="' + escHtml(r.note) + '" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--gold);vertical-align:middle;cursor:pointer"' +
+            ' data-recid="' + escHtml(String(r._id)) + '" data-uname="' + escHtml(r.username) + '" data-date="' + escHtml(r.date) + '"' +
+            ' onclick="openAttNoteModal(this.dataset.recid,this.dataset.uname,this.dataset.date,this)"></span>' : '')
         : '';
 
       const rowStyle = isToday
@@ -1744,7 +1785,6 @@
     const mem = members.find(m => m.username === username);
 
     document.getElementById('att-edit-title').textContent = 'Edit Attendance';
-    document.getElementById('att-edit-sub').textContent   = (mem ? mem.display : username) + '  ·  ' + formatFull(r.date);
 
     const coRows = (r.checkOuts || []).map((co, i) =>
       '<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">' +
@@ -1757,6 +1797,7 @@
 
     const mem           = members.find(m => m.username === username);
     const memberDisplay = mem ? mem.display : username;
+    document.getElementById('att-edit-sub').textContent = memberDisplay + '  ·  ' + formatFull(r.date);
     const allHistory    = (r.editHistory || []).slice().reverse();
     const managerEdits  = allHistory.filter(h => h.editedBy !== memberDisplay);
     const memberEdits   = allHistory.filter(h => h.editedBy === memberDisplay);
@@ -1803,6 +1844,10 @@
       '  <label class="form-label">Breaks (Out → In)</label>' +
       '  <div id="att-edit-co-rows">' + coRows + '</div>' +
       '</div>' +
+      '<div class="form-group">' +
+      '  <label class="form-label">Note <span style="color:var(--text-dim);font-weight:400;text-transform:none;letter-spacing:0;font-size:10px">(overtime, half day…)</span></label>' +
+      '  <textarea class="inp" id="att-edit-note" rows="2" placeholder="Optional note for this attendance record" style="resize:vertical">' + escHtml(r.note || '') + '</textarea>' +
+      '</div>' +
       '<div style="border-top:1px solid var(--border);padding-top:14px">' +
       '  <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Edit History</div>' +
       '  <div>' + histItems + '</div>' +
@@ -1828,10 +1873,13 @@
     btn.disabled    = true;
     btn.textContent = 'Saving…';
 
+    const noteVal = (document.getElementById('att-edit-note') || {}).value;
     const changes = [];
     if (mode  && mode  !== (r.workMode  || ''))  changes.push({ field: 'workMode',  newValue: mode });
     if (start !== (r.startTime || ''))            changes.push({ field: 'startTime', newValue: start });
     if (end   !== (r.endTime   || ''))            changes.push({ field: 'endTime',   newValue: end });
+    if (noteVal !== undefined && noteVal !== (r.note || ''))
+      changes.push({ field: '__note__', newValue: noteVal.trim() });
 
     if (coWrap) {
       const outInputs = coWrap.querySelectorAll('.att-co-out');
@@ -1853,12 +1901,21 @@
 
     try {
       for (const ch of changes) {
-        await fetch('/api/attendance/edit/' + r._id, {
-          method:  'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body:    JSON.stringify({ field: ch.field, newValue: ch.newValue }),
-          credentials: 'same-origin',
-        });
+        if (ch.field === '__note__') {
+          await fetch('/api/attendance/note/' + r._id, {
+            method:  'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ note: ch.newValue }),
+            credentials: 'same-origin',
+          });
+        } else {
+          await fetch('/api/attendance/edit/' + r._id, {
+            method:  'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ field: ch.field, newValue: ch.newValue }),
+            credentials: 'same-origin',
+          });
+        }
       }
       showToast('Attendance record updated.', 'success');
       closeAttEditModal();
@@ -1873,6 +1930,59 @@
     }
   }
 
+  /* ── Attendance note modal ── */
+  let attNoteRecordMeta = null;
+
+  function openAttNoteModal(recordId, username, date, triggerEl) {
+    attNoteRecordMeta = { _id: recordId, username, date };
+    const mem = members.find(m => m.username === username);
+    document.getElementById('att-note-title').textContent = 'Attendance Note';
+    document.getElementById('att-note-sub').textContent   = (mem ? mem.display : username) + '  ·  ' + formatFull(date);
+    document.getElementById('att-note-input').value = '';
+    document.getElementById('att-note-overlay').classList.remove('hidden');
+    // Populate existing note
+    fetch('/api/attendance/history/' + encodeURIComponent(username), { credentials: 'same-origin' })
+      .then(r => r.json())
+      .then(records => {
+        const rec = records.find(r => String(r._id) === String(recordId));
+        if (rec) document.getElementById('att-note-input').value = rec.note || '';
+      }).catch(() => {});
+  }
+
+  function closeAttNoteModal() {
+    document.getElementById('att-note-overlay').classList.add('hidden');
+    attNoteRecordMeta = null;
+  }
+
+  async function saveAttNote() {
+    if (!attNoteRecordMeta) return;
+    const note = (document.getElementById('att-note-input').value || '').trim();
+    const btn  = document.getElementById('att-note-save-btn');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    try {
+      const res = await fetch('/api/attendance/note/' + attNoteRecordMeta._id, {
+        method:  'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ note }),
+        credentials: 'same-origin',
+      });
+      if (res.ok) {
+        showToast('Note saved.', 'success');
+        closeAttNoteModal();
+        if (attTab === 'daily')   loadDailyAttendance();
+        if (attTab === 'monthly') loadMonthlyAttendance();
+        if (attTab === 'matrix')  loadMatrixAttendance();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showToast(data.error || 'Save failed.', 'error');
+      }
+    } catch {
+      showToast('Network error.', 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Save Note';
+    }
+  }
+
   /* ── Tab scroll ── */
   function scrollTabs(delta) {
     document.getElementById('tabs-bar').scrollBy({ left: delta, behavior: 'smooth' });
@@ -1883,13 +1993,6 @@
     document.getElementById('tabs-bar').innerHTML = members.map((m, i) =>
       '<div class="tab ' + (i === activeMember ? 'active' : '') + '" onclick="selectMember(' + i + ')">' +
       escHtml(m.display) +
-      (isManager
-        ? ' <button class="tab-x-btn"' +
-          ' data-username="' + escHtml(m.username) + '"' +
-          ' data-display="'  + escHtml(m.display)  + '"' +
-          ' onclick="event.stopPropagation();confirmRemoveMember(this.dataset.username,this.dataset.display)"' +
-          ' title="Remove ' + escHtml(m.display) + '">&#10005;</button>'
-        : '') +
       '</div>'
     ).join('');
   }
@@ -2160,7 +2263,19 @@
       '    <button class="btn btn-ghost btn-sm" style="flex-shrink:0" onclick="changePassword()">Update Password</button>' +
       '  </div>' +
       '  <p style="font-size:10px;color:var(--text-dim);margin:6px 0 0">Changing the password will immediately log out this member from all devices.</p>' +
-      '</div>';
+      '</div>' +
+      (isManager
+        ? '<div style="margin-top:24px;padding-top:18px;border-top:1px solid var(--border)">' +
+          '  <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">&#128101; Member Management</div>' +
+          '  <div style="display:flex;gap:8px;flex-wrap:wrap">' +
+          '    <button class="btn btn-ghost btn-sm" onclick="openAddMemberModal()" style="color:var(--blue)">&#43; Add New Member</button>' +
+          '    <button class="btn btn-ghost btn-sm" style="color:#f87171;border-color:rgba(239,68,68,0.3)"' +
+          '      data-username="' + escHtml(m.username) + '"' +
+          '      data-display="'  + escHtml(m.display)  + '"' +
+          '      onclick="confirmRemoveMember(this.dataset.username,this.dataset.display)">&#9888; Remove ' + escHtml(m.display) + ' from Team</button>' +
+          '  </div>' +
+          '</div>'
+        : '');
   }
 
   function addEditTask() {
@@ -2292,7 +2407,7 @@
       document.getElementById('role-badge').textContent  = me.role.charAt(0).toUpperCase() + me.role.slice(1);
       document.getElementById('role-badge').className    = 'badge ' + (me.role === 'assistant' ? 'badge-blue' : 'badge-pink');
       isManager = (me.role === 'manager');
-      document.getElementById('add-member-btn').style.display = isManager ? '' : 'none';
+      document.getElementById('add-member-btn').style.display = 'none'; // moved to Edit Tasks panel
     } catch { window.location.href = '/login'; return; }
 
     await loadAll();
