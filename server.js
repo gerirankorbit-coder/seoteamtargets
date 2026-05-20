@@ -746,6 +746,19 @@ app.get('/api/attendance/monthly/:username/:month', async (req, res) => {
   }
 });
 
+// GET /api/attendance/all-monthly/:month — all members for a month (manager only)
+app.get('/api/attendance/all-monthly/:month', requireManager, async (req, res) => {
+  const { month } = req.params;
+  if (!/^\d{4}-\d{2}$/.test(month))
+    return res.status(400).json({ error: 'month must be YYYY-MM' });
+  try {
+    const records = await Attendance.find({ date: { $regex: '^' + month } }).sort({ date: 1 });
+    res.json(records);
+  } catch (err) {
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
 // PUT /api/attendance/edit/:id — edit any field, saves to editHistory
 app.put('/api/attendance/edit/:id', async (req, res) => {
   const { field, newValue } = req.body;

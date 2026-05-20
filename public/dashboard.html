@@ -517,6 +517,39 @@
     margin-top: 4px;
   }
   .am-error.show { display: block; }
+
+  /* Matrix view */
+  .att-mx-wrap { overflow: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+  .att-mx-table { border-collapse: collapse; font-size: 11px; }
+  .att-mx-table th {
+    background: #0D0D18; color: var(--text-muted);
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;
+    padding: 7px 10px; border: 1px solid var(--border); white-space: nowrap;
+    position: sticky; top: 0; z-index: 2;
+  }
+  .att-mx-table th:first-child { left: 0; z-index: 3; min-width: 120px; }
+  .att-mx-table td {
+    padding: 6px 10px; border: 1px solid var(--border);
+    white-space: nowrap; text-align: center; font-size: 11px; font-weight: 600;
+    cursor: pointer; transition: filter 0.12s;
+  }
+  .att-mx-table td:first-child {
+    position: sticky; left: 0; background: var(--surface);
+    font-weight: 700; color: var(--text); text-align: left; z-index: 1;
+  }
+  .att-mx-cell-wfo     { background: rgba(22,163,74,0.18);  color: #4ade80; }
+  .att-mx-cell-wfh     { background: rgba(0,212,255,0.12);  color: var(--blue); }
+  .att-mx-cell-absent  { background: rgba(239,68,68,0.08);  color: #f87171; }
+  .att-mx-cell-weekend { background: transparent; color: var(--text-dim); opacity: 0.4; }
+  .att-mx-cell-future  { background: transparent; color: var(--text-dim); opacity: 0.3; }
+  .att-mx-table td:not(:first-child):hover { filter: brightness(1.4); }
+  /* Split history sections in edit modal */
+  .att-hist-section-title {
+    font-size: 10px; font-weight: 700; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.5px;
+    margin: 10px 0 6px; border-top: 1px solid var(--border); padding-top: 10px;
+  }
+  .att-hist-section-title:first-child { margin-top: 0; border-top: none; padding-top: 0; }
 </style>
 </head>
 <body>
@@ -595,6 +628,7 @@
   <div style="background:var(--surface-2);border-bottom:1px solid var(--border);padding:0 20px;display:flex;align-items:flex-end;gap:4px">
     <button class="att-sub-tab active" id="atab-daily"   onclick="switchAttTab('daily')">&#128197; Daily View</button>
     <button class="att-sub-tab"        id="atab-monthly" onclick="switchAttTab('monthly')">&#128336; Monthly View</button>
+    <button class="att-sub-tab"        id="atab-matrix"  onclick="switchAttTab('matrix')">&#9783; Matrix Report</button>
   </div>
 
   <!-- Daily view -->
@@ -623,6 +657,18 @@
     </div>
     <div id="att-monthly-table-wrap">
       <div class="state-overlay">Select a member and month.</div>
+    </div>
+  </div>
+
+  <!-- Matrix view -->
+  <div id="att-panel-matrix" style="display:none;padding:20px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+      <input type="month" id="att-matrix-month" class="inp" style="max-width:170px" onchange="loadMatrixAttendance()">
+      <button class="btn btn-ghost btn-sm" onclick="loadMatrixAttendance()">&#8635; Refresh</button>
+      <button class="btn btn-primary btn-sm" onclick="exportAttendanceCSV()" style="margin-left:auto">&#8659; Export CSV</button>
+    </div>
+    <div id="att-matrix-wrap">
+      <div class="state-overlay">Select a month to load the matrix.</div>
     </div>
   </div>
 </div>
@@ -1365,6 +1411,7 @@
   let attTab        = 'daily';
   let attDate       = '';
   let attEditRecord = null;
+  let matrixData    = {};
 
   function formatMins(mins) {
     if (!mins && mins !== 0) return '–';
@@ -1386,6 +1433,12 @@
       const now = new Date();
       mp.value = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
     }
+    // Set matrix month picker to current month
+    const mmp = document.getElementById('att-matrix-month');
+    if (mmp && !mmp.value) {
+      const now = new Date();
+      mmp.value = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+    }
     // Load today's attendance if no date selected
     if (!attDate) setAttDate(todayISO());
     else loadDailyAttendance();
@@ -1393,12 +1446,13 @@
 
   function switchAttTab(tab) {
     attTab = tab;
-    ['daily', 'monthly'].forEach(t => {
+    ['daily', 'monthly', 'matrix'].forEach(t => {
       document.getElementById('att-panel-' + t).style.display = t === tab ? 'block' : 'none';
       document.getElementById('atab-' + t).classList.toggle('active', t === tab);
     });
     if (tab === 'daily')   loadDailyAttendance();
     if (tab === 'monthly') loadMonthlyAttendance();
+    if (tab === 'matrix')  loadMatrixAttendance();
   }
 
   function setAttDate(iso) {
@@ -1563,6 +1617,119 @@
       '</table></div>';
   }
 
+  async function loadMatrixAttendance() {
+    const mp    = document.getElementById('att-matrix-month');
+    const month = mp ? mp.value : '';
+    if (!month) return;
+    const wrap = document.getElementById('att-matrix-wrap');
+    wrap.innerHTML = '<div class="state-overlay"><div class="spinner"></div> Loading…</div>';
+    try {
+      const res     = await fetch('/api/attendance/all-monthly/' + month, { credentials: 'same-origin' });
+      const records = await res.json();
+      matrixData = {};
+      records.forEach(r => {
+        if (!matrixData[r.username]) matrixData[r.username] = {};
+        matrixData[r.username][r.date] = r;
+      });
+      renderMatrixAttendance(month);
+    } catch {
+      wrap.innerHTML = '<div class="state-overlay" style="color:var(--text-muted)">Failed to load.</div>';
+    }
+  }
+
+  function renderMatrixAttendance(month) {
+    const wrap = document.getElementById('att-matrix-wrap');
+    if (!members.length) {
+      wrap.innerHTML = '<div class="state-overlay" style="color:var(--text-muted)">No members loaded.</div>';
+      return;
+    }
+    const [y, mo]     = month.split('-').map(Number);
+    const daysInMonth = new Date(y, mo, 0).getDate();
+    const today       = todayISO();
+
+    const dayHeaders = [];
+    for (let d = 1; d <= daysInMonth; d++) {
+      const date      = y + '-' + String(mo).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+      const dt        = new Date(y, mo - 1, d);
+      const dow       = ['Su','Mo','Tu','We','Th','Fr','Sa'][dt.getDay()];
+      const isWeekend = dt.getDay() === 0 || dt.getDay() === 6;
+      const isToday   = date === today;
+      const thStyle   = isWeekend ? ' style="opacity:0.5"' : (isToday ? ' style="background:rgba(255,184,0,0.07)"' : '');
+      dayHeaders.push('<th' + thStyle + '>' + String(d).padStart(2,'0') + '<br><span style="font-weight:400;font-size:9px">' + dow + '</span></th>');
+    }
+
+    const rows = members.map(m => {
+      const cells = [];
+      for (let d = 1; d <= daysInMonth; d++) {
+        const date      = y + '-' + String(mo).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+        const dt        = new Date(y, mo - 1, d);
+        const isWeekend = dt.getDay() === 0 || dt.getDay() === 6;
+        const isFuture  = date > today;
+        const r         = (matrixData[m.username] || {})[date];
+
+        let cls   = 'att-mx-cell-absent';
+        let text  = '–';
+        let recId = '';
+
+        if (isWeekend)              { cls = 'att-mx-cell-weekend'; text = ''; }
+        else if (isFuture)          { cls = 'att-mx-cell-future';  text = ''; }
+        else if (r && r.workMode === 'WFO') { cls = 'att-mx-cell-wfo'; text = 'WFO'; recId = String(r._id); }
+        else if (r && r.workMode === 'WFH') { cls = 'att-mx-cell-wfh'; text = 'WFH'; recId = String(r._id); }
+
+        const clickAttr = recId
+          ? ' data-recid="' + escHtml(recId) + '" data-uname="' + escHtml(m.username) + '" onclick="openAttEditModal(this.dataset.recid,this.dataset.uname)"'
+          : '';
+
+        cells.push('<td class="' + cls + '"' + clickAttr + '>' + escHtml(text) + '</td>');
+      }
+      return '<tr><td>' + escHtml(m.display) + '</td>' + cells.join('') + '</tr>';
+    }).join('');
+
+    wrap.innerHTML =
+      '<div class="att-mx-wrap">' +
+      '<table class="att-mx-table">' +
+      '<thead><tr><th>Member</th>' + dayHeaders.join('') + '</tr></thead>' +
+      '<tbody>' + rows + '</tbody>' +
+      '</table></div>';
+  }
+
+  function exportAttendanceCSV() {
+    const mp    = document.getElementById('att-matrix-month');
+    const month = mp ? mp.value : '';
+    if (!month || !members.length) { showToast('Load the matrix first.', 'error'); return; }
+    const [y, mo]     = month.split('-').map(Number);
+    const daysInMonth = new Date(y, mo, 0).getDate();
+    const today       = todayISO();
+
+    const days = [];
+    for (let d = 1; d <= daysInMonth; d++)
+      days.push(y + '-' + String(mo).padStart(2, '0') + '-' + String(d).padStart(2, '0'));
+
+    const header  = ['Member', ...days].join(',');
+    const csvRows = members.map(m => {
+      const cells = days.map(date => {
+        const dt        = new Date(date + 'T12:00:00');
+        const isWeekend = dt.getDay() === 0 || dt.getDay() === 6;
+        if (isWeekend)    return 'Weekend';
+        if (date > today) return '';
+        const r = (matrixData[m.username] || {})[date];
+        if (!r) return 'Absent';
+        return r.workMode || 'Present';
+      });
+      return ['"' + m.display.replace(/"/g, '""') + '"', ...cells].join(',');
+    });
+
+    const csv  = [header, ...csvRows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = 'attendance-' + month + '.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('CSV exported.', 'success');
+  }
+
   /* ── Attendance edit modal ── */
   async function openAttEditModal(recordId, username) {
     if (!recordId || !username) return;
@@ -1588,13 +1755,31 @@
       '</div>'
     ).join('') || '<p style="font-size:12px;color:var(--text-dim);margin:0">No breaks recorded.</p>';
 
-    const histItems = (r.editHistory || []).slice().reverse().map(h =>
-      '<div class="att-hist-item">' +
-      '<strong>' + escHtml(h.field) + '</strong>: ' +
-      escHtml(String(h.oldValue)) + ' → ' + escHtml(String(h.newValue)) +
-      '<br><span>by ' + escHtml(h.editedBy) + ' — ' + new Date(h.editedAt).toLocaleString() + '</span>' +
-      '</div>'
-    ).join('') || '<p style="font-size:11px;color:var(--text-dim);margin:0">No edits yet.</p>';
+    const mem           = members.find(m => m.username === username);
+    const memberDisplay = mem ? mem.display : username;
+    const allHistory    = (r.editHistory || []).slice().reverse();
+    const managerEdits  = allHistory.filter(h => h.editedBy !== memberDisplay);
+    const memberEdits   = allHistory.filter(h => h.editedBy === memberDisplay);
+    function histItemHtml(h) {
+      return '<div class="att-hist-item">' +
+        '<strong>' + escHtml(h.field) + '</strong>: ' +
+        escHtml(String(h.oldValue)) + ' → ' + escHtml(String(h.newValue)) +
+        '<br><span>by ' + escHtml(h.editedBy) + ' — ' + new Date(h.editedAt).toLocaleString() + '</span>' +
+        '</div>';
+    }
+    let histItems = '';
+    if (managerEdits.length || memberEdits.length) {
+      if (managerEdits.length) {
+        histItems += '<div class="att-hist-section-title">Manager Edits</div>';
+        histItems += managerEdits.map(histItemHtml).join('');
+      }
+      if (memberEdits.length) {
+        histItems += '<div class="att-hist-section-title">Member Edits</div>';
+        histItems += memberEdits.map(histItemHtml).join('');
+      }
+    } else {
+      histItems = '<p style="font-size:11px;color:var(--text-dim);margin:0">No edits yet.</p>';
+    }
 
     document.getElementById('att-edit-body').innerHTML =
       '<div class="form-group">' +
@@ -1679,6 +1864,7 @@
       closeAttEditModal();
       if (attTab === 'daily')   loadDailyAttendance();
       if (attTab === 'monthly') loadMonthlyAttendance();
+      if (attTab === 'matrix')  loadMatrixAttendance();
     } catch {
       showToast('Network error.', 'error');
     } finally {

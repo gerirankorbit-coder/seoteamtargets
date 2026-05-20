@@ -425,6 +425,78 @@
     font-size: 12px; color: #f87171; display: none;
   }
   .et-error.show { display: block; }
+
+  /* History sub-tabs */
+  .mh-tabs {
+    display: flex; gap: 0; border-bottom: 1px solid var(--border);
+    background: var(--surface-2); padding: 0 20px;
+  }
+  .mh-tab {
+    padding: 8px 16px; font-size: 12px; font-weight: 600;
+    color: var(--text-muted); background: none; border: none;
+    cursor: pointer; border-bottom: 2px solid transparent;
+    margin-bottom: -1px; transition: all 0.15s; border-radius: 4px 4px 0 0;
+  }
+  .mh-tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+  .mh-tab:hover  { color: var(--text); background: var(--surface-3); }
+
+  /* Member attendance history table */
+  .mh-att-empty { text-align: center; color: var(--text-dim); font-size: 13px; padding: 40px 20px; }
+
+  /* Member attendance edit modal */
+  .mat-overlay {
+    position: fixed; inset: 0; z-index: 960;
+    background: rgba(0,0,0,0.65);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px; backdrop-filter: blur(4px);
+  }
+  .mat-overlay.hidden { display: none; }
+  .mat-modal {
+    background: var(--surface); border: 1px solid var(--border-2);
+    border-radius: var(--radius); width: 100%; max-width: 460px;
+    max-height: 88vh; display: flex; flex-direction: column;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.9);
+    animation: wmPop 0.18s ease;
+  }
+  .mat-header {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    padding: 14px 16px; border-bottom: 1px solid var(--border);
+    background: var(--surface-2);
+  }
+  .mat-title { font-size: 13px; font-weight: 700; }
+  .mat-sub   { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .mat-close {
+    background: none; border: none; color: var(--text-muted);
+    cursor: pointer; font-size: 14px; padding: 2px 6px;
+    border-radius: 4px; transition: all 0.12s;
+  }
+  .mat-close:hover { background: var(--surface-3); color: var(--text); }
+  .mat-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+  .mat-footer {
+    display: flex; gap: 8px; justify-content: flex-end;
+    padding: 10px 14px; border-top: 1px solid var(--border);
+    background: var(--surface-2);
+  }
+  .mat-co-input {
+    padding: 5px 8px; background: var(--surface-2);
+    border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); font-size: 12px; outline: none; flex: 1;
+    transition: border-color 0.12s;
+  }
+  .mat-co-input:focus { border-color: var(--blue); }
+  .mat-error {
+    background: rgba(220,38,38,0.1); border: 1px solid rgba(220,38,38,0.3);
+    border-radius: var(--radius-sm); padding: 8px 12px;
+    font-size: 12px; color: #f87171; display: none;
+  }
+  .mat-error.show { display: block; }
+  .mat-hist-item {
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 8px 12px;
+    font-size: 11px; color: var(--text-muted); line-height: 1.6;
+    margin-bottom: 4px;
+  }
+  .mat-hist-item strong { color: var(--text); }
 </style>
 </head>
 <body>
@@ -543,10 +615,45 @@
 
 <!-- ── History panel ── -->
 <div id="panel-history" style="display:none">
-  <div class="history-wrap">
-    <div class="history-title">&#128202; My Submission History</div>
-    <div id="history-content">
-      <div class="history-empty"><div class="spinner"></div><br>Loading history…</div>
+  <!-- Sub-tabs -->
+  <div class="mh-tabs">
+    <button class="mh-tab active" id="mhtab-tasks"      onclick="switchHistoryTab('tasks')">&#128202; Tasks History</button>
+    <button class="mh-tab"        id="mhtab-attendance" onclick="switchHistoryTab('attendance')">&#128336; Attendance</button>
+  </div>
+  <!-- Tasks history -->
+  <div id="mh-panel-tasks">
+    <div class="history-wrap">
+      <div class="history-title">&#128202; My Submission History</div>
+      <div id="history-content">
+        <div class="history-empty"><div class="spinner"></div><br>Loading history…</div>
+      </div>
+    </div>
+  </div>
+  <!-- Attendance history -->
+  <div id="mh-panel-attendance" style="display:none">
+    <div class="history-wrap">
+      <div class="history-title">&#128336; My Attendance — Last 30 Days</div>
+      <div id="attendance-history-content">
+        <div class="mh-att-empty"><div class="spinner"></div><br>Loading…</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Member attendance edit modal -->
+<div id="mat-overlay" class="mat-overlay hidden" onclick="if(event.target===this)closeMemberAttEdit()">
+  <div class="mat-modal">
+    <div class="mat-header">
+      <div>
+        <div class="mat-title" id="mat-title">Edit Attendance</div>
+        <div class="mat-sub"   id="mat-sub"></div>
+      </div>
+      <button class="mat-close" onclick="closeMemberAttEdit()">&#10005;</button>
+    </div>
+    <div class="mat-body" id="mat-body"></div>
+    <div class="mat-footer">
+      <button class="today-btn" style="color:var(--text-muted);background:var(--surface-2);border-color:var(--border)" onclick="closeMemberAttEdit()">Cancel</button>
+      <button class="btn-save" id="mat-save-btn" onclick="saveMemberAttEdit()" style="padding:8px 20px;font-size:12px">Save</button>
     </div>
   </div>
 </div>
@@ -581,8 +688,11 @@
   let memberTab      = 'today';
   let historyLoaded  = false;
   let currentDateData = {};
-  let attRecord = null; // today's attendance record
-  let etState   = null; // { field, label } for edit time modal
+  let attRecord        = null; // today's attendance record
+  let etState          = null; // { field, label } for edit time modal
+  let historyTab       = 'tasks';
+  let matRecord        = null;
+  let attHistoryLoaded = false;
 
   function todayISO() {
     return new Date().toISOString().split('T')[0];
@@ -613,7 +723,10 @@
     document.getElementById('mtab-today').classList.toggle('active',   tab === 'today');
     document.getElementById('mtab-history').classList.toggle('active', tab === 'history');
     if (tab === 'history') {
-      historyLoaded = false; // always refresh on tab switch
+      historyLoaded    = false; // always refresh on tab switch
+      attHistoryLoaded = false;
+      historyTab       = 'tasks';
+      switchHistoryTab('tasks');
       loadHistory();
     }
   }
@@ -1286,6 +1399,191 @@
       } else {
         errEl.textContent = data.error || 'Save failed.'; errEl.classList.add('show');
       }
+    } catch {
+      errEl.textContent = 'Network error.'; errEl.classList.add('show');
+    } finally {
+      btn.disabled    = false;
+      btn.textContent = 'Save';
+    }
+  }
+
+  /* ── History sub-tabs ── */
+  function switchHistoryTab(tab) {
+    historyTab = tab;
+    document.getElementById('mh-panel-tasks').style.display      = tab === 'tasks'      ? 'block' : 'none';
+    document.getElementById('mh-panel-attendance').style.display = tab === 'attendance' ? 'block' : 'none';
+    document.getElementById('mhtab-tasks').classList.toggle('active',      tab === 'tasks');
+    document.getElementById('mhtab-attendance').classList.toggle('active', tab === 'attendance');
+    if (tab === 'attendance' && !attHistoryLoaded) loadAttendanceHistory();
+  }
+
+  /* ── Attendance history ── */
+  async function loadAttendanceHistory() {
+    attHistoryLoaded = true;
+    const c = document.getElementById('attendance-history-content');
+    c.innerHTML = '<div class="mh-att-empty"><div class="spinner"></div><br>Loading…</div>';
+    try {
+      const res = await fetch('/api/attendance/history/' + encodeURIComponent(memberUsername), { credentials: 'same-origin' });
+      if (!res.ok) throw new Error();
+      const records = await res.json();
+      renderAttendanceHistory(records);
+    } catch {
+      c.innerHTML = '<div class="mh-att-empty">Failed to load attendance history. Please try again.</div>';
+    }
+  }
+
+  function renderAttendanceHistory(records) {
+    const c     = document.getElementById('attendance-history-content');
+    const today = todayISO();
+    const sorted = records.slice().sort((a, b) => b.date.localeCompare(a.date));
+    const cutoff = (() => {
+      const d = new Date(); d.setDate(d.getDate() - 30);
+      return d.toISOString().split('T')[0];
+    })();
+    const recent = sorted.filter(r => r.date >= cutoff);
+    if (!recent.length) {
+      c.innerHTML = '<div class="mh-att-empty">No attendance records in the last 30 days.</div>';
+      return;
+    }
+    const rows = recent.map(r => {
+      const isToday  = r.date === today;
+      const modePill = r.workMode
+        ? '<span class="att-mode-pill ' + r.workMode.toLowerCase() + '">' + escHtml(r.workMode) + '</span>'
+        : '–';
+      const editBtn = '<button class="btn btn-ghost btn-sm" style="font-size:10px;padding:3px 8px"' +
+        ' data-recid="' + escHtml(String(r._id)) + '"' +
+        ' onclick="openMemberAttEdit(this.dataset.recid)">&#9998; Edit</button>';
+      const rowStyle = isToday ? ' style="background:rgba(255,184,0,0.04)"' : '';
+      return '<tr' + rowStyle + '>' +
+        '<td style="font-weight:600;white-space:nowrap">' + escHtml(formatDisplay(r.date)) + '</td>' +
+        '<td>' + modePill + '</td>' +
+        '<td>' + escHtml(r.startTime || '–') + '</td>' +
+        '<td>' + escHtml(r.endTime   || '–') + '</td>' +
+        '<td class="att-break-time">'   + (r.totalCheckOutMinutes ? formatMins(r.totalCheckOutMinutes) : '–') + '</td>' +
+        '<td class="att-working-time">' + (r.totalWorkingMinutes  ? formatMins(r.totalWorkingMinutes)  : '–') + '</td>' +
+        '<td>' + editBtn + '</td>' +
+        '</tr>';
+    }).join('');
+    c.innerHTML =
+      '<div style="overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius)">' +
+      '<table class="att-table" style="min-width:600px">' +
+      '<thead><tr><th>Date</th><th>Mode</th><th>Start</th><th>End</th>' +
+      '<th>Break</th><th>Working Time</th><th>Action</th></tr></thead>' +
+      '<tbody>' + rows + '</tbody>' +
+      '</table></div>';
+  }
+
+  async function openMemberAttEdit(recordId) {
+    try {
+      const res     = await fetch('/api/attendance/history/' + encodeURIComponent(memberUsername), { credentials: 'same-origin' });
+      const records = await res.json();
+      matRecord = records.find(r => String(r._id) === String(recordId));
+    } catch { return; }
+    if (!matRecord) return;
+    renderMemberAttEditModal();
+    document.getElementById('mat-overlay').classList.remove('hidden');
+  }
+
+  function renderMemberAttEditModal() {
+    const r = matRecord;
+    document.getElementById('mat-title').textContent = 'Edit Attendance';
+    document.getElementById('mat-sub').textContent   = formatDisplay(r.date);
+
+    const coRows = (r.checkOuts || []).map((co, i) =>
+      '<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">' +
+      '<span style="font-size:11px;color:var(--text-muted);min-width:52px">Break ' + (i + 1) + '</span>' +
+      '<input type="time" class="mat-co-input mat-co-out" data-idx="' + i + '" value="' + escHtml(co.outTime || '') + '">' +
+      '<span style="font-size:11px;color:var(--text-muted)">→</span>' +
+      '<input type="time" class="mat-co-input mat-co-in"  data-idx="' + i + '" value="' + escHtml(co.inTime  || '') + '">' +
+      '</div>'
+    ).join('') || '<p style="font-size:12px;color:var(--text-dim);margin:0">No breaks recorded.</p>';
+
+    const histItems = (r.editHistory || []).slice().reverse().map(h =>
+      '<div class="mat-hist-item">' +
+      '<strong>' + escHtml(h.field) + '</strong>: ' +
+      escHtml(String(h.oldValue)) + ' → ' + escHtml(String(h.newValue)) +
+      '<br><span>by ' + escHtml(h.editedBy) + ' — ' + new Date(h.editedAt).toLocaleString() + '</span>' +
+      '</div>'
+    ).join('') || '<p style="font-size:11px;color:var(--text-dim);margin:0">No edits yet.</p>';
+
+    document.getElementById('mat-body').innerHTML =
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">' +
+      '  <div class="form-group">' +
+      '    <label class="form-label">Start Time</label>' +
+      '    <input type="time" class="inp" id="mat-start" value="' + escHtml(r.startTime || '') + '">' +
+      '  </div>' +
+      '  <div class="form-group">' +
+      '    <label class="form-label">End Time</label>' +
+      '    <input type="time" class="inp" id="mat-end" value="' + escHtml(r.endTime || '') + '">' +
+      '  </div>' +
+      '</div>' +
+      '<div class="form-group">' +
+      '  <label class="form-label">Breaks (Out → In)</label>' +
+      '  <div id="mat-co-rows">' + coRows + '</div>' +
+      '</div>' +
+      '<div class="form-group">' +
+      '  <label class="form-label">Reason <span style="color:var(--text-dim);font-weight:400;text-transform:none;letter-spacing:0;font-size:10px">(optional, shown in audit log)</span></label>' +
+      '  <input class="inp" id="mat-reason" placeholder="e.g. Forgot to log start time">' +
+      '</div>' +
+      '<div class="mat-error" id="mat-error"></div>' +
+      '<div style="border-top:1px solid var(--border);padding-top:14px">' +
+      '  <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Edit History</div>' +
+      '  <div>' + histItems + '</div>' +
+      '</div>';
+  }
+
+  function closeMemberAttEdit() {
+    document.getElementById('mat-overlay').classList.add('hidden');
+    matRecord = null;
+  }
+
+  async function saveMemberAttEdit() {
+    if (!matRecord) return;
+    const r      = matRecord;
+    const start  = (document.getElementById('mat-start')  || {}).value || '';
+    const end    = (document.getElementById('mat-end')    || {}).value || '';
+    const coWrap = document.getElementById('mat-co-rows');
+    const btn    = document.getElementById('mat-save-btn');
+    const errEl  = document.getElementById('mat-error');
+    errEl.textContent = ''; errEl.classList.remove('show');
+
+    const changes = [];
+    if (start !== (r.startTime || '')) changes.push({ field: 'startTime', newValue: start });
+    if (end   !== (r.endTime   || '')) changes.push({ field: 'endTime',   newValue: end });
+    if (coWrap) {
+      const outInputs = coWrap.querySelectorAll('.mat-co-out');
+      const inInputs  = coWrap.querySelectorAll('.mat-co-in');
+      const newCo = [];
+      outInputs.forEach((outInp, i) => {
+        newCo.push({ outTime: outInp.value, inTime: inInputs[i] ? inInputs[i].value : '' });
+      });
+      if (JSON.stringify(newCo) !== JSON.stringify(r.checkOuts || []))
+        changes.push({ field: 'checkOuts', newValue: newCo });
+    }
+
+    if (!changes.length) { closeMemberAttEdit(); return; }
+
+    btn.disabled    = true;
+    btn.textContent = 'Saving…';
+
+    try {
+      for (const ch of changes) {
+        const res = await fetch('/api/attendance/edit/' + r._id, {
+          method:  'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ field: ch.field, newValue: ch.newValue }),
+          credentials: 'same-origin',
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          errEl.textContent = body.error || 'Save failed.'; errEl.classList.add('show');
+          return;
+        }
+      }
+      closeMemberAttEdit();
+      attHistoryLoaded = false;
+      loadAttendanceHistory();
+      showToast('Attendance updated.', 'success');
     } catch {
       errEl.textContent = 'Network error.'; errEl.classList.add('show');
     } finally {
