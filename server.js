@@ -324,13 +324,38 @@ app.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
-app.post('/api/login', (req, res) => {
+app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Missing credentials.' });
   const uname = username.toLowerCase().trim();
-  const user  = getUser(uname);
+
+  // Primary: read from in-memory cache (populated from MongoDB on startup)
+  let user = getUser(uname);
+
+  // Fallback: if cache is not yet ready (cold-start race), query MongoDB directly
+  if (!user) {
+    try {
+      const dbUser = await User.findOne(
+        { username: uname },
+        { _id: 0, username: 1, password: 1, role: 1, display: 1, passwordVersion: 1 }
+      );
+      if (dbUser) {
+        user = {
+          password:        dbUser.password,
+          role:            dbUser.role,
+          display:         dbUser.display,
+          passwordVersion: dbUser.passwordVersion || 1,
+        };
+      }
+    } catch (err) {
+      console.error('Login DB fallback error:', err);
+      return res.status(500).json({ error: 'Server error. Please try again.' });
+    }
+  }
+
   if (!user || user.password !== password)
     return res.status(401).json({ error: 'Invalid username or password.' });
+
   req.session.username        = uname;
   req.session.role            = user.role;
   req.session.display         = user.display;
