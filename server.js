@@ -81,22 +81,33 @@ mongoose.connection.once('open', async () => {
     if (taskDoc) taskOverrides     = taskDoc.value || {};
     if (pwDoc)   passwordOverrides = pwDoc.value   || {};
 
-    // Seed User collection from hardcoded USERS on first run
-    const userCount = await User.countDocuments();
-    if (userCount === 0) {
-      const seedDocs = Object.entries(USERS).map(([username, data]) => {
-        const ov = passwordOverrides[username] || {};
-        return {
-          username,
-          password:        ov.password        || data.password,
-          role:            data.role,
-          display:         data.display,
-          passwordVersion: ov.passwordVersion || data.passwordVersion || 1,
-        };
-      });
-      await User.insertMany(seedDocs);
-      console.log('✓ Seeded', seedDocs.length, 'users to MongoDB');
-    }
+    // Upsert every USERS entry into MongoDB on every startup.
+    // $setOnInsert: only writes when the document is brand-new (upsert insert path),
+    // so manually-changed passwords (passwordVersion > 1) are never overwritten.
+    // For existing docs with passwordVersion === 1 (still at default), we also
+    // force-sync the password so a stale/empty DB is always corrected.
+    const upsertOps = Object.entries(USERS).map(([username, data]) => {
+      const ov = passwordOverrides[username] || {};
+      const pw = ov.password || data.password;
+      const pv = ov.passwordVersion || data.passwordVersion || 1;
+      return {
+        updateOne: {
+          filter: { username, passwordVersion: { $lte: 1 } }, // only touch default-password docs
+          update: {
+            $set: {
+              password:        pw,
+              role:            data.role,
+              display:         data.display,
+              passwordVersion: pv,
+            },
+            $setOnInsert: { username },
+          },
+          upsert: true,
+        },
+      };
+    });
+    const bulkResult = await User.bulkWrite(upsertOps, { ordered: false });
+    console.log(`✓ Users synced — upserted: ${bulkResult.upsertedCount}, modified: ${bulkResult.modifiedCount}`);
 
     // Load all users into in-memory cache
     const allUsers = await User.find(
@@ -375,7 +386,17 @@ app.post('/api/login', async (req, res) => {
   req.session.display         = user.display;
   req.session.passwordVersion = user.passwordVersion || 1;
   const redirect = (user.role === 'manager' || user.role === 'assistant') ? '/dashboard' : '/member';
-  res.json({ success: true, redirect });
+
+  // Explicitly save session before responding — ensures it is persisted to
+  // MongoDB *before* the client follows the redirect, preventing a race where
+  // the next request arrives before the session store has written the record.
+  req.session.save(saveErr => {
+    if (saveErr) {
+      console.error('Session save error:', saveErr);
+      return res.status(500).json({ error: 'Login failed — session could not be saved. Please try again.' });
+    }
+    res.json({ success: true, redirect });
+  });
 });
 
 app.post('/api/logout', (req, res) => {
