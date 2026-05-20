@@ -408,6 +408,72 @@
   }
   .tab-x-btn:hover { background: rgba(239,68,68,0.2); color: #f87171; }
 
+  /* ── Attendance tab ── */
+  .att-sub-tab {
+    padding: 8px 16px; font-size: 12px; font-weight: 600;
+    color: var(--text-muted); background: none; border: none;
+    cursor: pointer; border-bottom: 2px solid transparent;
+    margin-bottom: -1px; transition: all 0.15s; border-radius: 4px 4px 0 0;
+  }
+  .att-sub-tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+  .att-sub-tab:hover  { color: var(--text); background: var(--surface-3); }
+
+  .att-table-wrap {
+    border: 1px solid var(--border); border-radius: var(--radius);
+    overflow: auto; background: var(--surface); box-shadow: var(--shadow-sm);
+  }
+  .att-table { border-collapse: collapse; width: 100%; min-width: 680px; }
+  .att-table th {
+    background: #0D0D18; color: var(--text-muted);
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;
+    padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .att-table td {
+    padding: 9px 12px; font-size: 12px; border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  .att-table tbody tr:last-child td { border-bottom: none; }
+  .att-table tbody tr:hover td { background: rgba(255,255,255,0.02); }
+  .att-mode-pill {
+    display: inline-block; font-size: 10px; font-weight: 800;
+    padding: 2px 9px; border-radius: 10px; white-space: nowrap;
+  }
+  .att-mode-pill.wfh { background: rgba(0,212,255,0.12); color: var(--blue); }
+  .att-mode-pill.wfo { background: rgba(233,30,140,0.12); color: var(--pink); }
+  .att-working-time { color: #4ade80; font-weight: 700; }
+  .att-break-time   { color: var(--gold); }
+
+  /* Attendance edit modal */
+  .att-edit-overlay {
+    position: fixed; inset: 0; z-index: 900;
+    background: rgba(0,0,0,0.65);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px; backdrop-filter: blur(4px);
+  }
+  .att-edit-overlay.hidden { display: none; }
+  .att-edit-modal {
+    background: var(--surface); border: 1px solid var(--border-2);
+    border-radius: var(--radius); width: 100%; max-width: 500px;
+    max-height: 88vh; display: flex; flex-direction: column;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.9);
+    animation: emPop 0.18s ease;
+  }
+  .att-hist-item {
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 8px 12px;
+    font-size: 11px; color: var(--text-muted); line-height: 1.6;
+    margin-bottom: 4px;
+  }
+  .att-hist-item strong { color: var(--text); }
+  .att-co-input {
+    padding: 5px 8px; background: var(--surface-2);
+    border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); font-size: 12px; outline: none; flex: 1;
+    transition: border-color 0.12s;
+  }
+  .att-co-input:focus { border-color: var(--blue); }
+
   /* ── Add Member button in tabs bar ── */
   .add-member-btn {
     flex-shrink: 0;
@@ -481,6 +547,7 @@
   <button class="ctab active" id="ctab-spreadsheet" onclick="switchTab('spreadsheet')">&#9783; Spreadsheet</button>
   <button class="ctab"        id="ctab-analytics"   onclick="switchTab('analytics')">&#9642; Analytics</button>
   <button class="ctab"        id="ctab-tasks"        onclick="switchTab('tasks')">&#9998; Edit Tasks</button>
+  <button class="ctab"        id="ctab-attendance"   onclick="switchTab('attendance')">&#128336; Attendance</button>
 </div>
 
 <!-- Toast -->
@@ -522,6 +589,44 @@
   </div>
 </div>
 
+<!-- ── Attendance panel ── -->
+<div id="panel-attendance" style="display:none">
+  <!-- Sub-tabs bar -->
+  <div style="background:var(--surface-2);border-bottom:1px solid var(--border);padding:0 20px;display:flex;align-items:flex-end;gap:4px">
+    <button class="att-sub-tab active" id="atab-daily"   onclick="switchAttTab('daily')">&#128197; Daily View</button>
+    <button class="att-sub-tab"        id="atab-monthly" onclick="switchAttTab('monthly')">&#128336; Monthly View</button>
+  </div>
+
+  <!-- Daily view -->
+  <div id="att-panel-daily" style="padding:20px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+      <button class="date-nav-btn" onclick="shiftAttDate(-1)" style="width:30px;height:30px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;color:var(--text-muted);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all 0.15s">&#8249;</button>
+      <span id="att-date-display" style="font-size:14px;font-weight:700;min-width:190px;text-align:center"></span>
+      <button class="date-nav-btn" onclick="shiftAttDate(1)"  style="width:30px;height:30px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;color:var(--text-muted);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all 0.15s">&#8250;</button>
+      <input type="date" id="att-date-picker" onchange="setAttDate(this.value)" style="position:absolute;opacity:0;width:0;height:0;pointer-events:none">
+      <button class="today-btn" onclick="setAttDate(todayISO())">Today</button>
+      <button class="btn btn-ghost btn-sm" onclick="loadDailyAttendance()">&#8635; Refresh</button>
+    </div>
+    <div id="att-daily-table-wrap">
+      <div class="state-overlay">Select a date to load attendance.</div>
+    </div>
+  </div>
+
+  <!-- Monthly view -->
+  <div id="att-panel-monthly" style="display:none;padding:20px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+      <select id="att-monthly-member" class="inp" style="max-width:220px" onchange="loadMonthlyAttendance()">
+        <option value="">— Select member —</option>
+      </select>
+      <input type="month" id="att-month-picker" class="inp" style="max-width:170px" onchange="loadMonthlyAttendance()">
+      <button class="btn btn-ghost btn-sm" onclick="loadMonthlyAttendance()">&#8635; Refresh</button>
+    </div>
+    <div id="att-monthly-table-wrap">
+      <div class="state-overlay">Select a member and month.</div>
+    </div>
+  </div>
+</div>
+
 <!-- ── Edit Tasks panel ── -->
 <div id="panel-tasks" style="display:none">
   <div class="edit-wrap">
@@ -531,6 +636,26 @@
     </div>
     <div class="task-editor" id="task-editor">
       <div class="state-overlay">Select a member to edit their tasks</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Attendance edit modal ── -->
+<div id="att-edit-overlay" class="att-edit-overlay hidden" onclick="if(event.target===this)closeAttEditModal()">
+  <div class="att-edit-modal">
+    <div class="em-header">
+      <div class="em-header-text">
+        <div class="em-title" id="att-edit-title">Edit Attendance</div>
+        <div class="em-sub"   id="att-edit-sub"></div>
+      </div>
+      <div class="em-header-actions">
+        <button class="em-close" onclick="closeAttEditModal()">&#10005;</button>
+      </div>
+    </div>
+    <div class="em-body" id="att-edit-body" style="gap:14px;overflow-y:auto"></div>
+    <div class="em-footer" style="display:flex">
+      <button class="btn btn-ghost btn-sm"   onclick="closeAttEditModal()">Cancel</button>
+      <button class="btn btn-primary btn-sm" id="att-edit-save-btn" onclick="saveAttEdit()">Save Changes</button>
     </div>
   </div>
 </div>
@@ -778,7 +903,7 @@
     }
   }
 
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closePopover(); closeModal(); closeAddMemberModal(); } });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closePopover(); closeModal(); closeAddMemberModal(); closeAttEditModal(); } });
 
   /* ══════════════════════════════════════════════════════════════
      Manager Cell Modal  —  Preview → Edit two-mode flow
@@ -1233,6 +1358,335 @@
     }
   }
 
+  /* ══════════════════════════════════════════════════════════════
+     Attendance Tab
+  ══════════════════════════════════════════════════════════════ */
+
+  let attTab        = 'daily';
+  let attDate       = '';
+  let attEditRecord = null;
+
+  function formatMins(mins) {
+    if (!mins && mins !== 0) return '–';
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return h ? h + 'h ' + m + 'm' : m + 'm';
+  }
+
+  function initAttendanceTab() {
+    // Populate monthly member selector from members array
+    const sel = document.getElementById('att-monthly-member');
+    if (sel && members.length) {
+      sel.innerHTML = '<option value="">— Select member —</option>' +
+        members.map(m => '<option value="' + escHtml(m.username) + '">' + escHtml(m.display) + '</option>').join('');
+    }
+    // Set month picker to current month
+    const mp = document.getElementById('att-month-picker');
+    if (mp && !mp.value) {
+      const now = new Date();
+      mp.value = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+    }
+    // Load today's attendance if no date selected
+    if (!attDate) setAttDate(todayISO());
+    else loadDailyAttendance();
+  }
+
+  function switchAttTab(tab) {
+    attTab = tab;
+    ['daily', 'monthly'].forEach(t => {
+      document.getElementById('att-panel-' + t).style.display = t === tab ? 'block' : 'none';
+      document.getElementById('atab-' + t).classList.toggle('active', t === tab);
+    });
+    if (tab === 'daily')   loadDailyAttendance();
+    if (tab === 'monthly') loadMonthlyAttendance();
+  }
+
+  function setAttDate(iso) {
+    attDate = iso;
+    document.getElementById('att-date-display').textContent = formatFull(iso);
+    document.getElementById('att-date-picker').value        = iso;
+    loadDailyAttendance();
+  }
+
+  function shiftAttDate(delta) {
+    const d = new Date((attDate || todayISO()) + 'T12:00:00');
+    d.setDate(d.getDate() + delta);
+    setAttDate(d.toISOString().split('T')[0]);
+  }
+
+  async function loadDailyAttendance() {
+    if (!attDate) return;
+    const wrap = document.getElementById('att-daily-table-wrap');
+    wrap.innerHTML = '<div class="state-overlay"><div class="spinner"></div> Loading…</div>';
+    try {
+      const res     = await fetch('/api/attendance/all/' + attDate, { credentials: 'same-origin' });
+      const records = await res.json();
+      renderDailyAttendance(records);
+    } catch {
+      wrap.innerHTML = '<div class="state-overlay" style="color:var(--text-muted)">Failed to load.</div>';
+    }
+  }
+
+  function renderDailyAttendance(records) {
+    const wrap = document.getElementById('att-daily-table-wrap');
+    if (!members.length) {
+      wrap.innerHTML = '<div class="state-overlay" style="color:var(--text-muted)">No members loaded.</div>';
+      return;
+    }
+    const recordMap = {};
+    records.forEach(r => { recordMap[r.username] = r; });
+
+    const rows = members.map(m => {
+      const r        = recordMap[m.username] || null;
+      const mode     = r ? (r.workMode   || '–') : '–';
+      const start    = r ? (r.startTime  || '–') : '–';
+      const end      = r ? (r.endTime    || '–') : '–';
+      const breakMin = r ? (r.totalCheckOutMinutes || 0) : 0;
+      const workMin  = r ? (r.totalWorkingMinutes  || 0) : 0;
+
+      const modePill = r && r.workMode
+        ? '<span class="att-mode-pill ' + r.workMode.toLowerCase() + '">' + escHtml(r.workMode) + '</span>'
+        : '<span style="color:var(--text-dim)">–</span>';
+
+      const status = !r
+        ? '<span style="color:var(--text-dim);font-size:11px">Not recorded</span>'
+        : r.endTime
+          ? '<span style="color:#4ade80;font-size:11px">&#10003; Complete</span>'
+          : (r.checkOuts || []).some(co => co.outTime && !co.inTime)
+            ? '<span style="color:var(--gold);font-size:11px">&#9646;&#9646; Break</span>'
+            : r.startTime
+              ? '<span style="color:var(--blue);font-size:11px">&#9679; Working</span>'
+              : '<span style="color:var(--text-dim);font-size:11px">–</span>';
+
+      const editBtn = r
+        ? '<button class="btn btn-ghost btn-sm" style="font-size:10px;padding:3px 8px"' +
+          ' data-recid="' + escHtml(String(r._id)) + '"' +
+          ' data-uname="' + escHtml(m.username) + '"' +
+          ' onclick="openAttEditModal(this.dataset.recid,this.dataset.uname)">&#9998; Edit</button>'
+        : '';
+
+      return '<tr>' +
+        '<td style="font-weight:600">' + escHtml(m.display) + '</td>' +
+        '<td>' + modePill + '</td>' +
+        '<td>' + escHtml(start) + '</td>' +
+        '<td>' + escHtml(end) + '</td>' +
+        '<td class="att-break-time">' + (breakMin ? formatMins(breakMin) : '–') + '</td>' +
+        '<td class="att-working-time">' + (workMin ? formatMins(workMin) : '–') + '</td>' +
+        '<td>' + status + '</td>' +
+        '<td>' + editBtn + '</td>' +
+        '</tr>';
+    }).join('');
+
+    wrap.innerHTML =
+      '<div class="att-table-wrap">' +
+      '<table class="att-table">' +
+      '<thead><tr>' +
+      '<th>Member</th><th>Mode</th><th>Start</th><th>End</th>' +
+      '<th>Break</th><th>Total Working</th><th>Status</th><th>Action</th>' +
+      '</tr></thead>' +
+      '<tbody>' + rows + '</tbody>' +
+      '</table></div>';
+  }
+
+  async function loadMonthlyAttendance() {
+    const sel   = document.getElementById('att-monthly-member');
+    const mp    = document.getElementById('att-month-picker');
+    const username = sel  ? sel.value  : '';
+    const month    = mp   ? mp.value   : '';
+    if (!username || !month) return;
+
+    const wrap = document.getElementById('att-monthly-table-wrap');
+    wrap.innerHTML = '<div class="state-overlay"><div class="spinner"></div> Loading…</div>';
+    try {
+      const res     = await fetch('/api/attendance/monthly/' + encodeURIComponent(username) + '/' + month, { credentials: 'same-origin' });
+      const records = await res.json();
+      renderMonthlyAttendance(records, month);
+    } catch {
+      wrap.innerHTML = '<div class="state-overlay" style="color:var(--text-muted)">Failed to load.</div>';
+    }
+  }
+
+  function renderMonthlyAttendance(records, month) {
+    const wrap = document.getElementById('att-monthly-table-wrap');
+    const recordMap = {};
+    records.forEach(r => { recordMap[r.date] = r; });
+
+    const [y, mo] = month.split('-').map(Number);
+    const daysInMonth = new Date(y, mo, 0).getDate();
+    const today = todayISO();
+    const rows  = [];
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const date     = y + '-' + String(mo).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+      const r        = recordMap[date] || null;
+      const dt       = new Date(y, mo - 1, d);
+      const dow      = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dt.getDay()];
+      const isToday  = date === today;
+      const isWeekend = dt.getDay() === 0 || dt.getDay() === 6;
+
+      const modePill = r && r.workMode
+        ? '<span class="att-mode-pill ' + r.workMode.toLowerCase() + '">' + escHtml(r.workMode) + '</span>'
+        : '–';
+      const workMin  = r ? (r.totalWorkingMinutes  || 0) : 0;
+      const breakMin = r ? (r.totalCheckOutMinutes || 0) : 0;
+      const editBtn  = r
+        ? '<button class="btn btn-ghost btn-sm" style="font-size:10px;padding:3px 8px"' +
+          ' data-recid="' + escHtml(String(r._id)) + '"' +
+          ' data-uname="' + escHtml(r.username) + '"' +
+          ' onclick="openAttEditModal(this.dataset.recid,this.dataset.uname)">&#9998;</button>'
+        : '';
+
+      const rowStyle = isToday
+        ? ' style="background:rgba(255,184,0,0.04)"'
+        : isWeekend ? ' style="opacity:0.45"' : '';
+
+      rows.push('<tr' + rowStyle + '>' +
+        '<td style="color:var(--text-muted);font-weight:600">' + String(d).padStart(2, '0') + '</td>' +
+        '<td style="color:var(--text-dim);font-size:11px">' + dow + '</td>' +
+        '<td>' + modePill + '</td>' +
+        '<td>' + escHtml(r ? (r.startTime || '–') : '–') + '</td>' +
+        '<td>' + escHtml(r ? (r.endTime   || '–') : '–') + '</td>' +
+        '<td class="att-break-time">'  + (breakMin ? formatMins(breakMin) : '–') + '</td>' +
+        '<td class="att-working-time">' + (workMin  ? formatMins(workMin)  : '–') + '</td>' +
+        '<td>' + editBtn + '</td>' +
+        '</tr>');
+    }
+
+    wrap.innerHTML =
+      '<div class="att-table-wrap">' +
+      '<table class="att-table">' +
+      '<thead><tr>' +
+      '<th>Day</th><th></th><th>Mode</th><th>Start</th><th>End</th>' +
+      '<th>Break</th><th>Total Working</th><th>Action</th>' +
+      '</tr></thead>' +
+      '<tbody>' + rows.join('') + '</tbody>' +
+      '</table></div>';
+  }
+
+  /* ── Attendance edit modal ── */
+  async function openAttEditModal(recordId, username) {
+    if (!recordId || !username) return;
+    try {
+      const res     = await fetch('/api/attendance/history/' + encodeURIComponent(username), { credentials: 'same-origin' });
+      const records = await res.json();
+      attEditRecord = records.find(r => String(r._id) === String(recordId));
+    } catch { return; }
+    if (!attEditRecord) return;
+
+    const r   = attEditRecord;
+    const mem = members.find(m => m.username === username);
+
+    document.getElementById('att-edit-title').textContent = 'Edit Attendance';
+    document.getElementById('att-edit-sub').textContent   = (mem ? mem.display : username) + '  ·  ' + formatFull(r.date);
+
+    const coRows = (r.checkOuts || []).map((co, i) =>
+      '<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">' +
+      '<span style="font-size:11px;color:var(--text-muted);min-width:52px">Break ' + (i + 1) + '</span>' +
+      '<input type="time" class="att-co-input att-co-out" data-idx="' + i + '" value="' + escHtml(co.outTime || '') + '">' +
+      '<span style="font-size:11px;color:var(--text-muted)">→</span>' +
+      '<input type="time" class="att-co-input att-co-in"  data-idx="' + i + '" value="' + escHtml(co.inTime  || '') + '">' +
+      '</div>'
+    ).join('') || '<p style="font-size:12px;color:var(--text-dim);margin:0">No breaks recorded.</p>';
+
+    const histItems = (r.editHistory || []).slice().reverse().map(h =>
+      '<div class="att-hist-item">' +
+      '<strong>' + escHtml(h.field) + '</strong>: ' +
+      escHtml(String(h.oldValue)) + ' → ' + escHtml(String(h.newValue)) +
+      '<br><span>by ' + escHtml(h.editedBy) + ' — ' + new Date(h.editedAt).toLocaleString() + '</span>' +
+      '</div>'
+    ).join('') || '<p style="font-size:11px;color:var(--text-dim);margin:0">No edits yet.</p>';
+
+    document.getElementById('att-edit-body').innerHTML =
+      '<div class="form-group">' +
+      '  <label class="form-label">Work Mode</label>' +
+      '  <select class="inp" id="att-edit-mode">' +
+      '    <option value="WFH"' + (r.workMode === 'WFH' ? ' selected' : '') + '>WFH — Work From Home</option>' +
+      '    <option value="WFO"' + (r.workMode === 'WFO' ? ' selected' : '') + '>WFO — Work From Office</option>' +
+      '  </select>' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">' +
+      '  <div class="form-group">' +
+      '    <label class="form-label">Start Time</label>' +
+      '    <input type="time" class="inp" id="att-edit-start" value="' + escHtml(r.startTime || '') + '">' +
+      '  </div>' +
+      '  <div class="form-group">' +
+      '    <label class="form-label">End Time</label>' +
+      '    <input type="time" class="inp" id="att-edit-end" value="' + escHtml(r.endTime || '') + '">' +
+      '  </div>' +
+      '</div>' +
+      '<div class="form-group">' +
+      '  <label class="form-label">Breaks (Out → In)</label>' +
+      '  <div id="att-edit-co-rows">' + coRows + '</div>' +
+      '</div>' +
+      '<div style="border-top:1px solid var(--border);padding-top:14px">' +
+      '  <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Edit History</div>' +
+      '  <div>' + histItems + '</div>' +
+      '</div>';
+
+    document.getElementById('att-edit-overlay').classList.remove('hidden');
+  }
+
+  function closeAttEditModal() {
+    document.getElementById('att-edit-overlay').classList.add('hidden');
+    attEditRecord = null;
+  }
+
+  async function saveAttEdit() {
+    if (!attEditRecord) return;
+    const r      = attEditRecord;
+    const mode   = (document.getElementById('att-edit-mode')  || {}).value || '';
+    const start  = (document.getElementById('att-edit-start') || {}).value || '';
+    const end    = (document.getElementById('att-edit-end')   || {}).value || '';
+    const coWrap = document.getElementById('att-edit-co-rows');
+
+    const btn = document.getElementById('att-edit-save-btn');
+    btn.disabled    = true;
+    btn.textContent = 'Saving…';
+
+    const changes = [];
+    if (mode  && mode  !== (r.workMode  || ''))  changes.push({ field: 'workMode',  newValue: mode });
+    if (start !== (r.startTime || ''))            changes.push({ field: 'startTime', newValue: start });
+    if (end   !== (r.endTime   || ''))            changes.push({ field: 'endTime',   newValue: end });
+
+    if (coWrap) {
+      const outInputs = coWrap.querySelectorAll('.att-co-out');
+      const inInputs  = coWrap.querySelectorAll('.att-co-in');
+      const newCo     = [];
+      outInputs.forEach((outInp, i) => {
+        newCo.push({ outTime: outInp.value, inTime: inInputs[i] ? inInputs[i].value : '' });
+      });
+      if (JSON.stringify(newCo) !== JSON.stringify(r.checkOuts || []))
+        changes.push({ field: 'checkOuts', newValue: newCo });
+    }
+
+    if (!changes.length) {
+      closeAttEditModal();
+      btn.disabled    = false;
+      btn.textContent = 'Save Changes';
+      return;
+    }
+
+    try {
+      for (const ch of changes) {
+        await fetch('/api/attendance/edit/' + r._id, {
+          method:  'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ field: ch.field, newValue: ch.newValue }),
+          credentials: 'same-origin',
+        });
+      }
+      showToast('Attendance record updated.', 'success');
+      closeAttEditModal();
+      if (attTab === 'daily')   loadDailyAttendance();
+      if (attTab === 'monthly') loadMonthlyAttendance();
+    } catch {
+      showToast('Network error.', 'error');
+    } finally {
+      btn.disabled    = false;
+      btn.textContent = 'Save Changes';
+    }
+  }
+
   /* ── Tab scroll ── */
   function scrollTabs(delta) {
     document.getElementById('tabs-bar').scrollBy({ left: delta, behavior: 'smooth' });
@@ -1263,12 +1717,15 @@
   /* ── Content tab switch ── */
   function switchTab(tab) {
     activeTab = tab;
-    ['spreadsheet', 'analytics', 'tasks'].forEach(t => {
+    ['spreadsheet', 'analytics', 'tasks', 'attendance'].forEach(t => {
       document.getElementById('panel-' + t).style.display = t === tab ? 'block' : 'none';
       document.getElementById('ctab-' + t).classList.toggle('active', t === tab);
     });
-    if (tab === 'analytics') renderAnalytics();
+    if (tab === 'analytics')  renderAnalytics();
     else if (tab === 'tasks') renderEditTasks();
+    else if (tab === 'attendance') {
+      initAttendanceTab();
+    }
     else renderSpreadsheet();
   }
 

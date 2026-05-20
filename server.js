@@ -43,6 +43,27 @@ const UserSchema = new mongoose.Schema({
 });
 const User = mongoose.models.User || mongoose.model('User', UserSchema);
 
+// Attendance — one record per (username + date)
+const AttendanceSchema = new mongoose.Schema({
+  username:             { type: String, required: true },
+  date:                 { type: String, required: true }, // YYYY-MM-DD
+  workMode:             { type: String, enum: ['WFH', 'WFO'] },
+  startTime:            { type: String }, // "HH:MM"
+  endTime:              { type: String }, // "HH:MM"
+  checkOuts:            [{ outTime: String, inTime: String }],
+  totalCheckOutMinutes: { type: Number, default: 0 },
+  totalWorkingMinutes:  { type: Number, default: 0 },
+  editHistory: [{
+    field:    String,
+    oldValue: String,
+    newValue: String,
+    editedBy: String,
+    editedAt: { type: Date, default: Date.now },
+  }],
+}, { timestamps: true });
+AttendanceSchema.index({ username: 1, date: 1 }, { unique: true });
+const Attendance = mongoose.models.Attendance || mongoose.model('Attendance', AttendanceSchema);
+
 // ── In-memory caches (loaded from DB on startup) ──────────────────────────
 let taskOverrides     = {};
 let passwordOverrides = {}; // loaded for initial seed merge only
@@ -563,6 +584,215 @@ app.delete('/api/admin/members/:username', requireManagerOnly, async (req, res) 
     res.json({ success: true });
   } catch (err) {
     console.error('Remove member error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// ── Attendance helpers ─────────────────────────────────────────────────────
+function currentTimeStr() {
+  const now = new Date();
+  return String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+}
+
+function timeToMinutes(timeStr) {
+  if (!timeStr) return 0;
+  const [h, m] = timeStr.split(':').map(Number);
+  return (h || 0) * 60 + (m || 0);
+}
+
+// ── Attendance routes ──────────────────────────────────────────────────────
+
+// POST /api/attendance/start — start working today
+app.post('/api/attendance/start', async (req, res) => {
+  const { workMode, time } = req.body;
+  if (!workMode || !['WFH', 'WFO'].includes(workMode))
+    return res.status(400).json({ error: 'workMode must be WFH or WFO' });
+  const date      = new Date().toISOString().split('T')[0];
+  const startTime = time || currentTimeStr();
+  try {
+    const existing = await Attendance.findOne({ username: req.session.username, date });
+    if (existing && existing.startTime)
+      return res.status(400).json({ error: 'Already started working today' });
+    const record = await Attendance.findOneAndUpdate(
+      { username: req.session.username, date },
+      { $set: { workMode, startTime }, $setOnInsert: { username: req.session.username, date } },
+      { upsert: true, new: true }
+    );
+    res.json({ success: true, record });
+  } catch (err) {
+    console.error('Attendance start error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// POST /api/attendance/end — end working today
+app.post('/api/attendance/end', async (req, res) => {
+  const { time } = req.body;
+  const date    = new Date().toISOString().split('T')[0];
+  const endTime = time || currentTimeStr();
+  try {
+    const record = await Attendance.findOne({ username: req.session.username, date });
+    if (!record || !record.startTime)
+      return res.status(400).json({ error: 'No start time found for today' });
+    if (record.endTime)
+      return res.status(400).json({ error: 'Already ended working today' });
+    const rawMins = Math.max(0, timeToMinutes(endTime) - timeToMinutes(record.startTime));
+    record.endTime             = endTime;
+    record.totalWorkingMinutes = Math.max(0, rawMins - (record.totalCheckOutMinutes || 0));
+    await record.save();
+    res.json({ success: true, record });
+  } catch (err) {
+    console.error('Attendance end error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// POST /api/attendance/checkout — take a break
+app.post('/api/attendance/checkout', async (req, res) => {
+  const { time } = req.body;
+  const date    = new Date().toISOString().split('T')[0];
+  const outTime = time || currentTimeStr();
+  try {
+    const record = await Attendance.findOne({ username: req.session.username, date });
+    if (!record || !record.startTime)
+      return res.status(400).json({ error: 'Not working yet' });
+    if (record.endTime)
+      return res.status(400).json({ error: 'Work session already ended' });
+    const openCheckout = (record.checkOuts || []).find(co => co.outTime && !co.inTime);
+    if (openCheckout)
+      return res.status(400).json({ error: 'Already checked out — check in first' });
+    record.checkOuts.push({ outTime, inTime: '' });
+    record.markModified('checkOuts');
+    await record.save();
+    res.json({ success: true, record });
+  } catch (err) {
+    console.error('Attendance checkout error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// POST /api/attendance/checkin — return from break
+app.post('/api/attendance/checkin', async (req, res) => {
+  const { time } = req.body;
+  const date   = new Date().toISOString().split('T')[0];
+  const inTime = time || currentTimeStr();
+  try {
+    const record = await Attendance.findOne({ username: req.session.username, date });
+    if (!record) return res.status(400).json({ error: 'No attendance record found' });
+    const openIdx = (record.checkOuts || []).findIndex(co => co.outTime && !co.inTime);
+    if (openIdx === -1) return res.status(400).json({ error: 'Not checked out' });
+    record.checkOuts[openIdx].inTime = inTime;
+    let totalCoMins = 0;
+    record.checkOuts.forEach(co => {
+      if (co.outTime && co.inTime)
+        totalCoMins += Math.max(0, timeToMinutes(co.inTime) - timeToMinutes(co.outTime));
+    });
+    record.totalCheckOutMinutes = totalCoMins;
+    record.markModified('checkOuts');
+    await record.save();
+    res.json({ success: true, record });
+  } catch (err) {
+    console.error('Attendance checkin error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// GET /api/attendance/today — current user's today record
+app.get('/api/attendance/today', async (req, res) => {
+  const date = new Date().toISOString().split('T')[0];
+  try {
+    const record = await Attendance.findOne({ username: req.session.username, date });
+    res.json(record || null);
+  } catch (err) {
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// GET /api/attendance/history/:username — all records (member: own; manager: any)
+app.get('/api/attendance/history/:username', async (req, res) => {
+  const target = req.params.username;
+  if (req.session.role === 'member' && req.session.username !== target)
+    return res.status(403).json({ error: 'Access denied' });
+  try {
+    const records = await Attendance.find({ username: target }).sort({ date: -1 });
+    res.json(records);
+  } catch (err) {
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// GET /api/attendance/all/:date — all members for a date (manager only)
+app.get('/api/attendance/all/:date', requireManager, async (req, res) => {
+  try {
+    const records = await Attendance.find({ date: req.params.date });
+    res.json(records);
+  } catch (err) {
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// GET /api/attendance/monthly/:username/:month — monthly report (YYYY-MM)
+app.get('/api/attendance/monthly/:username/:month', async (req, res) => {
+  const { username, month } = req.params;
+  if (req.session.role === 'member' && req.session.username !== username)
+    return res.status(403).json({ error: 'Access denied' });
+  if (!/^\d{4}-\d{2}$/.test(month))
+    return res.status(400).json({ error: 'month must be YYYY-MM' });
+  try {
+    const records = await Attendance.find({ username, date: { $regex: '^' + month } }).sort({ date: 1 });
+    res.json(records);
+  } catch (err) {
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// PUT /api/attendance/edit/:id — edit any field, saves to editHistory
+app.put('/api/attendance/edit/:id', async (req, res) => {
+  const { field, newValue } = req.body;
+  if (!field || newValue === undefined)
+    return res.status(400).json({ error: 'field and newValue are required' });
+  const memberEditableFields = ['startTime', 'endTime', 'checkOuts'];
+  try {
+    const record = await Attendance.findById(req.params.id);
+    if (!record) return res.status(404).json({ error: 'Record not found' });
+    if (req.session.role === 'member') {
+      if (record.username !== req.session.username)
+        return res.status(403).json({ error: 'Access denied' });
+      if (!memberEditableFields.includes(field))
+        return res.status(403).json({ error: 'You can only edit time fields' });
+    }
+    const oldValue = JSON.stringify(record[field] !== undefined ? record[field] : '');
+    record.editHistory.push({
+      field,
+      oldValue,
+      newValue: JSON.stringify(newValue),
+      editedBy: req.session.display || req.session.username,
+      editedAt: new Date(),
+    });
+    record[field] = newValue;
+    // Recalculate totals when times change
+    if (['startTime', 'endTime'].includes(field) && record.startTime && record.endTime) {
+      const rawMins = Math.max(0, timeToMinutes(record.endTime) - timeToMinutes(record.startTime));
+      record.totalWorkingMinutes = Math.max(0, rawMins - (record.totalCheckOutMinutes || 0));
+    }
+    if (field === 'checkOuts') {
+      let totalCoMins = 0;
+      (record.checkOuts || []).forEach(co => {
+        if (co.outTime && co.inTime)
+          totalCoMins += Math.max(0, timeToMinutes(co.inTime) - timeToMinutes(co.outTime));
+      });
+      record.totalCheckOutMinutes = totalCoMins;
+      if (record.startTime && record.endTime) {
+        const rawMins = Math.max(0, timeToMinutes(record.endTime) - timeToMinutes(record.startTime));
+        record.totalWorkingMinutes = Math.max(0, rawMins - totalCoMins);
+      }
+    }
+    record.markModified('editHistory');
+    record.markModified('checkOuts');
+    await record.save();
+    res.json({ success: true, record });
+  } catch (err) {
+    console.error('Attendance edit error:', err);
     res.status(500).json({ error: 'Database error' });
   }
 });
