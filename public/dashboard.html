@@ -390,6 +390,67 @@
 
   /* Edit mode row inputs */
   .em-row { display: flex; gap: 6px; align-items: center; }
+
+  /* ── Div-based tabs with remove button ── */
+  .tabs-bar .tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .tab-x-btn {
+    background: none; border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 9px; line-height: 1;
+    padding: 2px 4px; border-radius: 3px;
+    transition: background 0.12s, color 0.12s;
+    flex-shrink: 0;
+  }
+  .tab-x-btn:hover { background: rgba(239,68,68,0.2); color: #f87171; }
+
+  /* ── Add Member button in tabs bar ── */
+  .add-member-btn {
+    flex-shrink: 0;
+    background: none; border: none;
+    border-left: 1px solid var(--border);
+    padding: 0 14px;
+    color: var(--pink);
+    font-size: 11px; font-weight: 700;
+    cursor: pointer;
+    display: flex; align-items: center; gap: 5px;
+    transition: background 0.15s;
+    white-space: nowrap;
+  }
+  .add-member-btn:hover { background: var(--pink-dim); }
+
+  /* ── Add Member modal ── */
+  .am-overlay {
+    position: fixed; inset: 0; z-index: 900;
+    background: rgba(0,0,0,0.65);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+    backdrop-filter: blur(4px);
+  }
+  .am-overlay.hidden { display: none; }
+  .am-modal {
+    background: var(--surface);
+    border: 1px solid var(--border-2);
+    border-radius: var(--radius);
+    width: 100%; max-width: 420px;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.9), 0 0 0 1px rgba(255,255,255,0.04);
+    animation: emPop 0.18s ease;
+    display: flex; flex-direction: column;
+  }
+  .am-error {
+    background: rgba(220,38,38,0.1);
+    border: 1px solid rgba(220,38,38,0.3);
+    border-radius: var(--radius-sm);
+    padding: 9px 13px;
+    font-size: 12px; color: #f87171;
+    display: none;
+    margin-top: 4px;
+  }
+  .am-error.show { display: block; }
 </style>
 </head>
 <body>
@@ -412,6 +473,7 @@
     <div class="state-overlay"><div class="spinner"></div></div>
   </div>
   <button class="tabs-scroll-btn" onclick="scrollTabs(200)" title="Scroll right">&#9654;</button>
+  <button class="add-member-btn" id="add-member-btn" onclick="openAddMemberModal()" style="display:none">&#43; Add Member</button>
 </div>
 
 <!-- Content tabs -->
@@ -494,6 +556,47 @@
   </div>
 </div>
 
+<!-- ── Add Member modal ── -->
+<div id="am-overlay" class="am-overlay hidden" onclick="if(event.target===this)closeAddMemberModal()">
+  <div class="am-modal">
+    <div class="em-header">
+      <div class="em-header-text">
+        <div class="em-title">Add New Member</div>
+        <div class="em-sub">Create a login account for a new team member</div>
+      </div>
+      <div class="em-header-actions">
+        <button class="em-close" onclick="closeAddMemberModal()">&#10005;</button>
+      </div>
+    </div>
+    <div class="em-body" style="gap:14px">
+      <div class="form-group">
+        <label class="form-label">Full Name</label>
+        <input class="inp" id="am-display" placeholder="e.g. Ali Lodhi" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input class="inp" id="am-username" placeholder="e.g. ali.lodhi" autocomplete="off" autocapitalize="none" spellcheck="false">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input class="inp" id="am-password" type="password" placeholder="Min 6 characters" autocomplete="new-password">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Role</label>
+        <select class="inp" id="am-role">
+          <option value="member">Member</option>
+          <option value="assistant">Assistant</option>
+        </select>
+      </div>
+      <div class="am-error" id="am-error"></div>
+    </div>
+    <div class="em-footer" style="display:flex">
+      <button class="btn btn-ghost btn-sm" onclick="closeAddMemberModal()">Cancel</button>
+      <button class="btn btn-primary btn-sm" id="am-submit-btn" onclick="submitAddMember()">Add Member</button>
+    </div>
+  </div>
+</div>
+
 <!-- Note popover -->
 <div id="note-popover" class="note-popover">
   <div class="popover-header">
@@ -532,6 +635,7 @@
   let chartDaily   = null;
   let chartMembers = null;
   let emState      = null; // active edit-modal context
+  let isManager    = false;
 
   /* ── Helpers ── */
   function todayISO() { return new Date().toISOString().split('T')[0]; }
@@ -674,7 +778,7 @@
     }
   }
 
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closePopover(); closeModal(); } });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closePopover(); closeModal(); closeAddMemberModal(); } });
 
   /* ══════════════════════════════════════════════════════════════
      Manager Cell Modal  —  Preview → Edit two-mode flow
@@ -806,6 +910,105 @@
   function closeModal() {
     document.getElementById('em-overlay').classList.add('hidden');
     emState = null;
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     Add / Remove Members  (manager only)
+  ══════════════════════════════════════════════════════════════ */
+
+  function openAddMemberModal() {
+    ['am-display', 'am-username', 'am-password'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    const roleEl = document.getElementById('am-role');
+    if (roleEl) roleEl.value = 'member';
+    const errEl = document.getElementById('am-error');
+    if (errEl) { errEl.textContent = ''; errEl.classList.remove('show'); errEl.style.display = ''; }
+    document.getElementById('am-overlay').classList.remove('hidden');
+    setTimeout(() => { const el = document.getElementById('am-display'); if (el) el.focus(); }, 50);
+  }
+
+  function closeAddMemberModal() {
+    document.getElementById('am-overlay').classList.add('hidden');
+  }
+
+  async function submitAddMember() {
+    const display  = (document.getElementById('am-display').value  || '').trim();
+    const username = (document.getElementById('am-username').value || '').trim().toLowerCase();
+    const password = (document.getElementById('am-password').value || '').trim();
+    const role     = (document.getElementById('am-role').value     || 'member');
+
+    const errEl = document.getElementById('am-error');
+    function showAmError(msg) {
+      errEl.textContent = msg;
+      errEl.classList.add('show');
+    }
+    errEl.classList.remove('show');
+
+    if (!display)                             { showAmError('Full name is required.');                                                    return; }
+    if (!username)                            { showAmError('Username is required.');                                                     return; }
+    if (!/^[a-z0-9._-]+$/.test(username))    { showAmError('Username may only contain letters, numbers, dots, underscores, hyphens.');   return; }
+    if (!password)                            { showAmError('Password is required.');                                                     return; }
+    if (password.length < 6)                  { showAmError('Password must be at least 6 characters.');                                   return; }
+
+    const btn = document.getElementById('am-submit-btn');
+    btn.disabled    = true;
+    btn.textContent = 'Adding…';
+
+    try {
+      const res  = await fetch('/api/admin/members', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ username, password, display, role }),
+        credentials: 'same-origin',
+      });
+      const data = await res.json();
+      if (res.ok) {
+        await loadAll();
+        activeMember = members.length - 1; // jump to the newly added member
+        renderMemberTabs();
+        renderSpreadsheet();
+        closeAddMemberModal();
+        showToast(display + ' added successfully.', 'success');
+      } else {
+        showAmError(data.error || 'Failed to add member.');
+      }
+    } catch {
+      showAmError('Network error. Please try again.');
+    } finally {
+      btn.disabled    = false;
+      btn.textContent = 'Add Member';
+    }
+  }
+
+  function confirmRemoveMember(username, display) {
+    if (!confirm(
+      'Remove ' + display + ' from the team?\n\n' +
+      'Their account will be deleted. Submission data already in the database will remain.'
+    )) return;
+    removeMember(username, display);
+  }
+
+  async function removeMember(username, display) {
+    try {
+      const res  = await fetch('/api/admin/members/' + encodeURIComponent(username), {
+        method:      'DELETE',
+        credentials: 'same-origin',
+      });
+      const data = await res.json();
+      if (res.ok) {
+        await loadAll();
+        activeMember = Math.min(activeMember, Math.max(0, members.length - 1));
+        renderMemberTabs();
+        renderSpreadsheet();
+        showToast(display + ' removed from the team.', 'info');
+      } else {
+        showToast(data.error || 'Failed to remove member.', 'error');
+      }
+    } catch {
+      showToast('Network error.', 'error');
+    }
   }
 
   /* ── Build the edit form HTML ── */
@@ -1038,7 +1241,16 @@
   /* ── Member tabs ── */
   function renderMemberTabs() {
     document.getElementById('tabs-bar').innerHTML = members.map((m, i) =>
-      '<button class="tab ' + (i === activeMember ? 'active' : '') + '" onclick="selectMember(' + i + ')">' + escHtml(m.display) + '</button>'
+      '<div class="tab ' + (i === activeMember ? 'active' : '') + '" onclick="selectMember(' + i + ')">' +
+      escHtml(m.display) +
+      (isManager
+        ? ' <button class="tab-x-btn"' +
+          ' data-username="' + escHtml(m.username) + '"' +
+          ' data-display="'  + escHtml(m.display)  + '"' +
+          ' onclick="event.stopPropagation();confirmRemoveMember(this.dataset.username,this.dataset.display)"' +
+          ' title="Remove ' + escHtml(m.display) + '">&#10005;</button>'
+        : '') +
+      '</div>'
     ).join('');
   }
 
@@ -1436,6 +1648,8 @@
       document.getElementById('user-badge').textContent  = me.display;
       document.getElementById('role-badge').textContent  = me.role.charAt(0).toUpperCase() + me.role.slice(1);
       document.getElementById('role-badge').className    = 'badge ' + (me.role === 'assistant' ? 'badge-blue' : 'badge-pink');
+      isManager = (me.role === 'manager');
+      document.getElementById('add-member-btn').style.display = isManager ? '' : 'none';
     } catch { window.location.href = '/login'; return; }
 
     await loadAll();

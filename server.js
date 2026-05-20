@@ -33,19 +33,66 @@ const ConfigSchema = new mongoose.Schema({
 });
 const Config = mongoose.models.Config || mongoose.model('Config', ConfigSchema);
 
+// User schema — persistent accounts, seeded from USERS on first run
+const UserSchema = new mongoose.Schema({
+  username:        { type: String, required: true, unique: true },
+  password:        { type: String, required: true },
+  role:            { type: String, required: true },
+  display:         { type: String, required: true },
+  passwordVersion: { type: Number, default: 1 },
+});
+const User = mongoose.models.User || mongoose.model('User', UserSchema);
+
 // ── In-memory caches (loaded from DB on startup) ──────────────────────────
 let taskOverrides     = {};
-let passwordOverrides = {}; // { username: { password, passwordVersion } }
+let passwordOverrides = {}; // loaded for initial seed merge only
+let usersCache        = {}; // { username: { password, role, display, passwordVersion } }
 
 mongoose.connection.once('open', async () => {
   try {
+    // Load Config documents
     const [taskDoc, pwDoc] = await Promise.all([
       Config.findOne({ key: 'taskOverrides' }),
       Config.findOne({ key: 'passwordOverrides' }),
     ]);
     if (taskDoc) taskOverrides     = taskDoc.value || {};
     if (pwDoc)   passwordOverrides = pwDoc.value   || {};
-  } catch (_) {}
+
+    // Seed User collection from hardcoded USERS on first run
+    const userCount = await User.countDocuments();
+    if (userCount === 0) {
+      const seedDocs = Object.entries(USERS).map(([username, data]) => {
+        const ov = passwordOverrides[username] || {};
+        return {
+          username,
+          password:        ov.password        || data.password,
+          role:            data.role,
+          display:         data.display,
+          passwordVersion: ov.passwordVersion || data.passwordVersion || 1,
+        };
+      });
+      await User.insertMany(seedDocs);
+      console.log('✓ Seeded', seedDocs.length, 'users to MongoDB');
+    }
+
+    // Load all users into in-memory cache
+    const allUsers = await User.find(
+      {},
+      { _id: 0, username: 1, password: 1, role: 1, display: 1, passwordVersion: 1 }
+    );
+    usersCache = {};
+    allUsers.forEach(u => {
+      usersCache[u.username] = {
+        password:        u.password,
+        role:            u.role,
+        display:         u.display,
+        passwordVersion: u.passwordVersion,
+      };
+    });
+    console.log('✓ Loaded', Object.keys(usersCache).length, 'users into cache');
+  } catch (err) {
+    console.error('Startup error:', err);
+  }
 });
 
 // ── Credentials ────────────────────────────────────────────────────────────
@@ -72,12 +119,10 @@ const USERS = {
   "ali.raza":       { password: "raza@123#RO",    role: "member",    display: "Ali Raza",          passwordVersion: 1 },
 };
 
-// Merged user lookup — base USERS overridden by any DB-stored password changes
+// User lookup — reads from in-memory cache (populated from MongoDB on startup)
 function getUser(username) {
-  const base = USERS[username];
-  if (!base) return null;
-  const ov = passwordOverrides[username];
-  return ov ? { ...base, ...ov } : { ...base };
+  const u = usersCache[username];
+  return u ? { ...u } : null;
 }
 
 // ── Team task definitions ──────────────────────────────────────────────────
@@ -274,14 +319,16 @@ function requireAuth(req, res, next) {
     if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'Not authenticated' });
     return res.redirect('/login');
   }
-  // Password-version check — if manager changed this user's password, invalidate their session
-  const currentUser = getUser(req.session.username);
-  const currentVer  = currentUser ? (currentUser.passwordVersion || 1) : -1;
-  const sessionVer  = req.session.passwordVersion ?? 1; // treat legacy sessions as version 1
-  if (!currentUser || sessionVer !== currentVer) {
-    req.session.destroy(() => {});
-    if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'password_changed' });
-    return res.redirect('/login?reason=password_changed');
+  // Skip version check while cache is still loading (brief cold-start window)
+  if (Object.keys(usersCache).length > 0) {
+    const currentUser = getUser(req.session.username);
+    const currentVer  = currentUser ? (currentUser.passwordVersion || 1) : -1;
+    const sessionVer  = req.session.passwordVersion ?? 1;
+    if (!currentUser || sessionVer !== currentVer) {
+      req.session.destroy(() => {});
+      if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'password_changed' });
+      return res.redirect('/login?reason=password_changed');
+    }
   }
   next();
 }
@@ -290,6 +337,14 @@ function requireManager(req, res, next) {
   if (req.session.role !== 'manager' && req.session.role !== 'assistant') {
     if (req.path.startsWith('/api/')) return res.status(403).json({ error: 'Insufficient permissions' });
     return res.redirect('/member');
+  }
+  next();
+}
+
+// Restrict to manager role only (assistants cannot add/remove members)
+function requireManagerOnly(req, res, next) {
+  if (req.session.role !== 'manager') {
+    return res.status(403).json({ error: 'Only manager can perform this action' });
   }
   next();
 }
@@ -350,18 +405,11 @@ app.post('/api/admin/change-password', requireManager, async (req, res) => {
   if (!username || !newPassword) return res.status(400).json({ error: 'Missing fields' });
   if (newPassword.length < 6)    return res.status(400).json({ error: 'Password too short (min 6 chars)' });
   const target = username.toLowerCase().trim();
-  if (!USERS[target]) return res.status(404).json({ error: 'User not found' });
-  const newVersion = Date.now(); // unique timestamp = new version token
-  passwordOverrides[target] = {
-    password:        newPassword,
-    passwordVersion: newVersion,
-  };
+  if (!usersCache[target]) return res.status(404).json({ error: 'User not found' });
+  const newVersion = Date.now();
   try {
-    await Config.findOneAndUpdate(
-      { key: 'passwordOverrides' },
-      { key: 'passwordOverrides', value: passwordOverrides },
-      { upsert: true, new: true }
-    );
+    await User.findOneAndUpdate({ username: target }, { password: newPassword, passwordVersion: newVersion });
+    usersCache[target] = { ...usersCache[target], password: newPassword, passwordVersion: newVersion };
     res.json({ success: true });
   } catch (err) {
     console.error('Change password error:', err);
@@ -419,7 +467,7 @@ app.get('/api/all', requireManager, async (req, res) => {
 });
 
 app.get('/api/members', requireManager, (req, res) => {
-  const members = Object.entries(USERS)
+  const members = Object.entries(usersCache)
     .filter(([, u]) => u.role === 'member')
     .map(([username, u]) => ({ username, display: u.display, tasks: getMemberTasks(u.display) }));
   res.json(members);
@@ -467,7 +515,7 @@ app.post('/api/admin/save', requireManager, async (req, res) => {
   const { username, date, tasks } = req.body;
   if (!username || !date || !tasks) return res.status(400).json({ error: 'Missing fields' });
   const target = username.toLowerCase().trim();
-  if (!USERS[target]) return res.status(404).json({ error: 'User not found' });
+  if (!usersCache[target]) return res.status(404).json({ error: 'User not found' });
   try {
     await Entry.findOneAndUpdate(
       { username: target, date },
@@ -477,6 +525,44 @@ app.post('/api/admin/save', requireManager, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('Admin save error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Add a new member (manager only)
+app.post('/api/admin/members', requireManagerOnly, async (req, res) => {
+  let { username, password, role, display } = req.body;
+  if (!username || !password || !display) return res.status(400).json({ error: 'Missing required fields' });
+  if (password.length < 6) return res.status(400).json({ error: 'Password too short (min 6 chars)' });
+  const uname = username.toLowerCase().trim();
+  const dname = display.trim();
+  if (!uname) return res.status(400).json({ error: 'Invalid username' });
+  if (usersCache[uname]) return res.status(409).json({ error: 'Username already exists' });
+  const validRoles = ['member', 'assistant'];
+  const userRole = validRoles.includes(role) ? role : 'member';
+  try {
+    await User.create({ username: uname, password, role: userRole, display: dname, passwordVersion: 1 });
+    usersCache[uname] = { password, role: userRole, display: dname, passwordVersion: 1 };
+    res.json({ success: true, username: uname, display: dname, role: userRole });
+  } catch (err) {
+    if (err.code === 11000) return res.status(409).json({ error: 'Username already exists' });
+    console.error('Add member error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Remove a member (manager only)
+app.delete('/api/admin/members/:username', requireManagerOnly, async (req, res) => {
+  const target = req.params.username.toLowerCase().trim();
+  const user   = usersCache[target];
+  if (!user)               return res.status(404).json({ error: 'User not found' });
+  if (user.role === 'manager') return res.status(403).json({ error: 'Cannot remove manager accounts' });
+  try {
+    await User.deleteOne({ username: target });
+    delete usersCache[target];
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Remove member error:', err);
     res.status(500).json({ error: 'Database error' });
   }
 });
