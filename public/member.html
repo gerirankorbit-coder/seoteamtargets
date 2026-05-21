@@ -1326,7 +1326,10 @@
       }
     } catch(e) {}
     try {
-      const res = await fetch('/api/attendance/today', { credentials: 'same-origin' });
+      const attCtrl = new AbortController();
+      const attTid  = setTimeout(() => attCtrl.abort(), 8000);
+      const res = await fetch('/api/attendance/today', { credentials: 'same-origin', signal: attCtrl.signal });
+      clearTimeout(attTid);
       if (!res.ok) { attRecord = null; }
       else { attRecord = await res.json(); }
     } catch { attRecord = null; }
@@ -1865,9 +1868,15 @@
   }
 
   /* ── Checkout counter (Feature 1) ── */
+  let _checkoutFetching = false;
   async function refreshCheckoutCount() {
+    if (_checkoutFetching) return;
+    _checkoutFetching = true;
+    const ctrl = new AbortController();
+    const tid  = setTimeout(() => ctrl.abort(), 5000);
     try {
-      const res  = await fetch('/api/attendance/checkout-count', { credentials: 'same-origin' });
+      const res  = await fetch('/api/attendance/checkout-count', { credentials: 'same-origin', signal: ctrl.signal });
+      clearTimeout(tid);
       if (!res.ok) return;
       const data = await res.json();
       const banner  = document.getElementById('checkout-banner');
@@ -1878,13 +1887,20 @@
       } else {
         banner.style.display = 'none';
       }
-    } catch { /* silently ignore */ }
+    } catch {
+      clearTimeout(tid);
+    } finally {
+      _checkoutFetching = false;
+    }
   }
 
   /* ── Init ── */
   async function init() {
     try {
-      const res = await fetch('/api/me', { credentials: 'same-origin' });
+      const meCtrl = new AbortController();
+      const meTid  = setTimeout(() => meCtrl.abort(), 8000);
+      const res = await fetch('/api/me', { credentials: 'same-origin', signal: meCtrl.signal });
+      clearTimeout(meTid);
       if (res.status === 401) { window.location.href = '/login'; return; }
       const me  = await res.json();
       memberTasks    = me.tasks || [];
@@ -2017,7 +2033,7 @@
     } catch(e) {}
   }
 
-  window.addEventListener('load', monInit);
+  window.addEventListener('load', () => { try { monInit(); } catch(e) { console.warn('monInit failed:', e); } });
 </script>
 </body>
 </html>

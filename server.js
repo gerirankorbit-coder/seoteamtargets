@@ -852,13 +852,14 @@ app.post('/api/attendance/checkin', async (req, res) => {
 app.get('/api/attendance/checkout-count', requireAuth, async (req, res) => {
   const date = new Date().toISOString().split('T')[0];
   try {
-    const records = await Attendance.find({ date });
-    const count   = records.filter(r =>
+    const records = await Attendance.find({ date })
+      .select('checkOuts').lean().maxTimeMS(3000);
+    const count = records.filter(r =>
       (r.checkOuts || []).some(co => co.outTime && !co.inTime)
     ).length;
-    res.json({ count });
+    return res.json({ count });
   } catch (err) {
-    res.status(500).json({ error: 'Database error' });
+    return res.json({ count: 0 });
   }
 });
 
