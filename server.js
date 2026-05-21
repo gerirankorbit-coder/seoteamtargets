@@ -704,6 +704,15 @@ function timeToMinutes(timeStr) {
   return (h || 0) * 60 + (m || 0);
 }
 
+// Duration between two HH:MM strings — handles midnight crossing automatically
+function timeDiffMins(startStr, endStr) {
+  if (!startStr || !endStr) return 0;
+  let s = timeToMinutes(startStr);
+  let e = timeToMinutes(endStr);
+  if (e < s) e += 24 * 60; // end is next day (e.g. 23:00 → 01:00)
+  return Math.max(0, e - s);
+}
+
 // Recalculate totalWorkingMinutes accounting for sessions and breaks
 function recalcWorkMins(record) {
   const sessions = record.sessions || [];
@@ -711,11 +720,11 @@ function recalcWorkMins(record) {
     let total = 0;
     sessions.forEach(s => {
       if (s.startTime && s.endTime)
-        total += Math.max(0, timeToMinutes(s.endTime) - timeToMinutes(s.startTime));
+        total += timeDiffMins(s.startTime, s.endTime);
     });
     record.totalWorkingMinutes = Math.max(0, total - (record.totalCheckOutMinutes || 0));
   } else if (record.startTime && record.endTime) {
-    const rawMins = Math.max(0, timeToMinutes(record.endTime) - timeToMinutes(record.startTime));
+    const rawMins = timeDiffMins(record.startTime, record.endTime);
     record.totalWorkingMinutes = Math.max(0, rawMins - (record.totalCheckOutMinutes || 0));
   }
 }
@@ -732,15 +741,7 @@ app.post('/api/attendance/start', async (req, res) => {
   const startTime = time || currentTimeStr();
   try {
     const existing = await Attendance.findOne({ username: req.session.username, date });
-    // Block if there is already an open (unended) session
-    if (existing) {
-      const sessions       = existing.sessions || [];
-      const hasOpenSession = sessions.some(s => s.startTime && !s.endTime);
-      const hasLegacyOpen  = sessions.length === 0 && existing.startTime && !existing.endTime;
-      if (hasOpenSession || hasLegacyOpen) {
-        return res.status(400).json({ error: 'A session is already active. End the current session first.' });
-      }
-    }
+    // Allow multiple sessions — never block a new start (each session is independent)
     const isFirst = !existing || !existing.startTime;
     const update  = {
       $push:        { sessions: { startTime, endTime: '', workMode } },
@@ -775,7 +776,7 @@ app.post('/api/attendance/end', async (req, res) => {
       for (let i = sessions.length - 1; i >= 0; i--) {
         if (sessions[i].startTime && !sessions[i].endTime) { openIdx = i; break; }
       }
-      if (openIdx === -1) return res.status(400).json({ error: 'No active session to end' });
+      if (openIdx === -1) return res.json({ success: true, record, message: 'no active session' });
       sessions[openIdx].endTime = endTime;
       record.sessions = sessions;
       record.markModified('sessions');
@@ -784,7 +785,7 @@ app.post('/api/attendance/end', async (req, res) => {
     } else {
       // Legacy single-session mode (records created before multi-session)
       if (!record.startTime) return res.status(400).json({ error: 'No start time found' });
-      if (record.endTime)    return res.status(400).json({ error: 'Session already ended' });
+      if (record.endTime)    return res.json({ success: true, record, message: 'session already ended' });
       record.endTime = endTime;
       recalcWorkMins(record);
     }
@@ -834,7 +835,7 @@ app.post('/api/attendance/checkin', async (req, res) => {
     let totalCoMins = 0;
     record.checkOuts.forEach(co => {
       if (co.outTime && co.inTime)
-        totalCoMins += Math.max(0, timeToMinutes(co.inTime) - timeToMinutes(co.outTime));
+        totalCoMins += timeDiffMins(co.outTime, co.inTime);
     });
     record.totalCheckOutMinutes = totalCoMins;
     recalcWorkMins(record);
@@ -973,7 +974,7 @@ app.put('/api/attendance/edit/:id', async (req, res) => {
       let totalCoMins = 0;
       (record.checkOuts || []).forEach(co => {
         if (co.outTime && co.inTime)
-          totalCoMins += Math.max(0, timeToMinutes(co.inTime) - timeToMinutes(co.outTime));
+          totalCoMins += timeDiffMins(co.outTime, co.inTime);
       });
       record.totalCheckOutMinutes = totalCoMins;
       recalcWorkMins(record);

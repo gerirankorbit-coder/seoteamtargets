@@ -1313,6 +1313,18 @@
 
   /* ── Load + render today's attendance ── */
   async function loadAttendance() {
+    // Apply cached state immediately so buttons are correct before the fetch resolves
+    try {
+      const cached   = localStorage.getItem('ro_att_state');
+      const btnGroup = document.getElementById('att-btn-group');
+      if (cached === 'working' && btnGroup) {
+        btnGroup.innerHTML =
+          '<button class="att-btn att-btn-checkout" onclick="checkOut()">&#9646;&#9646; Check Out</button>' +
+          '<button class="att-btn att-btn-end"      onclick="endWorking()">&#9632; End Working</button>';
+      } else if (cached === 'break' && btnGroup) {
+        btnGroup.innerHTML = '<button class="att-btn att-btn-checkin" onclick="checkIn()">&#9654; Check In</button>';
+      }
+    } catch(e) {}
     try {
       const res = await fetch('/api/attendance/today', { credentials: 'same-origin' });
       if (!res.ok) { attRecord = null; }
@@ -1331,6 +1343,7 @@
       statusWrap.innerHTML = '<span style="font-size:12px;color:var(--text-dim)">No attendance recorded today.</span>';
       btnGroup.innerHTML   = '<button class="att-btn att-btn-start" onclick="openWorkModeModal()">&#9654; Start Working</button>';
       if (noteBtn) noteBtn.style.display = 'none';
+      try { localStorage.setItem('ro_att_state', 'idle'); } catch(e) {}
       return;
     }
 
@@ -1342,6 +1355,7 @@
       statusWrap.innerHTML = '<span style="font-size:12px;color:var(--text-dim)">No attendance recorded today.</span>';
       btnGroup.innerHTML   = '<button class="att-btn att-btn-start" onclick="openWorkModeModal()">&#9654; Start Working</button>';
       if (noteBtn) noteBtn.style.display = 'none';
+      try { localStorage.setItem('ro_att_state', 'idle'); } catch(e) {}
       return;
     }
 
@@ -1403,18 +1417,23 @@
     }
 
     let btns = '';
+    let attState = 'idle';
     if (!isEnded) {
       if (hasOpenCheckout) {
-        btns = '<button class="att-btn att-btn-checkin" onclick="checkIn()">&#9654; Check In</button>';
+        btns     = '<button class="att-btn att-btn-checkin" onclick="checkIn()">&#9654; Check In</button>';
+        attState = 'break';
       } else {
         btns =
           '<button class="att-btn att-btn-checkout" onclick="checkOut()">&#9646;&#9646; Check Out</button>' +
           '<button class="att-btn att-btn-end"      onclick="endWorking()">&#9632; End Working</button>';
+        attState = 'working';
       }
     } else {
       btns = '<button class="att-btn att-btn-start" onclick="openWorkModeModal()">&#9654; Start Working</button>';
     }
     btnGroup.innerHTML = btns;
+    // Persist derived state so page refresh shows correct buttons immediately
+    try { localStorage.setItem('ro_att_state', attState); } catch(e) {}
   }
 
   /* ── Work mode popup ── */
@@ -1423,6 +1442,20 @@
     document.getElementById('wm-overlay').classList.remove('hidden');
   }
   function closeWorkModeModal() { document.getElementById('wm-overlay').classList.add('hidden'); }
+
+  /* ── Attendance error helpers ── */
+  function attFetchError(res, data) {
+    if (res.status === 401) { window.location.href = '/login'; return; }
+    if (res.status >= 500)  { showToast('Server error — please try again in a moment.', 'error'); return; }
+    showToast(data.error || 'Request failed.', 'error');
+  }
+  function attNetworkError(e) {
+    const msg = e && e.message ? e.message.toLowerCase() : '';
+    if (msg.includes('failed to fetch') || msg.includes('networkerror') || msg.includes('load'))
+      showToast('Connection lost — please check your internet.', 'error');
+    else
+      showToast('Connection error — please try again.', 'error');
+  }
 
   /* ── Attendance action handlers ── */
   let _pendingWorkMode = null;
@@ -1462,9 +1495,9 @@
         renderAttendanceBar();
         showToast('Started working (' + workMode + ') at ' + time, 'success');
       } else {
-        showToast(data.error || 'Could not start working.', 'error');
+        attFetchError(res, data);
       }
-    } catch { showToast('Network error.', 'error'); }
+    } catch(e) { attNetworkError(e); }
   }
 
   async function endWorking() {
@@ -1483,11 +1516,12 @@
       if (res.ok) {
         attRecord = data.record;
         renderAttendanceBar();
-        showToast('Session ended. Working time: ' + formatMins(data.record.totalWorkingMinutes), 'success');
+        const mins = data.record.totalWorkingMinutes;
+        showToast('Session ended.' + (mins ? ' Working time: ' + formatMins(mins) : ''), 'success');
       } else {
-        showToast(data.error || 'Could not end session.', 'error');
+        attFetchError(res, data);
       }
-    } catch { showToast('Network error.', 'error'); }
+    } catch(e) { attNetworkError(e); }
   }
 
   async function checkOut() {
@@ -1506,9 +1540,9 @@
         renderAttendanceBar();
         showToast('Checked out at ' + time, 'info');
       } else {
-        showToast(data.error || 'Could not check out.', 'error');
+        attFetchError(res, data);
       }
-    } catch { showToast('Network error.', 'error'); }
+    } catch(e) { attNetworkError(e); }
   }
 
   async function checkIn() {
@@ -1527,9 +1561,9 @@
         renderAttendanceBar();
         showToast('Checked in at ' + time, 'info');
       } else {
-        showToast(data.error || 'Could not check in.', 'error');
+        attFetchError(res, data);
       }
-    } catch { showToast('Network error.', 'error'); }
+    } catch(e) { attNetworkError(e); }
   }
 
   /* ── Edit time modal ── */
@@ -1903,29 +1937,65 @@
   }
 
   async function monCheckAndStart() {
+    // Poll permission; if stream already exists but peer died, reconnect without new capture
     try {
       const res  = await fetch('/api/monitor/permission', { credentials: 'same-origin' });
       const data = await res.json();
       monPermitted = data.allowed;
-      if (monPermitted && !monStream) await monStartSharing();
+      if (!monPermitted) return;
+      if (!monStream) {
+        await monStartSharing(); // no stream yet — capture + connect
+      } else {
+        // Stream exists; check if peer connection is alive
+        const state = monPeerConn ? monPeerConn.iceConnectionState : 'closed';
+        if (!monPeerConn || state === 'failed' || state === 'closed' || state === 'disconnected') {
+          await monReconnectPeer(); // reuse existing stream, just re-establish peer
+        }
+      }
     } catch(e) {}
   }
 
   async function monStartSharing() {
+    // Capture the screen (user sees picker dialog once per session)
     try {
       monStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
-      monPeerConn = new RTCPeerConnection(MON_RTC_CONFIG);
-      monStream.getTracks().forEach(track => monPeerConn.addTrack(track, monStream));
-      monPeerConn.onicecandidate = (e) => {
-        if (e.candidate) monSendSignal({ type: 'ice-candidate', data: e.candidate, targetUsername: 'manager' });
-      };
-      monStream.getVideoTracks()[0].onended = () => monStopSharing();
-      const offer = await monPeerConn.createOffer();
-      await monPeerConn.setLocalDescription(offer);
-      monSendSignal({ type: 'offer', data: offer, targetUsername: 'manager' });
+      monStream.getVideoTracks()[0].onended = () => monStopSharing(); // user stopped sharing
+      await monReconnectPeer();
       document.getElementById('monitor-badge').classList.add('active');
       monPollingInt = setInterval(monCheckAndStart, 30000);
     } catch(e) { monStream = null; }
+  }
+
+  async function monReconnectPeer() {
+    // Tear down any existing peer (but keep the MediaStream alive)
+    if (monPeerConn) {
+      try { monPeerConn.close(); } catch(e) {}
+      monPeerConn = null;
+    }
+    if (!monStream) return;
+
+    monPeerConn = new RTCPeerConnection(MON_RTC_CONFIG);
+    monStream.getTracks().forEach(track => monPeerConn.addTrack(track, monStream));
+
+    monPeerConn.onicecandidate = (e) => {
+      if (e.candidate) monSendSignal({ type: 'ice-candidate', data: e.candidate, targetUsername: 'manager' });
+    };
+
+    // When the manager navigates away, the ICE connection will fail.
+    // Re-send a fresh offer so the manager's page can reconnect on return.
+    monPeerConn.oniceconnectionstatechange = () => {
+      const s = monPeerConn ? monPeerConn.iceConnectionState : '';
+      if (s === 'failed' || s === 'closed') {
+        // Small delay to avoid tight reconnect loops
+        setTimeout(() => { if (monStream) monReconnectPeer(); }, 2000);
+      }
+    };
+
+    try {
+      const offer = await monPeerConn.createOffer();
+      await monPeerConn.setLocalDescription(offer);
+      monSendSignal({ type: 'offer', data: offer, targetUsername: 'manager' });
+    } catch(e) {}
   }
 
   function monStopSharing() {
