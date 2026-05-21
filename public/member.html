@@ -547,7 +547,7 @@
 
 <div class="topbar">
   <!-- TODO: add logo.png to public folder for the Rank Orbit logo -->
-  <img src="/logo.png" alt="RO" class="topbar-logo" style="width:36px;height:36px;object-fit:contain;border-radius:10px" onerror="this.outerHTML='<div class=&quot;topbar-logo&quot;>RO</div>'">
+  <img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEj5AIc7iL9EnqP3uV0z6uNXNOiAeo54kPQaRJYDral2LtjST_Zy4GxIOcO39gpaf8B03Yr_mqgf7so-wuzv_u6UB8PfrK3d7G9fUumwN6n5Ml_yYX-F1L69368TOy9hbyHr7_LKDtpDH_Vywrp1Ic7mFcc-2lTOSNC6peY1hnAPcjAhvRnGIV8JJi1XFA5p/s975/Final%20Logo-06%20(1).png" style="height:38px; width:auto; object-fit:contain;" alt="Rank Orbit Logo">
   <div class="topbar-title">Rank <span>Orbit</span></div>
   <div class="topbar-right">
     <span class="badge badge-muted" id="member-name-badge">…</span>
@@ -1611,9 +1611,6 @@
       const modePill = r.workMode
         ? '<span class="att-mode-pill ' + r.workMode.toLowerCase() + '">' + escHtml(r.workMode) + '</span>'
         : '–';
-      const editBtn = '<button class="btn btn-ghost btn-sm" style="font-size:10px;padding:3px 8px"' +
-        ' data-recid="' + escHtml(String(r._id)) + '"' +
-        ' onclick="openMemberAttEdit(this.dataset.recid)">&#9998; Edit</button>';
       const rowStyle = isToday ? ' style="background:rgba(255,184,0,0.04)"' : '';
       return '<tr' + rowStyle + '>' +
         '<td style="font-weight:600;white-space:nowrap">' + escHtml(formatDisplay(r.date)) + '</td>' +
@@ -1622,14 +1619,13 @@
         '<td>' + escHtml(r.endTime   || '–') + '</td>' +
         '<td class="att-break-time">'   + (r.totalCheckOutMinutes ? formatMins(r.totalCheckOutMinutes) : '–') + '</td>' +
         '<td class="att-working-time">' + (r.totalWorkingMinutes  ? formatMins(r.totalWorkingMinutes)  : '–') + '</td>' +
-        '<td>' + editBtn + '</td>' +
         '</tr>';
     }).join('');
     c.innerHTML =
       '<div style="overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius)">' +
-      '<table class="att-table" style="min-width:600px">' +
+      '<table class="att-table" style="min-width:520px">' +
       '<thead><tr><th>Date</th><th>Mode</th><th>Start</th><th>End</th>' +
-      '<th>Break</th><th>Working Time</th><th>Action</th></tr></thead>' +
+      '<th>Break</th><th>Working Time</th></tr></thead>' +
       '<tbody>' + rows + '</tbody>' +
       '</table></div>';
   }
