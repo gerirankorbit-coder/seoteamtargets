@@ -1299,6 +1299,13 @@
   }
 
   /* ── Attendance helpers ── */
+  function timeToMinutes(timeStr) {
+    if (!timeStr || timeStr === '--' || timeStr === '-') return 0;
+    const parts = timeStr.split(':');
+    if (parts.length < 2) return 0;
+    return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+  }
+
   function formatMins(mins) {
     if (!mins && mins !== 0) return '–';
     const h = Math.floor(mins / 60);
