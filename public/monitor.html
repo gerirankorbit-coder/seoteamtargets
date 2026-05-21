@@ -58,6 +58,62 @@
   .tile-footer-note { font-size: 10px; color: var(--text-dim); margin-left: auto; }
   .empty-state { text-align: center; padding: 60px 20px; color: var(--text-dim); font-size: 13px; }
   .page-footer { text-align: center; padding: 24px 0; color: var(--text-dim); font-size: 11px; }
+
+  /* ── Expand button ── */
+  .tile-video-wrap { position: relative; }
+  .tile-expand-btn {
+    position: absolute; top: 8px; right: 8px;
+    width: 30px; height: 30px;
+    background: rgba(0,0,0,0.55); backdrop-filter: blur(4px);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 8px; color: #fff; font-size: 14px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; opacity: 0; transition: opacity 0.18s, background 0.18s;
+    z-index: 2; line-height: 1;
+  }
+  .tile-video-wrap:hover .tile-expand-btn { opacity: 1; }
+  .tile-expand-btn:hover { background: rgba(233,30,140,0.55); border-color: rgba(233,30,140,0.5); }
+
+  /* ── Fullscreen modal ── */
+  .fs-overlay {
+    display: none; position: fixed; inset: 0; z-index: 9999;
+    background: rgba(0,0,0,0.95);
+    align-items: center; justify-content: center; flex-direction: column;
+    gap: 16px;
+  }
+  .fs-overlay.open { display: flex; }
+  .fs-close {
+    position: fixed; top: 20px; right: 24px;
+    width: 40px; height: 40px; border-radius: 12px;
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+    color: #fff; font-size: 20px; font-weight: 300;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: background 0.15s;
+    line-height: 1;
+  }
+  .fs-close:hover { background: rgba(239,68,68,0.35); border-color: rgba(239,68,68,0.5); }
+  .fs-name {
+    font-size: 15px; font-weight: 700; color: #fff;
+    letter-spacing: 0.3px; text-align: center;
+  }
+  .fs-name span { color: var(--pink); }
+  .fs-video-wrap {
+    width: 90vw; max-width: 90vw;
+    height: 85vh; max-height: 85vh;
+    display: flex; align-items: center; justify-content: center;
+    background: #000; border-radius: 14px;
+    overflow: hidden; border: 1px solid rgba(255,255,255,0.08);
+  }
+  .fs-video-wrap video {
+    max-width: 90vw; max-height: 85vh;
+    width: auto; height: auto;
+    object-fit: contain; display: block;
+  }
+  .fs-no-stream {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 12px; color: var(--text-dim); font-size: 14px; width: 100%; height: 100%;
+  }
+  .fs-no-stream-icon { font-size: 48px; opacity: 0.25; }
 </style>
 </head>
 <body>
@@ -78,6 +134,19 @@
   </div>
   <div class="monitor-grid" id="monitor-grid">
     <div class="empty-state">Loading members…</div>
+  </div>
+</div>
+
+<!-- Fullscreen modal -->
+<div class="fs-overlay" id="fs-overlay" onclick="fsOverlayClick(event)">
+  <button class="fs-close" id="fs-close" onclick="closeFullscreen()">&#x2715;</button>
+  <div class="fs-name" id="fs-name"></div>
+  <div class="fs-video-wrap" id="fs-video-wrap">
+    <video id="fs-video" autoplay muted playsinline></video>
+    <div class="fs-no-stream" id="fs-no-stream" style="display:none">
+      <div class="fs-no-stream-icon">🖥️</div>
+      <div>No active screen share</div>
+    </div>
   </div>
 </div>
 
@@ -144,6 +213,15 @@
       if (video) {
         video.srcObject = stream;
         video.play().catch(() => {});
+      }
+      // Sync fullscreen view if open for this member
+      if (fsActiveUsername === username) {
+        const fsVideo    = document.getElementById('fs-video');
+        const fsNoStream = document.getElementById('fs-no-stream');
+        fsVideo.srcObject = stream;
+        fsVideo.play().catch(() => {});
+        fsVideo.style.display    = 'block';
+        fsNoStream.style.display = 'none';
       }
       activeScreensMap[username] = true;
       updateTileStatus(username, true);
@@ -265,6 +343,7 @@
               <div class="tile-no-stream-icon">🖥️</div>
               <div>No screen share</div>
             </div>
+            <button class="tile-expand-btn" title="Fullscreen" onclick="openFullscreen('${m.username}','${escHtml(m.display)}')">⛶</button>
           </div>
           <div class="tile-footer">
             <button id="perm-btn-${m.username}" class="${isAllowed ? 'btn-revoke' : 'btn-allow'}" onclick="togglePermission('${m.username}')">
@@ -308,6 +387,52 @@
     }
     renderGrid();
     renderLastRefresh();
+  }
+
+  // ── Fullscreen view ───────────────────────────────────────────────────────
+  let fsActiveUsername = null;
+
+  function openFullscreen(username, displayName) {
+    fsActiveUsername = username;
+
+    // Set name label
+    document.getElementById('fs-name').innerHTML = escHtml(displayName) + '<span> — Screen View</span>';
+
+    // Attach stream to fullscreen video if available
+    const fsVideo   = document.getElementById('fs-video');
+    const fsNoStream = document.getElementById('fs-no-stream');
+    const stream    = videoStreams[username];
+
+    if (stream) {
+      fsVideo.srcObject = stream;
+      fsVideo.play().catch(() => {});
+      fsVideo.style.display = 'block';
+      fsNoStream.style.display = 'none';
+    } else {
+      fsVideo.srcObject = null;
+      fsVideo.style.display = 'none';
+      fsNoStream.style.display = 'flex';
+    }
+
+    document.getElementById('fs-overlay').classList.add('open');
+    document.addEventListener('keydown', fsKeyHandler);
+  }
+
+  function closeFullscreen() {
+    const fsVideo = document.getElementById('fs-video');
+    fsVideo.srcObject = null;
+    document.getElementById('fs-overlay').classList.remove('open');
+    document.removeEventListener('keydown', fsKeyHandler);
+    fsActiveUsername = null;
+  }
+
+  function fsOverlayClick(e) {
+    // Close if clicking the dark backdrop directly (not the video/controls)
+    if (e.target === document.getElementById('fs-overlay')) closeFullscreen();
+  }
+
+  function fsKeyHandler(e) {
+    if (e.key === 'Escape') closeFullscreen();
   }
 
   init();
