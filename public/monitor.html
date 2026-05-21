@@ -114,6 +114,44 @@
     gap: 12px; color: var(--text-dim); font-size: 14px; width: 100%; height: 100%;
   }
   .fs-no-stream-icon { font-size: 48px; opacity: 0.25; }
+
+  /* ── Connection status badge ── */
+  .conn-badge {
+    position: absolute; top: 8px; left: 8px;
+    display: none; align-items: center; gap: 5px;
+    font-size: 10px; font-weight: 700;
+    padding: 4px 9px; border-radius: 8px;
+    z-index: 3; white-space: nowrap;
+    backdrop-filter: blur(6px);
+    pointer-events: none;
+  }
+  .conn-badge.show { display: flex; }
+  .conn-badge.cb-live         { background: rgba(22,163,74,0.25);   border: 1px solid rgba(34,197,94,0.4);    color: #4ade80; }
+  .conn-badge.cb-disconnected { background: rgba(239,68,68,0.2);    border: 1px solid rgba(239,68,68,0.4);    color: #f87171; }
+  .conn-badge.cb-offline      { background: rgba(75,85,99,0.3);     border: 1px solid rgba(107,114,128,0.35); color: #9ca3af; }
+  .conn-badge.cb-connecting   { background: rgba(234,179,8,0.18);   border: 1px solid rgba(234,179,8,0.35);   color: #fbbf24; }
+
+  /* Tile border by connection state (override .sharing) */
+  .member-tile.conn-live         { border-color: rgba(34,197,94,0.55);   box-shadow: 0 0 18px rgba(34,197,94,0.1); }
+  .member-tile.conn-disconnected { border-color: rgba(239,68,68,0.55);   box-shadow: 0 0 18px rgba(239,68,68,0.1); }
+  .member-tile.conn-offline      { border-color: rgba(107,114,128,0.35); box-shadow: none; }
+  .member-tile.conn-connecting   { border-color: rgba(234,179,8,0.45);   box-shadow: 0 0 14px rgba(234,179,8,0.08); }
+
+  /* ── Toast notifications ── */
+  .toast-container {
+    position: fixed; top: 72px; right: 20px;
+    display: flex; flex-direction: column; gap: 8px;
+    z-index: 9998; pointer-events: none;
+  }
+  .toast {
+    background: var(--surface-2); border: 1px solid rgba(239,68,68,0.35);
+    border-radius: 10px; padding: 10px 16px;
+    font-size: 12px; font-weight: 600; color: var(--text);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    transform: translateX(120%); transition: transform 0.25s ease, opacity 0.25s ease;
+    max-width: 300px; opacity: 0;
+  }
+  .toast.show { transform: translateX(0); opacity: 1; }
 </style>
 </head>
 <body>
@@ -136,6 +174,9 @@
     <div class="empty-state">Loading members…</div>
   </div>
 </div>
+
+<!-- Toast notifications -->
+<div class="toast-container" id="toast-container"></div>
 
 <!-- Fullscreen modal -->
 <div class="fs-overlay" id="fs-overlay" onclick="fsOverlayClick(event)">
@@ -162,6 +203,7 @@
   let activeScreensMap = {}; // { username: true }
   let peerConnections  = {}; // { username: RTCPeerConnection }
   let videoStreams      = {}; // { username: MediaStream }
+  let connStates       = {}; // { username: { state, since } }  states: idle|connecting|live|disconnected|offline
 
   // ── Pusher setup ──────────────────────────────────────────────────────────
   Pusher.logToConsole = false;
@@ -181,6 +223,7 @@
       }
     } else if (type === 'disconnect') {
       teardownPeer(fromUsername);
+      setConnState(fromUsername, 'disconnected');
       updateTileStatus(fromUsername, false);
       delete activeScreensMap[fromUsername];
       renderLastRefresh();
@@ -196,6 +239,7 @@
   // ── WebRTC handlers ───────────────────────────────────────────────────────
   async function handleOffer(username, offer) {
     teardownPeer(username); // clean up any old connection
+    setConnState(username, 'connecting');
 
     const pc = new RTCPeerConnection(RTC_CONFIG);
     peerConnections[username] = pc;
@@ -203,6 +247,15 @@
     pc.onicecandidate = (e) => {
       if (e.candidate) {
         sendSignal({ type: 'ice-candidate', data: e.candidate, targetUsername: username });
+      }
+    };
+
+    pc.oniceconnectionstatechange = () => {
+      if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed') {
+        setConnState(username, 'disconnected');
+        updateTileStatus(username, false);
+        delete activeScreensMap[username];
+        renderLastRefresh();
       }
     };
 
@@ -224,6 +277,7 @@
         fsNoStream.style.display = 'none';
       }
       activeScreensMap[username] = true;
+      setConnState(username, 'live');
       updateTileStatus(username, true);
       renderLastRefresh();
     };
@@ -231,6 +285,7 @@
     pc.onconnectionstatechange = () => {
       if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed' || pc.connectionState === 'closed') {
         teardownPeer(username);
+        setConnState(username, 'disconnected');
         updateTileStatus(username, false);
         delete activeScreensMap[username];
         renderLastRefresh();
@@ -317,6 +372,84 @@
     if (el) el.textContent = 'Live · ' + Object.keys(activeScreensMap).length + ' sharing · ' + new Date().toLocaleTimeString();
   }
 
+  // ── Connection state helpers ───────────────────────────────────────────────
+  function fmtTime(d) {
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function getDisplay(username) {
+    const m = members.find(m => m.username === username);
+    return m ? m.display : username;
+  }
+
+  function setConnState(username, state) {
+    const prev    = (connStates[username] || {}).state || 'idle';
+    const now     = new Date();
+    connStates[username] = { state, since: now };
+
+    // Update connection badge
+    const badge = document.getElementById('conn-badge-' + username);
+    if (badge) {
+      badge.className = 'conn-badge';
+      if (state === 'idle') {
+        // hidden, no class
+      } else {
+        badge.classList.add('show');
+        if (state === 'live') {
+          if (prev === 'disconnected' || prev === 'offline') {
+            // Briefly show "Reconnected" then settle into Live
+            badge.classList.add('cb-connecting');
+            badge.textContent = '✅ Reconnected at ' + fmtTime(now);
+            setTimeout(() => {
+              if ((connStates[username] || {}).state === 'live') {
+                badge.className = 'conn-badge show cb-live';
+                badge.textContent = '🟢 Live';
+              }
+            }, 3000);
+          } else {
+            badge.classList.add('cb-live');
+            badge.textContent = '🟢 Live';
+          }
+        } else if (state === 'disconnected') {
+          badge.classList.add('cb-disconnected');
+          badge.textContent = '🔴 Disconnected at ' + fmtTime(now);
+        } else if (state === 'offline') {
+          badge.classList.add('cb-offline');
+          badge.textContent = '⚫ Offline since ' + fmtTime(now);
+        } else if (state === 'connecting') {
+          badge.classList.add('cb-connecting');
+          badge.textContent = '🟡 Connecting…';
+        }
+      }
+    }
+
+    // Update tile border class
+    const tile = document.getElementById('tile-' + username);
+    if (tile) {
+      tile.classList.remove('conn-live', 'conn-disconnected', 'conn-offline', 'conn-connecting');
+      if (state !== 'idle') tile.classList.add('conn-' + state);
+    }
+
+    // Toast: member went offline (only on first transition from live/connecting)
+    if (state === 'disconnected' && (prev === 'live' || prev === 'connecting')) {
+      showToast('🔴 ' + getDisplay(username) + ' went offline at ' + fmtTime(now));
+    }
+  }
+
+  function showToast(message) {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = message;
+    container.appendChild(toast);
+    requestAnimationFrame(() => requestAnimationFrame(() => toast.classList.add('show')));
+    setTimeout(() => {
+      toast.classList.remove('show');
+      setTimeout(() => { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 300);
+    }, 5000);
+  }
+
   function initials(name) {
     return name.split(' ').map(w => w[0] || '').join('').toUpperCase().slice(0, 2);
   }
@@ -344,6 +477,7 @@
               <div>No screen share</div>
             </div>
             <button class="tile-expand-btn" title="Fullscreen" onclick="openFullscreen('${m.username}','${escHtml(m.display)}')">⛶</button>
+            <div class="conn-badge" id="conn-badge-${m.username}"></div>
           </div>
           <div class="tile-footer">
             <button id="perm-btn-${m.username}" class="${isAllowed ? 'btn-revoke' : 'btn-allow'}" onclick="togglePermission('${m.username}')">
@@ -438,8 +572,21 @@
   init();
   setInterval(async () => {
     await loadActiveScreens();
-    // Update live status tiles without full re-render (to preserve video elements)
-    members.forEach(m => updateTileStatus(m.username, !!activeScreensMap[m.username]));
+    members.forEach(m => {
+      const cs      = connStates[m.username] || {};
+      const isLive  = !!activeScreensMap[m.username];
+
+      // Server says not active but we still think live → they dropped without a signal
+      if (!isLive && cs.state === 'live') {
+        setConnState(m.username, 'disconnected');
+        updateTileStatus(m.username, false);
+      }
+
+      // Escalate: disconnected for more than 30 s → offline
+      if (cs.state === 'disconnected' && cs.since && (Date.now() - cs.since.getTime() > 30000)) {
+        setConnState(m.username, 'offline');
+      }
+    });
     renderLastRefresh();
   }, 10000);
 </script>
