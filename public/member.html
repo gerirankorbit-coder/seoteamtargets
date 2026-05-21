@@ -1922,7 +1922,10 @@
   // ── Screen monitoring (member side) ──────────────────────────────────────
   const MON_PUSHER_KEY     = 'fb8240c1bcccb2cde5d0';
   const MON_PUSHER_CLUSTER = 'ap2';
-  const MON_RTC_CONFIG     = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+  const MON_RTC_CONFIG     = { iceServers: [
+    { urls: 'stun:stun.l.google.com:19302'  },
+    { urls: 'stun:stun1.l.google.com:19302' },
+  ]};
 
   let monPusher     = null;
   let monChannel    = null;
@@ -1939,10 +1942,10 @@
       const { type, data, targetUsername } = payload;
       if (targetUsername !== memberUsername) return;
       if (type === 'answer' && monPeerConn) {
+        // data is a complete SDP (localDescription) with all ICE candidates embedded
         try { await monPeerConn.setRemoteDescription(new RTCSessionDescription(data)); } catch(e) {}
-      } else if (type === 'ice-candidate' && monPeerConn) {
-        try { await monPeerConn.addIceCandidate(new RTCIceCandidate(data)); } catch(e) {}
       }
+      // ice-candidate signals removed — vanilla ICE embeds candidates in offer/answer SDP
     });
     monChannel.bind('permission', (payload) => {
       if (payload.targetUsername !== memberUsername) return;
@@ -1993,9 +1996,9 @@
     monPeerConn = new RTCPeerConnection(MON_RTC_CONFIG);
     monStream.getTracks().forEach(track => monPeerConn.addTrack(track, monStream));
 
-    monPeerConn.onicecandidate = (e) => {
-      if (e.candidate) monSendSignal({ type: 'ice-candidate', data: e.candidate, targetUsername: 'manager' });
-    };
+    // Vanilla ICE: no onicecandidate — candidates are gathered before sending the offer.
+    // This eliminates the race condition where the manager receives a candidate before
+    // its RTCPeerConnection is created, causing silent drops and a black/dead stream.
 
     // When the manager navigates away, the ICE connection will fail.
     // Re-send a fresh offer so the manager's page can reconnect on return.
@@ -2010,7 +2013,19 @@
     try {
       const offer = await monPeerConn.createOffer();
       await monPeerConn.setLocalDescription(offer);
-      monSendSignal({ type: 'offer', data: offer, targetUsername: 'manager' });
+
+      // Wait for ICE gathering to complete before sending offer.
+      // monPeerConn.localDescription will then contain all ICE candidates embedded in the SDP.
+      await new Promise(resolve => {
+        if (monPeerConn.iceGatheringState === 'complete') { resolve(); return; }
+        monPeerConn.onicegatheringstatechange = () => {
+          if (monPeerConn && monPeerConn.iceGatheringState === 'complete') resolve();
+        };
+        setTimeout(resolve, 3000); // max 3s — proceed with whatever was gathered
+      });
+
+      // Send the complete SDP (candidates embedded) — no separate ice-candidate signals needed
+      monSendSignal({ type: 'offer', data: monPeerConn.localDescription, targetUsername: 'manager' });
     } catch(e) {}
   }
 

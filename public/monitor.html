@@ -223,7 +223,10 @@
 <script>
   const PUSHER_KEY     = 'fb8240c1bcccb2cde5d0';
   const PUSHER_CLUSTER = 'ap2';
-  const RTC_CONFIG     = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+  const RTC_CONFIG     = { iceServers: [
+    { urls: 'stun:stun.l.google.com:19302'  },
+    { urls: 'stun:stun1.l.google.com:19302' },
+  ]};
 
   let members          = [];
   let permissions      = {}; // { username: true/false }
@@ -244,13 +247,8 @@
     if (type === 'offer') {
       console.log('[WebRTC] offer received from', fromUsername);
       await handleOffer(fromUsername, data);
-    } else if (type === 'ice-candidate' && targetUsername === 'manager') {
-      console.log('[ICE] candidate received from', fromUsername);
-      const pc = peerConnections[fromUsername];
-      if (pc && data) {
-        try { await pc.addIceCandidate(new RTCIceCandidate(data)); } catch (e) { console.warn('[ICE] addIceCandidate error', e); }
-      }
     } else if (type === 'disconnect') {
+      // ice-candidate signals removed — vanilla ICE embeds all candidates in offer/answer SDP
       teardownPeer(fromUsername);
       setConnState(fromUsername, 'disconnected');
       updateTileStatus(fromUsername, false);
@@ -273,16 +271,12 @@
     const pc = new RTCPeerConnection(RTC_CONFIG);
     peerConnections[username] = pc;
 
-    pc.onicecandidate = (e) => {
-      if (e.candidate) {
-        console.log('[ICE] sending candidate to', username, e.candidate.type);
-        sendSignal({ type: 'ice-candidate', data: e.candidate, targetUsername: username });
-      }
-    };
+    // Vanilla ICE: no onicecandidate — candidates will be gathered before sending answer.
+    // This eliminates the race condition where trickle candidates arrive before
+    // peerConnections[username] is registered, causing silent drops.
 
     pc.oniceconnectionstatechange = () => {
-      // 'disconnected' is a transient ICE state that often self-recovers — ignore it here.
-      // Only 'failed' is unrecoverable; let the health-check handle genuine drop-outs.
+      // 'disconnected' is transient — ignore. Only 'failed' is unrecoverable.
       if (pc.iceConnectionState === 'failed') {
         setConnState(username, 'disconnected');
         updateTileStatus(username, false);
@@ -292,12 +286,18 @@
     };
 
     pc.ontrack = (e) => {
-      const stream = e.streams[0];
+      // Fallback: build a MediaStream from the track if streams[] is empty
+      // (some browser versions fire ontrack with an empty streams array)
+      const stream = (e.streams && e.streams[0]) ? e.streams[0] : new MediaStream([e.track]);
+
+      // Only handle tracks that carry video — ignore spurious audio-only events
+      if (!stream.getVideoTracks().length) return;
+
       videoStreams[username] = stream;
       const video = document.getElementById('video-' + username);
       if (video) {
+        video.muted      = true;  // set BEFORE srcObject so autoplay policy is satisfied
         video.srcObject  = stream;
-        video.muted      = true;
         video.autoplay   = true;
         video.playsInline = true;
         video.play().catch(err => {
@@ -310,10 +310,10 @@
             if (c) c.classList.remove('show');
           }, { once: true });
         });
-        // Retry after 500ms in case play() resolved but video stalled
+        // Retry after 500ms in case play() resolved but the first frame hasn't rendered
         setTimeout(() => {
           if (video.paused) {
-            console.warn('[video] still paused 500ms after srcObject set for', username, '— retrying play()');
+            console.warn('[video] still paused 500ms after srcObject — retrying for', username);
             video.play().catch(() => {});
           }
         }, 500);
@@ -322,8 +322,8 @@
       if (fsActiveUsername === username) {
         const fsVideo    = document.getElementById('fs-video');
         const fsNoStream = document.getElementById('fs-no-stream');
-        fsVideo.srcObject  = stream;
         fsVideo.muted      = true;
+        fsVideo.srcObject  = stream;
         fsVideo.play().catch(() => {});
         fsVideo.style.display    = 'block';
         fsNoStream.style.display = 'none';
@@ -336,7 +336,7 @@
     };
 
     pc.onconnectionstatechange = () => {
-      // 'disconnected' is transient and can recover — only act on terminal states.
+      // 'disconnected' is transient — only act on terminal states.
       if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
         teardownPeer(username);
         setConnState(username, 'disconnected');
@@ -350,8 +350,20 @@
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      sendSignal({ type: 'answer', data: answer, targetUsername: username });
-      console.log('[WebRTC] answer sent to', username);
+
+      // Wait for manager's ICE gathering to complete before sending answer.
+      // pc.localDescription will then contain all ICE candidates embedded in the SDP.
+      await new Promise(resolve => {
+        if (pc.iceGatheringState === 'complete') { resolve(); return; }
+        pc.onicegatheringstatechange = () => {
+          if (pc.iceGatheringState === 'complete') resolve();
+        };
+        setTimeout(resolve, 3000); // max 3s — proceed with whatever was gathered
+      });
+
+      // Send the complete SDP (candidates embedded) — no separate ice-candidate signals needed
+      sendSignal({ type: 'answer', data: pc.localDescription, targetUsername: username });
+      console.log('[WebRTC] complete answer sent to', username, '| ICE state:', pc.iceGatheringState);
     } catch (err) {
       console.error('[WebRTC] answer error for', username, err);
     }
