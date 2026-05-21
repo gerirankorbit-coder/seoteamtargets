@@ -344,7 +344,7 @@
 
   // ── Permission helpers ────────────────────────────────────────────────────
   async function togglePermission(username) {
-    const current = permissions[username] || false;
+    const current = permissions[username] !== false; // default true — matches auto-allow default
     const allowed = !current;
     permissions[username] = allowed;
     updateTilePermission(username, allowed);
@@ -484,7 +484,7 @@
     }
     grid.innerHTML = members.map(m => {
       const isLive    = !!activeScreensMap[m.username];
-      const isAllowed = !!permissions[m.username];
+      const isAllowed = permissions[m.username] !== false; // default true — auto-allowed
       return `
         <div class="member-tile${isLive ? ' sharing' : ''}" id="tile-${m.username}">
           <div class="tile-header">

@@ -1056,8 +1056,9 @@ app.post('/api/monitor/allow', requireManager, async (req, res) => {
 });
 
 // GET /api/monitor/permission — member checks if they are currently permitted to share
+// Default is true (auto-allowed); only false if manager has explicitly revoked
 app.get('/api/monitor/permission', requireAuth, (req, res) => {
-  const allowed = screenPermissions[req.session.username] === true;
+  const allowed = screenPermissions[req.session.username] !== false;
   res.json({ allowed });
 });
 

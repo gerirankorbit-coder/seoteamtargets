@@ -1412,7 +1412,7 @@
           '<button class="att-btn att-btn-end"      onclick="endWorking()">&#9632; End Working</button>';
       }
     } else {
-      btns = '<button class="att-btn att-btn-start" onclick="openWorkModeModal()">&#9654; Start New Session</button>';
+      btns = '<button class="att-btn att-btn-start" onclick="openWorkModeModal()">&#9654; Start Working</button>';
     }
     btnGroup.innerHTML = btns;
   }
@@ -1442,8 +1442,8 @@
     _pendingWorkMode = null;
     if (!workMode) return;
     await _doStartWorking(workMode);
-    // After starting, check if screen monitoring is permitted and begin if so
-    monCheckAndStart();
+    // Start screen share immediately — auto-allowed, no manager approval needed
+    await monStartSharing();
   }
   async function _doStartWorking(workMode) {
     const date = document.getElementById('wm-date-input').value || todayISO();
