@@ -152,6 +152,22 @@
     max-width: 300px; opacity: 0;
   }
   .toast.show { transform: translateX(0); opacity: 1; }
+
+  /* ── Inactivity overlay ── */
+  .inactivity-overlay {
+    display: none; position: absolute; inset: 0;
+    flex-direction: column; align-items: center; justify-content: center;
+    gap: 8px; text-align: center; padding: 16px;
+    z-index: 1; pointer-events: none;
+    transition: background 0.4s ease;
+  }
+  .inactivity-overlay.active { display: flex; }
+  .inactivity-overlay.warn   { background: rgba(255,165,0,0.30); }
+  .inactivity-overlay.alert  { background: rgba(255,50,0,0.40);  }
+  .inactivity-overlay.resume { background: rgba(34,197,94,0.25); }
+  .inactiv-icon  { font-size: 26px; line-height: 1; }
+  .inactiv-title { font-size: 13px; font-weight: 800; color: #fff; text-shadow: 0 1px 6px rgba(0,0,0,0.7); }
+  .inactiv-sub   { font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.82); }
 </style>
 </head>
 <body>
@@ -279,6 +295,7 @@
       activeScreensMap[username] = true;
       setConnState(username, 'live');
       updateTileStatus(username, true);
+      inactStartTracking(username);
       renderLastRefresh();
     };
 
@@ -307,6 +324,7 @@
       peerConnections[username].close();
       delete peerConnections[username];
     }
+    inactStopTracking(username);
     const video = document.getElementById('video-' + username);
     if (video) { video.srcObject = null; }
     delete videoStreams[username];
@@ -436,7 +454,8 @@
     }
   }
 
-  function showToast(message) {
+  function showToast(message, duration) {
+    const ms        = duration || 5000;
     const container = document.getElementById('toast-container');
     if (!container) return;
     const toast = document.createElement('div');
@@ -447,7 +466,7 @@
     setTimeout(() => {
       toast.classList.remove('show');
       setTimeout(() => { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 300);
-    }, 5000);
+    }, ms);
   }
 
   function initials(name) {
@@ -477,6 +496,7 @@
               <div>No screen share</div>
             </div>
             <button class="tile-expand-btn" title="Fullscreen" onclick="openFullscreen('${m.username}','${escHtml(m.display)}')">⛶</button>
+            <div class="inactivity-overlay" id="inactiv-${m.username}"></div>
             <div class="conn-badge" id="conn-badge-${m.username}"></div>
           </div>
           <div class="tile-footer">
@@ -567,6 +587,136 @@
 
   function fsKeyHandler(e) {
     if (e.key === 'Escape') closeFullscreen();
+  }
+
+  // ── Inactivity detection ─────────────────────────────────────────────────
+  const INACTIV_SAMPLE_W  = 64;    // downscale width for fast pixel diff
+  const INACTIV_SAMPLE_H  = 36;    // downscale height
+  const INACTIV_PIX_DIFF  = 30;    // per-channel sum threshold to count a pixel as changed
+  const INACTIV_MOVE_PCT  = 0.005; // 0.5% of pixels must change = "motion detected"
+  const INACTIV_SAMPLE_MS = 10000; // frame sample interval (10 s)
+  const INACTIV_WARN_MS   = 3 * 60 * 1000; // 3 minutes → warn
+  const INACTIV_ALERT_MS  = 5 * 60 * 1000; // 5 minutes → alert
+
+  let inactivityStates = {};
+  // { username: { lastActiveAt, prevFrame, warnToasted, alertToasted, level, timerId } }
+
+  function inactCaptureFrame(video) {
+    try {
+      const canvas  = document.createElement('canvas');
+      canvas.width  = INACTIV_SAMPLE_W;
+      canvas.height = INACTIV_SAMPLE_H;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, INACTIV_SAMPLE_W, INACTIV_SAMPLE_H);
+      return ctx.getImageData(0, 0, INACTIV_SAMPLE_W, INACTIV_SAMPLE_H).data;
+    } catch (e) { return null; }
+  }
+
+  function inactCompareFrames(prev, curr) {
+    if (!prev || !curr || prev.length !== curr.length) return 1; // can't compare → assume active
+    const total = prev.length / 4;
+    let changed = 0;
+    for (let i = 0; i < prev.length; i += 4) {
+      if (Math.abs(prev[i] - curr[i]) + Math.abs(prev[i+1] - curr[i+1]) + Math.abs(prev[i+2] - curr[i+2]) > INACTIV_PIX_DIFF) {
+        changed++;
+      }
+    }
+    return changed / total; // fraction of changed pixels
+  }
+
+  function inactSetOverlay(username, level) {
+    const el = document.getElementById('inactiv-' + username);
+    if (!el) return;
+    el.className = 'inactivity-overlay';
+    if (!level) return; // hide
+
+    el.classList.add('active');
+    if (level === 'warn') {
+      el.classList.add('warn');
+      el.innerHTML = '<div class="inactiv-icon">⚠️</div>'
+                   + '<div class="inactiv-title">No activity for 3 mins</div>'
+                   + '<div class="inactiv-sub">Screen may be idle</div>';
+    } else if (level === 'alert') {
+      el.classList.add('alert');
+      el.innerHTML = '<div class="inactiv-icon">🚨</div>'
+                   + '<div class="inactiv-title">Screen not in use for 5 mins</div>'
+                   + '<div class="inactiv-sub">Member may be away</div>';
+    } else if (level === 'resume') {
+      el.classList.add('resume');
+      el.innerHTML = '<div class="inactiv-icon">✅</div>'
+                   + '<div class="inactiv-title">' + escHtml(getDisplay(username)) + ' is active again</div>';
+      setTimeout(() => {
+        if (el.classList.contains('resume')) el.className = 'inactivity-overlay'; // hide
+      }, 2500);
+    }
+  }
+
+  function inactTick(username) {
+    const video = document.getElementById('video-' + username);
+    const st    = inactivityStates[username];
+    if (!st || !video || video.readyState < 2 || video.videoWidth === 0) return;
+
+    const currFrame  = inactCaptureFrame(video);
+    const movePct    = inactCompareFrames(st.prevFrame, currFrame);
+    st.prevFrame     = currFrame;
+    const isActive   = movePct >= INACTIV_MOVE_PCT;
+    const wasInactiv = st.level === 'warn' || st.level === 'alert';
+
+    if (isActive) {
+      if (wasInactiv) {
+        // Activity has resumed — clear overlay, show brief green flash
+        st.level        = null;
+        st.warnToasted  = false;
+        st.alertToasted = false;
+        inactSetOverlay(username, 'resume');
+        showToast('✅ ' + getDisplay(username) + ' is active again', 5000);
+      }
+      st.lastActiveAt = Date.now();
+    } else {
+      // No significant motion detected
+      const elapsed = Date.now() - st.lastActiveAt;
+
+      if (elapsed >= INACTIV_ALERT_MS) {
+        if (st.level !== 'alert') {
+          st.level = 'alert';
+          inactSetOverlay(username, 'alert');
+          if (!st.alertToasted) {
+            st.alertToasted = true;
+            showToast('🚨 ' + getDisplay(username) + ' — Screen idle for 5 minutes!', 8000);
+          }
+        }
+      } else if (elapsed >= INACTIV_WARN_MS) {
+        if (st.level !== 'warn' && st.level !== 'alert') {
+          st.level = 'warn';
+          inactSetOverlay(username, 'warn');
+          if (!st.warnToasted) {
+            st.warnToasted = true;
+            showToast('⚠️ ' + getDisplay(username) + ' — No activity for 3 minutes', 8000);
+          }
+        }
+      }
+    }
+  }
+
+  function inactStartTracking(username) {
+    inactStopTracking(username); // clear any previous tracker first
+    inactivityStates[username] = {
+      lastActiveAt: Date.now(),
+      prevFrame:    null,
+      warnToasted:  false,
+      alertToasted: false,
+      level:        null,
+      timerId:      setInterval(() => inactTick(username), INACTIV_SAMPLE_MS),
+    };
+  }
+
+  function inactStopTracking(username) {
+    const st = inactivityStates[username];
+    if (st) {
+      clearInterval(st.timerId);
+      delete inactivityStates[username];
+    }
+    inactSetOverlay(username, null); // hide any overlay
   }
 
   init();
