@@ -562,9 +562,30 @@ app.get('/api/all', requireManager, async (req, res) => {
 });
 
 app.get('/api/members', requireManager, (req, res) => {
-  const members = Object.entries(usersCache)
+  // Build member list from the hardcoded USERS object (always available, never
+  // dependent on MongoDB being loaded) then layer in any dynamically-added
+  // members that exist in usersCache but not in USERS (added via /api/admin/members).
+  const seen    = new Set();
+  const members = [];
+
+  // 1. Hardcoded members (source of truth for the permanent team)
+  Object.entries(USERS)
     .filter(([, u]) => u.role === 'member')
-    .map(([username, u]) => ({ username, display: u.display, tasks: getMemberTasks(u.display) }));
+    .forEach(([username, u]) => {
+      seen.add(username);
+      // Prefer cache version if available (may have updated display/password)
+      const cached = usersCache[username];
+      const display = (cached && cached.display) || u.display;
+      members.push({ username, display, tasks: getMemberTasks(display) });
+    });
+
+  // 2. Dynamically-added members (only in MongoDB / usersCache, not in USERS)
+  Object.entries(usersCache)
+    .filter(([username, u]) => u.role === 'member' && !seen.has(username))
+    .forEach(([username, u]) => {
+      members.push({ username, display: u.display, tasks: getMemberTasks(u.display) });
+    });
+
   res.json(members);
 });
 
