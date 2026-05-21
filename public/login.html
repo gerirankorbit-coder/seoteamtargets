@@ -150,17 +150,19 @@
     position: relative; z-index: 1;
   }
   .page-footer strong { color: var(--text-muted); }
-  @media (max-width:768px) { .logo-img { height:30px !important; } }
 </style>
 </head>
 <body>
 
 <div class="topbar">
-  <img src="https://blogger.googleusercontent.com/img/a/AVvXsEgi8XuGAPiEKdOBxj3NbokPTXa6ZDvo629O9bz1RHwH1Q8b-pfwwHN7J04hWMvb95t0j7LRfOp7h0tivxuBqm8BLxqagk3jhQBB_iGhFeiTxDkgfIUQMIJLyI-gmYI4_25IznuawUidNamrSkepuIqfqp0ZIRuOASgB70Q1i0cvKa_j5dpINqihaiz0i5Uu=s0" alt="Rank Orbit" class="logo-img" style="height:40px; width:auto; object-fit:contain; background:transparent; mix-blend-mode:screen;">
+  <!-- TODO: add logo.png to public folder for the Rank Orbit logo -->
+  <img src="/logo.png" alt="RO" class="topbar-logo" style="width:36px;height:36px;object-fit:contain;border-radius:10px" onerror="this.outerHTML='<div class=&quot;topbar-logo&quot;>RO</div>'">
+  <div class="topbar-title">Rank <span>Orbit</span></div>
 </div>
 
 <div class="login-wrap">
   <div class="login-card">
+    <div class="card-logo">RO</div>
     <h1 class="card-title">Welcome Back</h1>
     <p class="card-subtitle">Sign in to your account</p>
 
