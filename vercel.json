@@ -1,15 +1,11 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "server.js",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "server.js"
-    }
-  ]
+  "builds": [{ "src": "server.js", "use": "@vercel/node" }],
+  "routes": [{ "src": "/(.*)", "dest": "server.js" }],
+  "env": {
+    "PUSHER_APP_ID": "2157662",
+    "PUSHER_KEY": "fb8240c1bcccb2cde5d0",
+    "PUSHER_SECRET": "c77fbf9a40aa1e3caaf7",
+    "PUSHER_CLUSTER": "ap2"
+  }
 }

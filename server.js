@@ -7,6 +7,15 @@ const path     = require('path');
 const cors     = require('cors');
 const os       = require('os');
 
+const Pusher = require('pusher');
+const pusher = new Pusher({
+  appId:   process.env.PUSHER_APP_ID,
+  key:     process.env.PUSHER_KEY,
+  secret:  process.env.PUSHER_SECRET,
+  cluster: process.env.PUSHER_CLUSTER,
+  useTLS:  true,
+});
+
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
@@ -977,6 +986,79 @@ app.put('/api/attendance/edit/:id', async (req, res) => {
     console.error('Attendance edit error:', err);
     res.status(500).json({ error: 'Database error' });
   }
+});
+
+// ── Screen Monitoring ─────────────────────────────────────────────────────
+
+// In-memory monitoring state (resets on server restart — acceptable for live monitoring)
+const screenPermissions = {}; // { username: true/false }
+const activeScreens     = {}; // { username: { sharedAt: Date } }
+
+// GET /monitor — manager-only monitoring page
+app.get('/monitor', requireAuth, requireManager, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'monitor.html'));
+});
+
+// POST /api/monitor/signal — WebRTC signaling relay via Pusher
+app.post('/api/monitor/signal', requireAuth, async (req, res) => {
+  const { type, data, targetUsername, fromUsername } = req.body;
+  if (!type || !data) return res.status(400).json({ error: 'type and data are required' });
+  try {
+    // Track active screens when member sends an offer
+    if (type === 'offer' && req.session.role === 'member') {
+      activeScreens[req.session.username] = { sharedAt: new Date().toISOString() };
+    }
+    // Remove from active screens on disconnect
+    if (type === 'disconnect') {
+      delete activeScreens[req.session.username];
+    }
+    await pusher.trigger('monitor-channel', 'signal', {
+      type,
+      data,
+      targetUsername: targetUsername || null,
+      fromUsername:   fromUsername   || req.session.username,
+      fromRole:       req.session.role,
+    });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Pusher signal error:', err);
+    res.status(500).json({ error: 'Signal failed' });
+  }
+});
+
+// GET /api/monitor/active-screens — which members are currently sharing (manager only)
+app.get('/api/monitor/active-screens', requireManager, (req, res) => {
+  const list = Object.entries(activeScreens).map(([username, info]) => ({
+    username,
+    display: (usersCache[username] || USERS[username] || {}).display || username,
+    sharedAt: info.sharedAt,
+  }));
+  res.json(list);
+});
+
+// POST /api/monitor/allow — manager grants/revokes screen permission for a member
+app.post('/api/monitor/allow', requireManager, async (req, res) => {
+  const { username, allowed } = req.body;
+  if (!username || allowed === undefined)
+    return res.status(400).json({ error: 'username and allowed are required' });
+  const target = username.toLowerCase().trim();
+  screenPermissions[target] = !!allowed;
+  // Notify member of permission change via Pusher
+  try {
+    await pusher.trigger('monitor-channel', 'permission', {
+      targetUsername: target,
+      allowed:        !!allowed,
+    });
+  } catch (err) {
+    console.error('Pusher permission notify error:', err);
+  }
+  res.json({ success: true, username: target, allowed: !!allowed });
+});
+
+// GET /api/monitor/permission — member checks if they are currently permitted to share
+app.get('/api/monitor/permission', requireAuth, (req, res) => {
+  const allowed = screenPermissions[req.session.username] === true;
+  res.json({ allowed });
 });
 
 // ── Start ──────────────────────────────────────────────────────────────────

@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Screen Monitor — Rank Orbit</title>
+<link rel="stylesheet" href="/style.css">
+<script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
+<style>
+  .monitor-wrap { padding: 24px 20px; max-width: 1400px; margin: 0 auto; }
+  .monitor-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+  .monitor-header h1 { font-size: 20px; font-weight: 800; }
+  .monitor-header h1 span { color: var(--pink); }
+  .monitor-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 20px; }
+  .member-tile {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .member-tile.sharing { border-color: rgba(233,30,140,0.5); box-shadow: 0 0 20px rgba(233,30,140,0.1); }
+  .tile-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-2);
+  }
+  .tile-avatar {
+    width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
+    background: linear-gradient(135deg, var(--pink), var(--blue));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 800; color: #fff;
+  }
+  .tile-name { font-size: 13px; font-weight: 700; flex: 1; }
+  .tile-status {
+    font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 10px;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .tile-status.live  { background: rgba(233,30,140,0.15); color: var(--pink); border: 1px solid rgba(233,30,140,0.3); }
+  .tile-status.idle  { background: var(--surface); color: var(--text-dim); border: 1px solid var(--border); }
+  .tile-video-wrap {
+    background: #000; aspect-ratio: 16/9; position: relative;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .tile-video-wrap video { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .tile-no-stream {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 8px;
+    color: var(--text-dim); font-size: 12px;
+  }
+  .tile-no-stream-icon { font-size: 28px; opacity: 0.3; }
+  .tile-footer { padding: 12px 16px; display: flex; align-items: center; gap: 8px; }
+  .btn-allow  { padding: 6px 14px; font-size: 11px; font-weight: 700; border-radius: 8px; cursor: pointer; border: 1px solid rgba(22,163,74,0.4); background: rgba(22,163,74,0.12); color: #4ade80; transition: all 0.15s; }
+  .btn-allow:hover  { background: rgba(22,163,74,0.25); }
+  .btn-revoke { padding: 6px 14px; font-size: 11px; font-weight: 700; border-radius: 8px; cursor: pointer; border: 1px solid rgba(239,68,68,0.35); background: rgba(239,68,68,0.1); color: #f87171; transition: all 0.15s; }
+  .btn-revoke:hover { background: rgba(239,68,68,0.22); }
+  .tile-footer-note { font-size: 10px; color: var(--text-dim); margin-left: auto; }
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--text-dim); font-size: 13px; }
+  .page-footer { text-align: center; padding: 24px 0; color: var(--text-dim); font-size: 11px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <img src="/logo.png" alt="RO" class="topbar-logo" style="width:36px;height:36px;object-fit:contain;border-radius:10px" onerror="this.outerHTML='<div class=&quot;topbar-logo&quot;>RO</div>'">
+  <div class="topbar-title">Rank <span>Orbit</span></div>
+  <div class="topbar-right">
+    <a href="/dashboard" style="font-size:12px;color:var(--text-muted);text-decoration:none;padding:6px 12px;border:1px solid var(--border);border-radius:8px;transition:all 0.15s" onmouseover="this.style.color='var(--pink)'" onmouseout="this.style.color='var(--text-muted)'">← Dashboard</a>
+    <span class="badge badge-pink">Monitor</span>
+  </div>
+</div>
+
+<div class="monitor-wrap">
+  <div class="monitor-header">
+    <h1>Screen <span>Monitor</span></h1>
+    <div style="font-size:12px;color:var(--text-dim)" id="last-refresh">Connecting…</div>
+  </div>
+  <div class="monitor-grid" id="monitor-grid">
+    <div class="empty-state">Loading members…</div>
+  </div>
+</div>
+
+<div class="page-footer">Rank Orbit — Screen Monitor</div>
+
+<script>
+  const PUSHER_KEY     = 'fb8240c1bcccb2cde5d0';
+  const PUSHER_CLUSTER = 'ap2';
+  const RTC_CONFIG     = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+
+  let members          = [];
+  let permissions      = {}; // { username: true/false }
+  let activeScreensMap = {}; // { username: true }
+  let peerConnections  = {}; // { username: RTCPeerConnection }
+  let videoStreams      = {}; // { username: MediaStream }
+
+  // ── Pusher setup ──────────────────────────────────────────────────────────
+  Pusher.logToConsole = false;
+  const pusherClient  = new Pusher(PUSHER_KEY, { cluster: PUSHER_CLUSTER });
+  const channel       = pusherClient.subscribe('monitor-channel');
+
+  channel.bind('signal', async (payload) => {
+    const { type, data, fromUsername, targetUsername, fromRole } = payload;
+    if (fromRole !== 'member') return; // ignore signals from other managers
+
+    if (type === 'offer') {
+      await handleOffer(fromUsername, data);
+    } else if (type === 'ice-candidate' && targetUsername === 'manager') {
+      const pc = peerConnections[fromUsername];
+      if (pc && data) {
+        try { await pc.addIceCandidate(new RTCIceCandidate(data)); } catch (e) {}
+      }
+    } else if (type === 'disconnect') {
+      teardownPeer(fromUsername);
+      updateTileStatus(fromUsername, false);
+      delete activeScreensMap[fromUsername];
+      renderLastRefresh();
+    }
+  });
+
+  channel.bind('permission', (payload) => {
+    const { targetUsername, allowed } = payload;
+    permissions[targetUsername] = allowed;
+    updateTilePermission(targetUsername, allowed);
+  });
+
+  // ── WebRTC handlers ───────────────────────────────────────────────────────
+  async function handleOffer(username, offer) {
+    teardownPeer(username); // clean up any old connection
+
+    const pc = new RTCPeerConnection(RTC_CONFIG);
+    peerConnections[username] = pc;
+
+    pc.onicecandidate = (e) => {
+      if (e.candidate) {
+        sendSignal({ type: 'ice-candidate', data: e.candidate, targetUsername: username });
+      }
+    };
+
+    pc.ontrack = (e) => {
+      const stream = e.streams[0];
+      videoStreams[username] = stream;
+      const video = document.getElementById('video-' + username);
+      if (video) {
+        video.srcObject = stream;
+        video.play().catch(() => {});
+      }
+      activeScreensMap[username] = true;
+      updateTileStatus(username, true);
+      renderLastRefresh();
+    };
+
+    pc.onconnectionstatechange = () => {
+      if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+        teardownPeer(username);
+        updateTileStatus(username, false);
+        delete activeScreensMap[username];
+        renderLastRefresh();
+      }
+    };
+
+    try {
+      await pc.setRemoteDescription(new RTCSessionDescription(offer));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      sendSignal({ type: 'answer', data: answer, targetUsername: username });
+    } catch (err) {
+      console.error('WebRTC answer error:', err);
+    }
+  }
+
+  function teardownPeer(username) {
+    if (peerConnections[username]) {
+      peerConnections[username].close();
+      delete peerConnections[username];
+    }
+    const video = document.getElementById('video-' + username);
+    if (video) { video.srcObject = null; }
+    delete videoStreams[username];
+  }
+
+  async function sendSignal(payload) {
+    await fetch('/api/monitor/signal', {
+      method:      'POST',
+      headers:     { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body:        JSON.stringify(payload),
+    });
+  }
+
+  // ── Permission helpers ────────────────────────────────────────────────────
+  async function togglePermission(username) {
+    const current = permissions[username] || false;
+    const allowed = !current;
+    permissions[username] = allowed;
+    updateTilePermission(username, allowed);
+    await fetch('/api/monitor/allow', {
+      method:      'POST',
+      headers:     { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body:        JSON.stringify({ username, allowed }),
+    });
+  }
+
+  // ── UI helpers ────────────────────────────────────────────────────────────
+  function updateTileStatus(username, isLive) {
+    const tile   = document.getElementById('tile-' + username);
+    const status = document.getElementById('status-' + username);
+    const noStream = document.getElementById('nostream-' + username);
+    if (!tile) return;
+    if (isLive) {
+      tile.classList.add('sharing');
+      if (status)   { status.textContent = '● Live'; status.className = 'tile-status live'; }
+      if (noStream) noStream.style.display = 'none';
+    } else {
+      tile.classList.remove('sharing');
+      if (status)   { status.textContent = 'Idle'; status.className = 'tile-status idle'; }
+      if (noStream) noStream.style.display = 'flex';
+    }
+  }
+
+  function updateTilePermission(username, allowed) {
+    const btn = document.getElementById('perm-btn-' + username);
+    const note = document.getElementById('perm-note-' + username);
+    if (!btn) return;
+    if (allowed) {
+      btn.textContent = 'Revoke';
+      btn.className   = 'btn-revoke';
+      if (note) note.textContent = 'Screen share allowed';
+    } else {
+      btn.textContent = 'Allow';
+      btn.className   = 'btn-allow';
+      if (note) note.textContent = 'Screen share blocked';
+    }
+  }
+
+  function renderLastRefresh() {
+    const el = document.getElementById('last-refresh');
+    if (el) el.textContent = 'Live · ' + Object.keys(activeScreensMap).length + ' sharing · ' + new Date().toLocaleTimeString();
+  }
+
+  function initials(name) {
+    return name.split(' ').map(w => w[0] || '').join('').toUpperCase().slice(0, 2);
+  }
+
+  function renderGrid() {
+    const grid = document.getElementById('monitor-grid');
+    if (!members.length) {
+      grid.innerHTML = '<div class="empty-state">No team members found.</div>';
+      return;
+    }
+    grid.innerHTML = members.map(m => {
+      const isLive    = !!activeScreensMap[m.username];
+      const isAllowed = !!permissions[m.username];
+      return `
+        <div class="member-tile${isLive ? ' sharing' : ''}" id="tile-${m.username}">
+          <div class="tile-header">
+            <div class="tile-avatar">${initials(m.display)}</div>
+            <div class="tile-name">${escHtml(m.display)}</div>
+            <div class="tile-status ${isLive ? 'live' : 'idle'}" id="status-${m.username}">${isLive ? '● Live' : 'Idle'}</div>
+          </div>
+          <div class="tile-video-wrap">
+            <video id="video-${m.username}" autoplay muted playsinline style="display:block"></video>
+            <div class="tile-no-stream" id="nostream-${m.username}" style="display:${isLive ? 'none' : 'flex'}">
+              <div class="tile-no-stream-icon">🖥️</div>
+              <div>No screen share</div>
+            </div>
+          </div>
+          <div class="tile-footer">
+            <button id="perm-btn-${m.username}" class="${isAllowed ? 'btn-revoke' : 'btn-allow'}" onclick="togglePermission('${m.username}')">
+              ${isAllowed ? 'Revoke' : 'Allow'}
+            </button>
+            <span class="tile-footer-note" id="perm-note-${m.username}">${isAllowed ? 'Screen share allowed' : 'Screen share blocked'}</span>
+          </div>
+        </div>`;
+    }).join('');
+
+    // Reattach any live streams to video elements
+    Object.entries(videoStreams).forEach(([uname, stream]) => {
+      const video = document.getElementById('video-' + uname);
+      if (video && !video.srcObject) { video.srcObject = stream; video.play().catch(() => {}); }
+    });
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Data loading ──────────────────────────────────────────────────────────
+  async function loadActiveScreens() {
+    try {
+      const res  = await fetch('/api/monitor/active-screens', { credentials: 'same-origin' });
+      const list = await res.json();
+      activeScreensMap = {};
+      list.forEach(s => { activeScreensMap[s.username] = true; });
+    } catch (e) {}
+  }
+
+  async function init() {
+    try {
+      const [membRes] = await Promise.all([
+        fetch('/api/members', { credentials: 'same-origin' }),
+        loadActiveScreens(),
+      ]);
+      members = await membRes.json();
+    } catch (e) {
+      members = [];
+    }
+    renderGrid();
+    renderLastRefresh();
+  }
+
+  init();
+  setInterval(async () => {
+    await loadActiveScreens();
+    // Update live status tiles without full re-render (to preserve video elements)
+    members.forEach(m => updateTileStatus(m.username, !!activeScreensMap[m.username]));
+    renderLastRefresh();
+  }, 10000);
+</script>
+</body>
+</html>

@@ -541,7 +541,34 @@
     padding: 10px 14px; border-top: 1px solid var(--border);
     background: var(--surface-2);
   }
+  /* ── Screen monitoring ── */
+  .monitor-badge {
+    display: none; align-items: center; gap: 5px;
+    font-size: 11px; font-weight: 700; color: #f87171;
+    padding: 4px 10px; border-radius: 8px;
+    background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3);
+    animation: monPulse 2s ease-in-out infinite;
+  }
+  .monitor-badge.active { display: flex; }
+  @keyframes monPulse { 0%,100% { opacity:1; } 50% { opacity:0.6; } }
+  .mon-consent-overlay {
+    position: fixed; inset: 0; z-index: 1000;
+    background: rgba(0,0,0,0.7); display: flex;
+    align-items: center; justify-content: center;
+    padding: 20px; backdrop-filter: blur(4px);
+  }
+  .mon-consent-overlay.hidden { display: none; }
+  .mon-consent-popup {
+    background: var(--surface); border: 1px solid var(--border-2);
+    border-radius: var(--radius); padding: 28px 24px;
+    width: 100%; max-width: 380px; text-align: center;
+  }
+  .mon-consent-icon { font-size: 36px; margin-bottom: 12px; }
+  .mon-consent-title { font-size: 16px; font-weight: 800; margin-bottom: 8px; }
+  .mon-consent-body  { font-size: 13px; color: var(--text-muted); line-height: 1.6; margin-bottom: 20px; }
+  .mon-consent-footer { display: flex; gap: 10px; justify-content: center; }
 </style>
+<script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
 </head>
 <body>
 
@@ -550,9 +577,23 @@
   <img src="/logo.png" alt="RO" class="topbar-logo" style="width:36px;height:36px;object-fit:contain;border-radius:10px" onerror="this.outerHTML='<div class=&quot;topbar-logo&quot;>RO</div>'">
   <div class="topbar-title">Rank <span>Orbit</span></div>
   <div class="topbar-right">
+    <div class="monitor-badge" id="monitor-badge">🔴 Monitored</div>
     <span class="badge badge-muted" id="member-name-badge">…</span>
     <span class="badge badge-blue">Member</span>
     <button class="btn-logout" onclick="logout()">Logout</button>
+  </div>
+</div>
+
+<!-- Screen monitoring consent popup -->
+<div id="mon-consent-overlay" class="mon-consent-overlay hidden">
+  <div class="mon-consent-popup">
+    <div class="mon-consent-icon">🖥️</div>
+    <div class="mon-consent-title">Screen Monitoring Notice</div>
+    <div class="mon-consent-body">Your screen may be monitored by the manager during working hours. By continuing, you acknowledge this policy.</div>
+    <div class="mon-consent-footer">
+      <button class="today-btn" style="color:var(--text-muted);background:var(--surface-2);border-color:var(--border)" onclick="monConsentDecline()">Cancel</button>
+      <button class="btn-save" style="padding:10px 24px" onclick="monConsentAccept()">OK, Continue</button>
+    </div>
   </div>
 </div>
 
@@ -1384,9 +1425,28 @@
   function closeWorkModeModal() { document.getElementById('wm-overlay').classList.add('hidden'); }
 
   /* ── Attendance action handlers ── */
+  let _pendingWorkMode = null;
   async function startWorking(workMode) {
-    const date = document.getElementById('wm-date-input').value || todayISO();
+    // Show monitoring consent popup before proceeding
+    _pendingWorkMode = workMode;
     closeWorkModeModal();
+    document.getElementById('mon-consent-overlay').classList.remove('hidden');
+  }
+  function monConsentDecline() {
+    _pendingWorkMode = null;
+    document.getElementById('mon-consent-overlay').classList.add('hidden');
+  }
+  async function monConsentAccept() {
+    document.getElementById('mon-consent-overlay').classList.add('hidden');
+    const workMode = _pendingWorkMode;
+    _pendingWorkMode = null;
+    if (!workMode) return;
+    await _doStartWorking(workMode);
+    // After starting, check if screen monitoring is permitted and begin if so
+    monCheckAndStart();
+  }
+  async function _doStartWorking(workMode) {
+    const date = document.getElementById('wm-date-input').value || todayISO();
     const time = nowTimeStr();
     try {
       const res  = await fetch('/api/attendance/start', {
@@ -1409,6 +1469,7 @@
 
   async function endWorking() {
     if (!confirm('End your working session?')) return;
+    monStopSharing(); // stop screen share on end
     const time = nowTimeStr();
     const date = attRecord ? attRecord.date : todayISO();
     try {
@@ -1807,6 +1868,86 @@
   }
 
   init();
+
+  // ── Screen monitoring (member side) ──────────────────────────────────────
+  const MON_PUSHER_KEY     = 'fb8240c1bcccb2cde5d0';
+  const MON_PUSHER_CLUSTER = 'ap2';
+  const MON_RTC_CONFIG     = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+
+  let monPusher     = null;
+  let monChannel    = null;
+  let monPeerConn   = null;
+  let monStream     = null;
+  let monPermitted  = false;
+  let monPollingInt = null;
+
+  function monInit() {
+    Pusher.logToConsole = false;
+    monPusher  = new Pusher(MON_PUSHER_KEY, { cluster: MON_PUSHER_CLUSTER });
+    monChannel = monPusher.subscribe('monitor-channel');
+    monChannel.bind('signal', async (payload) => {
+      const { type, data, targetUsername } = payload;
+      if (targetUsername !== memberUsername) return;
+      if (type === 'answer' && monPeerConn) {
+        try { await monPeerConn.setRemoteDescription(new RTCSessionDescription(data)); } catch(e) {}
+      } else if (type === 'ice-candidate' && monPeerConn) {
+        try { await monPeerConn.addIceCandidate(new RTCIceCandidate(data)); } catch(e) {}
+      }
+    });
+    monChannel.bind('permission', (payload) => {
+      if (payload.targetUsername !== memberUsername) return;
+      monPermitted = payload.allowed;
+      if (monPermitted) { monCheckAndStart(); }
+      else              { monStopSharing(); }
+    });
+  }
+
+  async function monCheckAndStart() {
+    try {
+      const res  = await fetch('/api/monitor/permission', { credentials: 'same-origin' });
+      const data = await res.json();
+      monPermitted = data.allowed;
+      if (monPermitted && !monStream) await monStartSharing();
+    } catch(e) {}
+  }
+
+  async function monStartSharing() {
+    try {
+      monStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+      monPeerConn = new RTCPeerConnection(MON_RTC_CONFIG);
+      monStream.getTracks().forEach(track => monPeerConn.addTrack(track, monStream));
+      monPeerConn.onicecandidate = (e) => {
+        if (e.candidate) monSendSignal({ type: 'ice-candidate', data: e.candidate, targetUsername: 'manager' });
+      };
+      monStream.getVideoTracks()[0].onended = () => monStopSharing();
+      const offer = await monPeerConn.createOffer();
+      await monPeerConn.setLocalDescription(offer);
+      monSendSignal({ type: 'offer', data: offer, targetUsername: 'manager' });
+      document.getElementById('monitor-badge').classList.add('active');
+      monPollingInt = setInterval(monCheckAndStart, 30000);
+    } catch(e) { monStream = null; }
+  }
+
+  function monStopSharing() {
+    clearInterval(monPollingInt);
+    if (monStream) { monStream.getTracks().forEach(t => t.stop()); monStream = null; }
+    if (monPeerConn) {
+      monSendSignal({ type: 'disconnect', data: {}, targetUsername: 'manager' });
+      monPeerConn.close(); monPeerConn = null;
+    }
+    document.getElementById('monitor-badge').classList.remove('active');
+  }
+
+  async function monSendSignal(payload) {
+    try {
+      await fetch('/api/monitor/signal', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin', body: JSON.stringify(payload),
+      });
+    } catch(e) {}
+  }
+
+  window.addEventListener('load', monInit);
 </script>
 </body>
 </html>
