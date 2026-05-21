@@ -265,7 +265,7 @@
 
   // ── WebRTC handlers ───────────────────────────────────────────────────────
   async function handleOffer(username, offer) {
-    teardownPeer(username); // clean up any old connection
+    teardownPeer(username, true); // keep video visible while new peer establishes
     setConnState(username, 'connecting');
 
     const pc = new RTCPeerConnection(RTC_CONFIG);
@@ -276,10 +276,12 @@
     // peerConnections[username] is registered, causing silent drops.
 
     pc.oniceconnectionstatechange = () => {
-      // 'disconnected' is transient — ignore. Only 'failed' is unrecoverable.
+      // 'disconnected' is transient and can self-recover — ignore it.
+      // 'failed' is terminal — update badge/border but keep video visible.
+      // Do NOT call updateTileStatus(false) here: the tile stays showing the
+      // last frame; the health check confirms and marks offline if still failed.
       if (pc.iceConnectionState === 'failed') {
         setConnState(username, 'disconnected');
-        updateTileStatus(username, false);
         delete activeScreensMap[username];
         renderLastRefresh();
       }
@@ -336,11 +338,10 @@
     };
 
     pc.onconnectionstatechange = () => {
-      // 'disconnected' is transient — only act on terminal states.
-      if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
-        teardownPeer(username);
+      // 'disconnected' is transient. 'closed' fires when WE call pc.close() — ignore it.
+      // Only 'failed' is a genuine remote failure. Update badge/border but keep video.
+      if (pc.connectionState === 'failed') {
         setConnState(username, 'disconnected');
-        updateTileStatus(username, false);
         delete activeScreensMap[username];
         renderLastRefresh();
       }
@@ -369,15 +370,20 @@
     }
   }
 
-  function teardownPeer(username) {
+  function teardownPeer(username, keepVideo = false) {
     if (peerConnections[username]) {
       peerConnections[username].close();
       delete peerConnections[username];
     }
     inactStopTracking(username);
-    const video = document.getElementById('video-' + username);
-    if (video) { video.srcObject = null; }
-    delete videoStreams[username];
+    // Only clear video when the member explicitly stopped sharing.
+    // During reconnection (new offer arriving) keepVideo=true so the last frame
+    // stays visible until the new stream arrives.
+    if (!keepVideo) {
+      const video = document.getElementById('video-' + username);
+      if (video) { video.srcObject = null; }
+      delete videoStreams[username];
+    }
   }
 
   async function sendSignal(payload) {
@@ -798,43 +804,45 @@
   }
 
   init();
-  setInterval(async () => {
-    await loadActiveScreens();
+
+  // ── Health check ────────────────────────────────────────────────────────────
+  // Runs every 15 s. Two jobs only:
+  //   1. HEAL: if the video track is live, correct any stale badge back to Live.
+  //   2. CONFIRM FAILURE: if ICE is in a terminal state AND track is not live,
+  //      mark offline. Never demote based on video.paused or readyState alone —
+  //      those are transient browser states that cause false disconnects.
+  setInterval(() => {
     members.forEach(m => {
-      const cs     = connStates[m.username] || {};
-      const video  = document.getElementById('video-' + m.username);
-      const stream = videoStreams[m.username];
+      const pc    = peerConnections[m.username];
+      const video = document.getElementById('video-' + m.username);
 
-      // Ground truth: is the video element actually playing with live track(s)?
-      const hasLiveTracks   = !!stream && stream.getTracks().some(t => t.readyState === 'live');
-      const videoIsPlaying  = !!video && !video.paused && video.readyState >= 2;
-      const trulyLive       = hasLiveTracks && videoIsPlaying;
+      if (!pc || !video) return; // member has no peer yet — leave tile as Idle
 
-      if (trulyLive) {
-        // Video is genuinely streaming — correct any stale state
-        if (cs.state !== 'live') {
+      const iceState    = pc.iceConnectionState;
+      const hasStream   = !!(video.srcObject && video.srcObject.getVideoTracks().length > 0);
+      const trackActive = hasStream && video.srcObject.getVideoTracks()[0].readyState === 'live';
+
+      if (trackActive) {
+        // Track is confirmed live — heal to Live if an earlier event incorrectly changed it
+        if ((connStates[m.username] || {}).state !== 'live') {
           activeScreensMap[m.username] = true;
           setConnState(m.username, 'live');
           updateTileStatus(m.username, true);
         }
-        return; // nothing else to do
+      } else if (iceState === 'failed' || iceState === 'closed') {
+        // ICE is truly terminal AND track is dead — safe to mark offline
+        const cur = (connStates[m.username] || {}).state;
+        if (cur !== 'offline' && cur !== 'idle') {
+          setConnState(m.username, 'offline');
+          updateTileStatus(m.username, false);
+          delete activeScreensMap[m.username];
+        }
       }
-
-      // Video is NOT playing — only now consider state changes
-      if (cs.state === 'live') {
-        // Was marked live but video stopped → disconnected
-        setConnState(m.username, 'disconnected');
-        updateTileStatus(m.username, false);
-        delete activeScreensMap[m.username];
-      }
-
-      // Escalate disconnected → offline only after 30 s AND video is confirmed stopped
-      if (cs.state === 'disconnected' && cs.since && (Date.now() - cs.since.getTime() > 30000)) {
-        setConnState(m.username, 'offline');
-      }
+      // iceState 'disconnected' / 'checking' / 'new': do nothing — may self-recover.
+      // Never escalate on a timer.
     });
     renderLastRefresh();
-  }, 10000);
+  }, 15000);
 </script>
 </body>
 </html>
