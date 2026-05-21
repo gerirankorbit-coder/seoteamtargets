@@ -168,6 +168,17 @@
   .inactiv-icon  { font-size: 26px; line-height: 1; }
   .inactiv-title { font-size: 13px; font-weight: 800; color: #fff; text-shadow: 0 1px 6px rgba(0,0,0,0.7); }
   .inactiv-sub   { font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.82); }
+
+  /* ── Click to view (autoplay policy fallback) ── */
+  .click-to-view {
+    display: none; position: absolute; inset: 0;
+    flex-direction: column; align-items: center; justify-content: center;
+    gap: 8px; background: rgba(0,0,0,0.6);
+    z-index: 4; cursor: pointer;
+  }
+  .click-to-view.show { display: flex; }
+  .click-to-view-icon  { font-size: 36px; }
+  .click-to-view-label { font-size: 12px; font-weight: 700; color: #fff; letter-spacing: 0.3px; }
 </style>
 </head>
 <body>
@@ -231,11 +242,13 @@
     if (fromRole !== 'member') return; // ignore signals from other managers
 
     if (type === 'offer') {
+      console.log('[WebRTC] offer received from', fromUsername);
       await handleOffer(fromUsername, data);
     } else if (type === 'ice-candidate' && targetUsername === 'manager') {
+      console.log('[ICE] candidate received from', fromUsername);
       const pc = peerConnections[fromUsername];
       if (pc && data) {
-        try { await pc.addIceCandidate(new RTCIceCandidate(data)); } catch (e) {}
+        try { await pc.addIceCandidate(new RTCIceCandidate(data)); } catch (e) { console.warn('[ICE] addIceCandidate error', e); }
       }
     } else if (type === 'disconnect') {
       teardownPeer(fromUsername);
@@ -262,6 +275,7 @@
 
     pc.onicecandidate = (e) => {
       if (e.candidate) {
+        console.log('[ICE] sending candidate to', username, e.candidate.type);
         sendSignal({ type: 'ice-candidate', data: e.candidate, targetUsername: username });
       }
     };
@@ -282,14 +296,34 @@
       videoStreams[username] = stream;
       const video = document.getElementById('video-' + username);
       if (video) {
-        video.srcObject = stream;
-        video.play().catch(() => {});
+        video.srcObject  = stream;
+        video.muted      = true;
+        video.autoplay   = true;
+        video.playsInline = true;
+        video.play().catch(err => {
+          console.warn('[video] play() blocked for', username, err.name, '— showing click overlay');
+          const ctv = document.getElementById('ctv-' + username);
+          if (ctv) ctv.classList.add('show');
+          document.addEventListener('click', () => {
+            video.play().catch(() => {});
+            const c = document.getElementById('ctv-' + username);
+            if (c) c.classList.remove('show');
+          }, { once: true });
+        });
+        // Retry after 500ms in case play() resolved but video stalled
+        setTimeout(() => {
+          if (video.paused) {
+            console.warn('[video] still paused 500ms after srcObject set for', username, '— retrying play()');
+            video.play().catch(() => {});
+          }
+        }, 500);
       }
       // Sync fullscreen view if open for this member
       if (fsActiveUsername === username) {
         const fsVideo    = document.getElementById('fs-video');
         const fsNoStream = document.getElementById('fs-no-stream');
-        fsVideo.srcObject = stream;
+        fsVideo.srcObject  = stream;
+        fsVideo.muted      = true;
         fsVideo.play().catch(() => {});
         fsVideo.style.display    = 'block';
         fsNoStream.style.display = 'none';
@@ -317,8 +351,9 @@
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       sendSignal({ type: 'answer', data: answer, targetUsername: username });
+      console.log('[WebRTC] answer sent to', username);
     } catch (err) {
-      console.error('WebRTC answer error:', err);
+      console.error('[WebRTC] answer error for', username, err);
     }
   }
 
@@ -493,10 +528,15 @@
             <div class="tile-status ${isLive ? 'live' : 'idle'}" id="status-${m.username}">${isLive ? '● Live' : 'Idle'}</div>
           </div>
           <div class="tile-video-wrap">
-            <video id="video-${m.username}" autoplay muted playsinline style="display:block"></video>
+            <video id="video-${m.username}" autoplay muted playsinline
+              style="width:100%;height:100%;object-fit:contain;background:#000;display:block"></video>
             <div class="tile-no-stream" id="nostream-${m.username}" style="display:${isLive ? 'none' : 'flex'}">
               <div class="tile-no-stream-icon">🖥️</div>
               <div>No screen share</div>
+            </div>
+            <div class="click-to-view" id="ctv-${m.username}" onclick="playVideo('${m.username}')">
+              <div class="click-to-view-icon">▶️</div>
+              <div class="click-to-view-label">Click to view</div>
             </div>
             <button class="tile-expand-btn" title="Fullscreen" onclick="openFullscreen('${m.username}','${escHtml(m.display)}')">⛶</button>
             <div class="inactivity-overlay" id="inactiv-${m.username}"></div>
@@ -511,10 +551,20 @@
         </div>`;
     }).join('');
 
-    // Reattach any live streams to video elements
+    // Reattach any live streams to video elements after grid re-render
     Object.entries(videoStreams).forEach(([uname, stream]) => {
       const video = document.getElementById('video-' + uname);
-      if (video && !video.srcObject) { video.srcObject = stream; video.play().catch(() => {}); }
+      if (video && !video.srcObject) {
+        video.srcObject   = stream;
+        video.muted       = true;
+        video.autoplay    = true;
+        video.playsInline = true;
+        video.play().catch(err => {
+          console.warn('[video] reattach play() blocked for', uname, err.name);
+          const ctv = document.getElementById('ctv-' + uname);
+          if (ctv) ctv.classList.add('show');
+        });
+      }
     });
   }
 
@@ -546,6 +596,18 @@
     renderLastRefresh();
   }
 
+  // ── Click-to-view helper (autoplay policy fallback) ──────────────────────
+  function playVideo(username) {
+    const video = document.getElementById('video-' + username);
+    const ctv   = document.getElementById('ctv-' + username);
+    if (!video) return;
+    video.play().then(() => {
+      if (ctv) ctv.classList.remove('show');
+    }).catch(err => {
+      console.warn('[video] playVideo() still blocked for', username, err.name);
+    });
+  }
+
   // ── Fullscreen view ───────────────────────────────────────────────────────
   let fsActiveUsername = null;
 
@@ -561,7 +623,8 @@
     const stream    = videoStreams[username];
 
     if (stream) {
-      fsVideo.srcObject = stream;
+      fsVideo.srcObject   = stream;
+      fsVideo.muted       = true;
       fsVideo.play().catch(() => {});
       fsVideo.style.display = 'block';
       fsNoStream.style.display = 'none';
