@@ -1794,8 +1794,8 @@
       '</div>'
     ).join('') || '<p style="font-size:12px;color:var(--text-dim);margin:0">No breaks recorded.</p>';
 
-    const mem           = members.find(m => m.username === username);
-    const memberDisplay = mem ? mem.display : username;
+    const memberInfo    = members.find(m => m.username === username);
+    const memberDisplay = memberInfo ? memberInfo.display : username;
     document.getElementById('att-edit-sub').textContent = memberDisplay + '  ·  ' + formatFull(r.date);
     const allHistory    = (r.editHistory || []).slice().reverse();
     const managerEdits  = allHistory.filter(h => h.editedBy !== memberDisplay);
@@ -1934,9 +1934,9 @@
 
   function openAttNoteModal(recordId, username, date, triggerEl) {
     attNoteRecordMeta = { _id: recordId, username, date };
-    const mem = members.find(m => m.username === username);
+    const memberEntry = members.find(m => m.username === username);
     document.getElementById('att-note-title').textContent = 'Attendance Note';
-    document.getElementById('att-note-sub').textContent   = (mem ? mem.display : username) + '  ·  ' + formatFull(date);
+    document.getElementById('att-note-sub').textContent   = (memberEntry ? memberEntry.display : username) + '  ·  ' + formatFull(date);
     document.getElementById('att-note-input').value = '';
     document.getElementById('att-note-overlay').classList.remove('hidden');
     // Populate existing note
