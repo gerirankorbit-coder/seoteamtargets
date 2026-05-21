@@ -1985,7 +1985,12 @@
     // Capture the screen (user sees picker dialog once per session)
     try {
       monStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
-      monStream.getVideoTracks()[0].onended = () => monStopSharing(); // user stopped sharing
+      monStream.getVideoTracks()[0].onended = () => {
+        // Track ended — try to reconnect peer after 3s instead of stopping entirely.
+        // If the user intentionally stopped sharing the reconnect attempt will be a no-op
+        // (no live tracks); the 30s polling interval will keep trying.
+        setTimeout(() => monReconnectPeer(), 3000);
+      };
       await monReconnectPeer();
       document.getElementById('monitor-badge').classList.add('active');
       monPollingInt = setInterval(monCheckAndStart, 30000);
@@ -2007,13 +2012,15 @@
     // This eliminates the race condition where the manager receives a candidate before
     // its RTCPeerConnection is created, causing silent drops and a black/dead stream.
 
-    // When the manager navigates away, the ICE connection will fail.
-    // Re-send a fresh offer so the manager's page can reconnect on return.
+    // When the manager navigates away or connection drops, re-send a fresh offer.
+    // 'disconnected' is often transient but we retry anyway after 5s.
+    // 'failed' is terminal — always reconnect.
+    // 'closed' is intentionally excluded: it fires when WE call pc.close() inside
+    // monReconnectPeer, which would create an infinite reconnect loop.
     monPeerConn.oniceconnectionstatechange = () => {
       const s = monPeerConn ? monPeerConn.iceConnectionState : '';
-      if (s === 'failed' || s === 'closed') {
-        // Small delay to avoid tight reconnect loops
-        setTimeout(() => { if (monStream) monReconnectPeer(); }, 2000);
+      if (s === 'disconnected' || s === 'failed') {
+        setTimeout(() => { if (monStream) monReconnectPeer(); }, 5000);
       }
     };
 
