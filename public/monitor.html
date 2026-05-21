@@ -267,7 +267,9 @@
     };
 
     pc.oniceconnectionstatechange = () => {
-      if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed') {
+      // 'disconnected' is a transient ICE state that often self-recovers — ignore it here.
+      // Only 'failed' is unrecoverable; let the health-check handle genuine drop-outs.
+      if (pc.iceConnectionState === 'failed') {
         setConnState(username, 'disconnected');
         updateTileStatus(username, false);
         delete activeScreensMap[username];
@@ -300,7 +302,8 @@
     };
 
     pc.onconnectionstatechange = () => {
-      if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+      // 'disconnected' is transient and can recover — only act on terminal states.
+      if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
         teardownPeer(username);
         setConnState(username, 'disconnected');
         updateTileStatus(username, false);
@@ -723,16 +726,34 @@
   setInterval(async () => {
     await loadActiveScreens();
     members.forEach(m => {
-      const cs      = connStates[m.username] || {};
-      const isLive  = !!activeScreensMap[m.username];
+      const cs     = connStates[m.username] || {};
+      const video  = document.getElementById('video-' + m.username);
+      const stream = videoStreams[m.username];
 
-      // Server says not active but we still think live → they dropped without a signal
-      if (!isLive && cs.state === 'live') {
-        setConnState(m.username, 'disconnected');
-        updateTileStatus(m.username, false);
+      // Ground truth: is the video element actually playing with live track(s)?
+      const hasLiveTracks   = !!stream && stream.getTracks().some(t => t.readyState === 'live');
+      const videoIsPlaying  = !!video && !video.paused && video.readyState >= 2;
+      const trulyLive       = hasLiveTracks && videoIsPlaying;
+
+      if (trulyLive) {
+        // Video is genuinely streaming — correct any stale state
+        if (cs.state !== 'live') {
+          activeScreensMap[m.username] = true;
+          setConnState(m.username, 'live');
+          updateTileStatus(m.username, true);
+        }
+        return; // nothing else to do
       }
 
-      // Escalate: disconnected for more than 30 s → offline
+      // Video is NOT playing — only now consider state changes
+      if (cs.state === 'live') {
+        // Was marked live but video stopped → disconnected
+        setConnState(m.username, 'disconnected');
+        updateTileStatus(m.username, false);
+        delete activeScreensMap[m.username];
+      }
+
+      // Escalate disconnected → offline only after 30 s AND video is confirmed stopped
       if (cs.state === 'disconnected' && cs.since && (Date.now() - cs.since.getTime() > 30000)) {
         setConnState(m.username, 'offline');
       }
