@@ -6,6 +6,9 @@
     "PUSHER_APP_ID": "2157662",
     "PUSHER_KEY": "fb8240c1bcccb2cde5d0",
     "PUSHER_SECRET": "c77fbf9a40aa1e3caaf7",
-    "PUSHER_CLUSTER": "ap2"
+    "PUSHER_CLUSTER": "ap2",
+    "CLOUDINARY_CLOUD_NAME": "dyo0ektsf",
+    "CLOUDINARY_API_KEY": "498183826645451",
+    "CLOUDINARY_API_SECRET": "zIlJjufs1zHKLTwsVPS55DZv6QM"
   }
 }

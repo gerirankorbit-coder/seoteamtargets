@@ -1064,6 +1064,11 @@ app.get('/api/monitor/permission', requireAuth, (req, res) => {
   res.json({ allowed });
 });
 
+// ── Activity Monitoring (new separate system) ─────────────────────────────
+app.get('/activity-dashboard', requireManager, (req, res) =>
+  res.sendFile(path.join(__dirname, 'public', 'activity-dashboard.html')));
+app.use('/api/activity', require('./api/activity'));
+
 // ── Start ──────────────────────────────────────────────────────────────────
 if (require.main === module) {
   app.listen(PORT, '0.0.0.0', () => {

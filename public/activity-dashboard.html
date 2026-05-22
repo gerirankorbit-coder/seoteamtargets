@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Activity Monitor — Rank Orbit</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #0d0f14;
+      --surface:    #13161e;
+      --surface-2:  #1a1d27;
+      --surface-3:  #21253300;
+      --border:     rgba(255,255,255,0.07);
+      --text:       #e8eaf0;
+      --text-muted: #6b7280;
+      --pink:       #e91e8c;
+      --pink-dim:   rgba(233,30,140,0.15);
+      --green:      #22c55e;
+      --amber:      #f59e0b;
+      --red:        #ef4444;
+      --blue:       #3b82f6;
+      --sidebar-w:  280px;
+      --topbar-h:   56px;
+    }
+
+    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; font-size: 14px; }
+
+    /* ── Layout ── */
+    #layout { display: flex; height: 100vh; overflow: hidden; }
+
+    /* ── Sidebar ── */
+    #sidebar {
+      width: var(--sidebar-w);
+      min-width: var(--sidebar-w);
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .sidebar-head {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .sidebar-head h2 {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .sidebar-date {
+      margin-top: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .sidebar-date input[type="date"] {
+      flex: 1;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      color: var(--text);
+      padding: 6px 10px;
+      font-size: 13px;
+      outline: none;
+      cursor: pointer;
+    }
+    .sidebar-date input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6); cursor: pointer; }
+    .btn-refresh {
+      background: var(--pink-dim);
+      border: 1px solid rgba(233,30,140,0.3);
+      border-radius: 7px;
+      color: var(--pink);
+      padding: 6px 10px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 700;
+      transition: background 0.15s;
+    }
+    .btn-refresh:hover { background: rgba(233,30,140,0.25); }
+
+    .member-list { flex: 1; overflow-y: auto; padding: 8px 0; }
+    .member-list::-webkit-scrollbar { width: 4px; }
+    .member-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+
+    .member-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 16px;
+      cursor: pointer;
+      border-left: 3px solid transparent;
+      transition: background 0.12s, border-color 0.12s;
+    }
+    .member-item:hover { background: rgba(255,255,255,0.04); }
+    .member-item.active-member {
+      background: rgba(233,30,140,0.08);
+      border-left-color: var(--pink);
+    }
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .status-dot.active  { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .status-dot.idle    { background: var(--amber); }
+    .status-dot.offline { background: #374151; }
+
+    .member-info { flex: 1; min-width: 0; }
+    .member-name { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .member-sub  { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+
+    .score-badge {
+      font-size: 12px; font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 20px;
+      flex-shrink: 0;
+    }
+    .score-red    { background: rgba(239,68,68,0.15);  color: #f87171; }
+    .score-amber  { background: rgba(245,158,11,0.15); color: #fbbf24; }
+    .score-green  { background: rgba(34,197,94,0.15);  color: #4ade80; }
+
+    .sidebar-foot {
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .sidebar-foot a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: color 0.15s;
+    }
+    .sidebar-foot a:hover { color: var(--text); }
+
+    /* ── Main ── */
+    #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+    /* ── Topbar ── */
+    #topbar {
+      height: var(--topbar-h);
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      gap: 16px;
+      flex-shrink: 0;
+    }
+    .topbar-logo { width: 32px; height: 32px; border-radius: 8px; object-fit: contain; }
+    .topbar-brand { font-size: 15px; font-weight: 700; }
+    .topbar-brand span { color: var(--pink); }
+    .topbar-member {
+      font-size: 14px; font-weight: 600;
+      background: var(--pink-dim);
+      border: 1px solid rgba(233,30,140,0.25);
+      border-radius: 20px;
+      padding: 3px 12px;
+      color: var(--pink);
+    }
+    .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+    .auto-refresh-badge {
+      font-size: 11px; color: var(--text-muted);
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 3px 8px;
+    }
+    #refresh-countdown { font-weight: 600; color: var(--pink); }
+
+    /* ── Content ── */
+    #content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+    }
+    #content::-webkit-scrollbar { width: 5px; }
+    #content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+
+    /* ── No member selected ── */
+    #no-member {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      gap: 12px;
+      color: var(--text-muted);
+    }
+    #no-member .icon { font-size: 48px; }
+    #no-member p { font-size: 15px; }
+
+    /* ── Cards row ── */
+    .cards-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .metric-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 20px;
+    }
+    .metric-card .label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    .metric-card .value {
+      font-size: 28px;
+      font-weight: 800;
+      line-height: 1;
+    }
+    .metric-card .sub {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+    .val-score  { color: var(--pink); }
+    .val-blue   { color: var(--blue); }
+    .val-amber  { color: var(--amber); }
+    .val-red    { color: var(--red); }
+
+    /* ── Section ── */
+    .section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+    .section-head {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .section-head h3 { font-size: 13px; font-weight: 700; }
+    .section-body { padding: 20px; }
+
+    /* ── Chart ── */
+    .chart-wrap { height: 200px; position: relative; }
+
+    /* ── Screenshot timeline ── */
+    .ss-scroll {
+      display: flex;
+      gap: 12px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+    }
+    .ss-scroll::-webkit-scrollbar { height: 4px; }
+    .ss-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+    .ss-thumb {
+      flex-shrink: 0;
+      cursor: pointer;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 2px solid transparent;
+      transition: border-color 0.15s;
+      position: relative;
+    }
+    .ss-thumb:hover { border-color: var(--pink); }
+    .ss-thumb img {
+      display: block;
+      width: 160px;
+      height: 90px;
+      object-fit: cover;
+      background: #1a1d27;
+    }
+    .ss-thumb .ss-time {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      background: rgba(0,0,0,0.7);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 3px 6px;
+      text-align: center;
+    }
+    .ss-empty { color: var(--text-muted); font-size: 13px; padding: 8px 0; }
+
+    /* ── Lightbox ── */
+    #lightbox {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.9);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 16px;
+    }
+    #lightbox.show { display: flex; }
+    #lightbox img {
+      max-width: 90vw;
+      max-height: 80vh;
+      border-radius: 10px;
+      object-fit: contain;
+    }
+    .lb-bar {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      color: #fff;
+    }
+    .lb-btn {
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 8px;
+      color: #fff;
+      padding: 8px 16px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background 0.15s;
+    }
+    .lb-btn:hover { background: rgba(255,255,255,0.2); }
+    .lb-info { font-size: 13px; color: rgba(255,255,255,0.7); }
+
+    /* ── Activity table ── */
+    .act-table { width: 100%; border-collapse: collapse; }
+    .act-table th {
+      text-align: left;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      padding: 0 12px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .act-table td {
+      padding: 10px 12px;
+      font-size: 13px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .act-table tr:last-child td { border-bottom: none; }
+    .act-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .score-pill {
+      display: inline-block;
+      font-size: 12px; font-weight: 700;
+      padding: 2px 10px;
+      border-radius: 20px;
+    }
+    .pill-green { background: rgba(34,197,94,0.15);  color: #4ade80; }
+    .pill-amber { background: rgba(245,158,11,0.15); color: #fbbf24; }
+    .pill-red   { background: rgba(239,68,68,0.15);  color: #f87171; }
+
+    /* ── Alerts ── */
+    .alert-list { display: flex; flex-direction: column; gap: 8px; }
+    .alert-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px 14px;
+      border-radius: 8px;
+      border: 1px solid;
+    }
+    .alert-item.idle-alert  { background: rgba(245,158,11,0.08); border-color: rgba(245,158,11,0.25); }
+    .alert-item.focus-alert { background: rgba(59,130,246,0.08);  border-color: rgba(59,130,246,0.25); }
+    .alert-icon { font-size: 16px; flex-shrink: 0; }
+    .alert-body { flex: 1; }
+    .alert-title { font-weight: 600; font-size: 13px; }
+    .alert-detail { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .alert-time { font-size: 11px; color: var(--text-muted); flex-shrink: 0; }
+    .alerts-empty { color: var(--text-muted); font-size: 13px; padding: 4px 0; }
+
+    /* ── Loading / error states ── */
+    .loading-ring {
+      width: 28px; height: 28px;
+      border: 3px solid rgba(233,30,140,0.2);
+      border-top-color: var(--pink);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      .cards-row { grid-template-columns: repeat(2, 1fr); }
+      :root { --sidebar-w: 220px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Lightbox ── -->
+<div id="lightbox" onclick="lbClose(event)">
+  <img id="lb-img" src="" alt="" />
+  <div class="lb-bar">
+    <button class="lb-btn" onclick="lbNav(-1);event.stopPropagation()">&#8592; Prev</button>
+    <span class="lb-info" id="lb-info"></span>
+    <button class="lb-btn" onclick="lbNav(1);event.stopPropagation()">Next &#8594;</button>
+    <button class="lb-btn" onclick="lbClose()">✕ Close</button>
+  </div>
+</div>
+
+<!-- ── Layout ── -->
+<div id="layout">
+
+  <!-- Sidebar -->
+  <aside id="sidebar">
+    <div class="sidebar-head">
+      <h2>Team Members</h2>
+      <div class="sidebar-date">
+        <input type="date" id="date-picker" />
+        <button class="btn-refresh" onclick="refreshAll()" title="Refresh">↻</button>
+      </div>
+    </div>
+    <div class="member-list" id="member-list">
+      <div style="padding:20px;text-align:center"><div class="loading-ring"></div></div>
+    </div>
+    <div class="sidebar-foot">
+      <a href="/dashboard">← Back to Dashboard</a>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div id="main">
+    <!-- Topbar -->
+    <div id="topbar">
+      <img src="/logo.png" class="topbar-logo"
+           onerror="this.outerHTML='<div style=&quot;width:32px;height:32px;background:var(--pink);border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px&quot;>RO</div>'" />
+      <div class="topbar-brand">Activity <span>Monitor</span></div>
+      <div id="topbar-member-label" style="display:none" class="topbar-member"></div>
+      <div class="topbar-right">
+        <span class="auto-refresh-badge">Auto-refresh in <span id="refresh-countdown">60</span>s</span>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div id="content">
+      <div id="no-member">
+        <div class="icon">👈</div>
+        <p>Select a team member to view their activity</p>
+      </div>
+      <div id="member-content" style="display:none"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let currentUsername  = null;
+let currentData      = null;
+let screenshotList   = [];
+let lbIndex          = 0;
+let hourlyChart      = null;
+let autoRefreshTimer = null;
+let countdownTimer   = null;
+let countdownVal     = 60;
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+(async function init() {
+  // Auth check
+  try {
+    const r = await fetch('/api/me', { credentials: 'same-origin' });
+    if (!r.ok) { location.href = '/login'; return; }
+    const me = await r.json();
+    if (me.role !== 'manager' && me.role !== 'assistant') { location.href = '/login'; return; }
+  } catch { location.href = '/login'; return; }
+
+  // Set date picker to today
+  const dp = document.getElementById('date-picker');
+  dp.value = todayISO();
+  dp.addEventListener('change', () => { loadSidebar(); if (currentUsername) loadDashboard(currentUsername); });
+
+  loadSidebar();
+  startAutoRefresh();
+})();
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function todayISO() {
+  return new Date().toISOString().split('T')[0];
+}
+function selectedDate() {
+  return document.getElementById('date-picker').value || todayISO();
+}
+function fmtTime(isoStr) {
+  if (!isoStr) return '--';
+  return new Date(isoStr).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+}
+function fmtDuration(seconds) {
+  if (!seconds) return '0s';
+  if (seconds < 60) return `${seconds}s`;
+  return `${Math.floor(seconds/60)}m ${seconds % 60}s`;
+}
+function scoreColor(score) {
+  if (score >= 71) return 'score-green';
+  if (score >= 41) return 'score-amber';
+  return 'score-red';
+}
+function pillColor(score) {
+  if (score >= 71) return 'pill-green';
+  if (score >= 41) return 'pill-amber';
+  return 'pill-red';
+}
+
+// ── Sidebar ───────────────────────────────────────────────────────────────────
+async function loadSidebar() {
+  const date = selectedDate();
+  const list = document.getElementById('member-list');
+  list.innerHTML = '<div style="padding:20px;text-align:center"><div class="loading-ring"></div></div>';
+
+  try {
+    const r = await fetch(`/api/activity/get-members-summary?date=${date}`, { credentials: 'same-origin' });
+    if (!r.ok) throw new Error('Failed');
+    const members = await r.json();
+
+    if (!members.length) {
+      list.innerHTML = '<div style="padding:20px;color:var(--text-muted);font-size:13px;text-align:center">No members found</div>';
+      return;
+    }
+
+    list.innerHTML = members.map(m => {
+      const sc = m.score || 0;
+      const badgeCls = scoreColor(sc);
+      const dotCls   = m.status || 'offline';
+      const lastSeen = m.lastSeen ? fmtTime(m.lastSeen) : 'Never';
+      return `
+        <div class="member-item${m.username === currentUsername ? ' active-member' : ''}"
+             onclick="selectMember('${m.username}','${escHtml(m.displayName || m.username)}')"
+             id="sidebar-item-${m.username}">
+          <div class="status-dot ${dotCls}"></div>
+          <div class="member-info">
+            <div class="member-name">${escHtml(m.displayName || m.username)}</div>
+            <div class="member-sub">${m.screenshotCount} shots · ${lastSeen}</div>
+          </div>
+          <div class="score-badge ${badgeCls}">${sc}</div>
+        </div>`;
+    }).join('');
+  } catch {
+    list.innerHTML = '<div style="padding:20px;color:var(--text-muted);font-size:13px;text-align:center">Failed to load</div>';
+  }
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Member selection ──────────────────────────────────────────────────────────
+function selectMember(username, displayName) {
+  // Highlight in sidebar
+  document.querySelectorAll('.member-item').forEach(el => el.classList.remove('active-member'));
+  const sideItem = document.getElementById('sidebar-item-' + username);
+  if (sideItem) sideItem.classList.add('active-member');
+
+  currentUsername = username;
+
+  const lbl = document.getElementById('topbar-member-label');
+  lbl.textContent = displayName;
+  lbl.style.display = '';
+
+  document.getElementById('no-member').style.display = 'none';
+  const mc = document.getElementById('member-content');
+  mc.style.display = 'block';
+  mc.innerHTML = '<div style="text-align:center;padding:40px"><div class="loading-ring"></div></div>';
+
+  loadDashboard(username);
+}
+
+// ── Dashboard data ────────────────────────────────────────────────────────────
+async function loadDashboard(username) {
+  const date = selectedDate();
+  const mc   = document.getElementById('member-content');
+
+  try {
+    const r = await fetch(`/api/activity/get-dashboard?username=${encodeURIComponent(username)}&date=${date}`, { credentials: 'same-origin' });
+    if (!r.ok) throw new Error('Failed');
+    const data = await r.json();
+    currentData    = data;
+    screenshotList = data.screenshots || [];
+    renderDashboard(data);
+  } catch {
+    mc.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted)">Failed to load activity data.</div>';
+  }
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function renderDashboard(data) {
+  const mc = document.getElementById('member-content');
+
+  const idleCount  = (data.idleAlerts  || []).length;
+  const focusCount = (data.focusAlerts || []).length;
+  const ssCount    = data.totalScreenshots || 0;
+  const dailyScore = data.dailyAverage || 0;
+
+  mc.innerHTML = `
+    <!-- Score cards -->
+    <div class="cards-row">
+      <div class="metric-card">
+        <div class="label">Daily Score</div>
+        <div class="value val-score">${dailyScore}</div>
+        <div class="sub">Average of ${(data.hourlyScores||[]).length} scored hour(s)</div>
+      </div>
+      <div class="metric-card">
+        <div class="label">Screenshots</div>
+        <div class="value val-blue">${ssCount}</div>
+        <div class="sub">Captured today</div>
+      </div>
+      <div class="metric-card">
+        <div class="label">Idle Alerts</div>
+        <div class="value val-amber">${idleCount}</div>
+        <div class="sub">10+ min inactivity events</div>
+      </div>
+      <div class="metric-card">
+        <div class="label">Focus Lost</div>
+        <div class="value val-red">${focusCount}</div>
+        <div class="sub">Tab hidden events</div>
+      </div>
+    </div>
+
+    <!-- Hourly chart -->
+    <div class="section">
+      <div class="section-head">
+        <h3>📊 Hourly Activity Score</h3>
+        <span style="font-size:12px;color:var(--text-muted)">Max 100 pts / hour</span>
+      </div>
+      <div class="section-body">
+        <div class="chart-wrap"><canvas id="hourly-chart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Screenshots -->
+    <div class="section">
+      <div class="section-head">
+        <h3>🖼 Screenshot Timeline</h3>
+        <span style="font-size:12px;color:var(--text-muted)">${ssCount} screenshot(s)</span>
+      </div>
+      <div class="section-body" id="ss-section"></div>
+    </div>
+
+    <!-- Activity table -->
+    <div class="section">
+      <div class="section-head">
+        <h3>⌨️ Activity Log</h3>
+        <span style="font-size:12px;color:var(--text-muted)">Per-hour breakdown</span>
+      </div>
+      <div class="section-body" style="padding:0" id="table-section"></div>
+    </div>
+
+    <!-- Alerts -->
+    <div class="section">
+      <div class="section-head">
+        <h3>🔔 Alerts</h3>
+        <span style="font-size:12px;color:var(--text-muted)">${idleCount + focusCount} alert(s)</span>
+      </div>
+      <div class="section-body" id="alerts-section"></div>
+    </div>
+  `;
+
+  renderChart(data.hourlyScores || []);
+  renderScreenshots(data.screenshots || []);
+  renderTable(data.hourlyScores || []);
+  renderAlerts(data.idleAlerts || [], data.focusAlerts || []);
+}
+
+// ── Chart ─────────────────────────────────────────────────────────────────────
+function renderChart(hourlyScores) {
+  if (hourlyChart) { hourlyChart.destroy(); hourlyChart = null; }
+  const canvas = document.getElementById('hourly-chart');
+  if (!canvas) return;
+
+  // Build labels 0-23 but only render hours with data
+  const hours  = Array.from({ length: 24 }, (_, i) => i);
+  const labels = hours.map(h => h < 10 ? `0${h}:00` : `${h}:00`);
+  const scores = hours.map(h => {
+    const found = hourlyScores.find(s => s.hour === h);
+    return found ? found.score : null;
+  });
+
+  const barColors = scores.map(s => {
+    if (s === null) return 'rgba(0,0,0,0)';
+    if (s >= 71) return 'rgba(34,197,94,0.75)';
+    if (s >= 41) return 'rgba(245,158,11,0.75)';
+    return 'rgba(239,68,68,0.75)';
+  });
+
+  hourlyChart = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Score',
+        data: scores,
+        backgroundColor: barColors,
+        borderColor: barColors.map(c => c.replace('0.75','1')),
+        borderWidth: 1,
+        borderRadius: 4,
+        spanGaps: false,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ctx.parsed.y !== null ? `Score: ${ctx.parsed.y}` : 'No data',
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: 'rgba(255,255,255,0.05)' },
+          ticks: { color: '#6b7280', font: { size: 10 }, maxRotation: 0 },
+        },
+        y: {
+          min: 0, max: 100,
+          grid: { color: 'rgba(255,255,255,0.05)' },
+          ticks: { color: '#6b7280', font: { size: 11 } },
+        }
+      }
+    }
+  });
+}
+
+// ── Screenshots ───────────────────────────────────────────────────────────────
+function renderScreenshots(shots) {
+  const el = document.getElementById('ss-section');
+  if (!el) return;
+
+  if (!shots.length) {
+    el.innerHTML = '<div class="ss-empty">No screenshots captured yet.</div>';
+    return;
+  }
+
+  screenshotList = shots;
+  el.innerHTML = `<div class="ss-scroll">${
+    shots.map((s, i) => `
+      <div class="ss-thumb" onclick="lbOpen(${i})">
+        <img src="${escHtml(s.thumbnail || s.url)}" alt="Screenshot at ${escHtml(s.time||'')}"
+             onerror="this.src='/placeholder-ss.png'" loading="lazy" />
+        <div class="ss-time">${escHtml(s.time||'--:--')}</div>
+      </div>`).join('')
+  }</div>`;
+}
+
+// ── Lightbox ──────────────────────────────────────────────────────────────────
+function lbOpen(index) {
+  lbIndex = index;
+  lbRender();
+  document.getElementById('lightbox').classList.add('show');
+}
+function lbRender() {
+  const s = screenshotList[lbIndex];
+  if (!s) return;
+  document.getElementById('lb-img').src   = s.url || s.thumbnail;
+  document.getElementById('lb-info').textContent = `${s.time || '--:--'}  (${lbIndex + 1} / ${screenshotList.length})`;
+}
+function lbNav(dir) {
+  lbIndex = (lbIndex + dir + screenshotList.length) % screenshotList.length;
+  lbRender();
+}
+function lbClose(e) {
+  if (e && e.target !== document.getElementById('lightbox') && !e.target.classList.contains('lb-btn')) return;
+  document.getElementById('lightbox').classList.remove('show');
+}
+document.addEventListener('keydown', e => {
+  if (!document.getElementById('lightbox').classList.contains('show')) return;
+  if (e.key === 'ArrowLeft')  lbNav(-1);
+  if (e.key === 'ArrowRight') lbNav(1);
+  if (e.key === 'Escape')     document.getElementById('lightbox').classList.remove('show');
+});
+
+// ── Activity table ────────────────────────────────────────────────────────────
+function renderTable(hourlyScores) {
+  const el = document.getElementById('table-section');
+  if (!el) return;
+
+  if (!hourlyScores.length) {
+    el.innerHTML = '<div style="padding:20px;color:var(--text-muted);font-size:13px">No activity data for this date.</div>';
+    return;
+  }
+
+  const rows = [...hourlyScores].sort((a, b) => a.hour - b.hour).map(hs => {
+    const h    = hs.hour;
+    const lbl  = `${h < 10 ? '0'+h : h}:00 – ${(h+1) < 10 ? '0'+(h+1) : (h+1)}:00`;
+    const pill = pillColor(hs.score);
+    return `<tr>
+      <td>${lbl}</td>
+      <td>${hs.mouse || 0} <span style="color:var(--text-muted);font-size:11px">/ min</span></td>
+      <td>${hs.keystrokes || 0} <span style="color:var(--text-muted);font-size:11px">/ min</span></td>
+      <td><span class="score-pill ${pill}">${hs.score}</span></td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `<table class="act-table">
+    <thead><tr>
+      <th>Hour</th>
+      <th>Mouse Moves</th>
+      <th>Keystrokes</th>
+      <th>Score</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+// ── Alerts ────────────────────────────────────────────────────────────────────
+function renderAlerts(idles, focuses) {
+  const el = document.getElementById('alerts-section');
+  if (!el) return;
+
+  const all = [
+    ...idles.map(a => ({ type: 'idle', data: a })),
+    ...focuses.map(a => ({ type: 'focus', data: a })),
+  ].sort((a, b) => new Date(a.data.timestamp || 0) - new Date(b.data.timestamp || 0));
+
+  if (!all.length) {
+    el.innerHTML = '<div class="alerts-empty">No alerts — great focus today! ✅</div>';
+    return;
+  }
+
+  el.innerHTML = `<div class="alert-list">${all.map(item => {
+    if (item.type === 'idle') {
+      const a = item.data;
+      return `<div class="alert-item idle-alert">
+        <div class="alert-icon">⏸</div>
+        <div class="alert-body">
+          <div class="alert-title">Idle for ${a.durationMinutes || 0} minute(s)</div>
+          <div class="alert-detail">Started at ${fmtTime(a.idleStartedAt)}</div>
+        </div>
+        <div class="alert-time">${fmtTime(a.timestamp)}</div>
+      </div>`;
+    } else {
+      const a = item.data;
+      return `<div class="alert-item focus-alert">
+        <div class="alert-icon">🔕</div>
+        <div class="alert-body">
+          <div class="alert-title">Tab hidden</div>
+          <div class="alert-detail">${escHtml(a.message || 'Tab hidden for extended period')}</div>
+        </div>
+        <div class="alert-time">${fmtTime(a.timestamp)}</div>
+      </div>`;
+    }
+  }).join('')}</div>`;
+}
+
+// ── Auto-refresh ──────────────────────────────────────────────────────────────
+function startAutoRefresh() {
+  countdownVal = 60;
+  clearInterval(autoRefreshTimer);
+  clearInterval(countdownTimer);
+
+  countdownTimer = setInterval(() => {
+    countdownVal--;
+    const el = document.getElementById('refresh-countdown');
+    if (el) el.textContent = countdownVal;
+    if (countdownVal <= 0) {
+      countdownVal = 60;
+      refreshAll();
+    }
+  }, 1000);
+}
+
+async function refreshAll() {
+  countdownVal = 60;
+  const el = document.getElementById('refresh-countdown');
+  if (el) el.textContent = 60;
+  await loadSidebar();
+  if (currentUsername) await loadDashboard(currentUsername);
+}
+</script>
+</body>
+</html>
