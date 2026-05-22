@@ -486,15 +486,27 @@ let countdownVal     = 60;
 })();
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function todayISO() {
-  return new Date().toISOString().split('T')[0];
+
+// Pakistan time (UTC+5) — used for live UI timestamps and the default date
+function getPKTime() {
+  return new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Karachi' }));
 }
+
+function todayISO() {
+  const pk = getPKTime();
+  return pk.toISOString().split('T')[0]; // YYYY-MM-DD in PKT
+}
+
 function selectedDate() {
   return document.getElementById('date-picker').value || todayISO();
 }
+
+// Timestamps from DB are stored as UTC+5-offset Dates (server adds 5h before saving).
+// Read back via UTC methods to get the original PK hours without browser-TZ conversion.
 function fmtTime(isoStr) {
   if (!isoStr) return '--';
-  return new Date(isoStr).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const d = new Date(isoStr);
+  return String(d.getUTCHours()).padStart(2, '0') + ':' + String(d.getUTCMinutes()).padStart(2, '0');
 }
 function fmtDuration(seconds) {
   if (!seconds) return '0s';

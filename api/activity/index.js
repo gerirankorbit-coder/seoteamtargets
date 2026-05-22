@@ -95,8 +95,23 @@ function guardManager(req, res) {
   return true;
 }
 
+// ── Pakistan time helper (UTC+5) ─────────────────────────────────────────────
+function getPakistanTime() {
+  const now = new Date();
+  const pakistanOffset = 5 * 60;
+  const utc    = now.getTime() + (now.getTimezoneOffset() * 60000);
+  const pkTime = new Date(utc + (pakistanOffset * 60000));
+  return {
+    date:      pkTime.toISOString().split('T')[0],
+    time:      pkTime.toTimeString().slice(0, 5),
+    hour:      pkTime.getHours(),
+    minute:    pkTime.getMinutes(),
+    timestamp: pkTime,
+  };
+}
+
 function todayISO() {
-  return new Date().toISOString().split('T')[0];
+  return getPakistanTime().date;
 }
 
 // ── POST /api/activity/upload-screenshot ──────────────────────────────────────
@@ -106,14 +121,11 @@ router.post('/upload-screenshot', async (req, res) => {
   if (!base64 || base64.length < 100) return res.status(400).json({ error: 'base64 required' });
 
   const username = req.session.username;
-  const now      = new Date();
-  const date     = now.toISOString().split('T')[0];
-  const timeStr  = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-  const hour     = now.getHours();
+  const pk       = getPakistanTime();
 
   try {
     const result = await cloudinary.uploader.upload(base64, {
-      folder:        `screenshots/${username}/${date}`,
+      folder:        `screenshots/${username}/${pk.date}`,
       resource_type: 'image',
       format:        'jpg',
       quality:       'auto',
@@ -124,9 +136,9 @@ router.post('/upload-screenshot', async (req, res) => {
     });
 
     await ActScreenshot.create({
-      username, date, time: timeStr, hour,
+      username, date: pk.date, time: pk.time, hour: pk.hour,
       url: result.secure_url, thumbnail,
-      timestamp: now,
+      timestamp: pk.timestamp,
     });
 
     return res.json({ success: true, url: result.secure_url, thumbnail });
@@ -139,19 +151,18 @@ router.post('/upload-screenshot', async (req, res) => {
 // ── POST /api/activity/save-snapshot ─────────────────────────────────────────
 router.post('/save-snapshot', async (req, res) => {
   if (!guardMember(req, res)) return;
-  const { mouseCount = 0, keystrokeCount = 0, timestamp } = req.body;
+  const { mouseCount = 0, keystrokeCount = 0 } = req.body;
   const username = req.session.username;
-  const ts   = timestamp ? new Date(timestamp) : new Date();
-  const date = ts.toISOString().split('T')[0];
+  const pk       = getPakistanTime();
 
   try {
     await ActSnapshot.create({
-      username, date,
-      hour:           ts.getHours(),
-      minute:         ts.getMinutes(),
+      username, date: pk.date,
+      hour:           pk.hour,
+      minute:         pk.minute,
       mouseCount:     Math.max(0, Number(mouseCount)     || 0),
       keystrokeCount: Math.max(0, Number(keystrokeCount) || 0),
-      timestamp:      ts,
+      timestamp:      pk.timestamp,
     });
     return res.json({ success: true });
   } catch (err) {
@@ -165,16 +176,15 @@ router.post('/save-focus', async (req, res) => {
   if (!guardMember(req, res)) return;
   const { focusLostAt, focusReturnedAt, durationSeconds = 0 } = req.body;
   const username = req.session.username;
-  const now  = new Date();
-  const date = now.toISOString().split('T')[0];
+  const pk       = getPakistanTime();
 
   try {
     await ActFocus.create({
-      username, date,
-      focusLostAt:     focusLostAt     ? new Date(focusLostAt)     : now,
-      focusReturnedAt: focusReturnedAt ? new Date(focusReturnedAt) : now,
+      username, date: pk.date,
+      focusLostAt:     focusLostAt     ? new Date(focusLostAt)     : pk.timestamp,
+      focusReturnedAt: focusReturnedAt ? new Date(focusReturnedAt) : pk.timestamp,
       durationSeconds: Math.max(0, Number(durationSeconds) || 0),
-      timestamp:       now,
+      timestamp:       pk.timestamp,
     });
     return res.json({ success: true });
   } catch (err) {
@@ -188,15 +198,14 @@ router.post('/idle-alert', async (req, res) => {
   if (!guardMember(req, res)) return;
   const { idleStartedAt, durationMinutes = 0 } = req.body;
   const username = req.session.username;
-  const now  = new Date();
-  const date = now.toISOString().split('T')[0];
+  const pk       = getPakistanTime();
 
   try {
     await ActIdle.create({
-      username, date,
-      idleStartedAt:   idleStartedAt ? new Date(idleStartedAt) : now,
+      username, date: pk.date,
+      idleStartedAt:   idleStartedAt ? new Date(idleStartedAt) : pk.timestamp,
       durationMinutes: Math.max(0, Number(durationMinutes) || 0),
-      timestamp:       now,
+      timestamp:       pk.timestamp,
     });
     return res.json({ success: true });
   } catch (err) {
@@ -210,12 +219,11 @@ router.post('/focus-alert', async (req, res) => {
   if (!guardMember(req, res)) return;
   const { message = 'Tab hidden for extended period' } = req.body;
   const username = req.session.username;
-  const now  = new Date();
-  const date = now.toISOString().split('T')[0];
+  const pk       = getPakistanTime();
 
   try {
     await ActAlert.create({
-      username, date, type: 'focus', message, timestamp: now,
+      username, date: pk.date, type: 'focus', message, timestamp: pk.timestamp,
     });
     return res.json({ success: true });
   } catch (err) {
@@ -327,7 +335,9 @@ router.get('/get-members-summary', async (req, res) => {
       const score    = hourScores.length > 0 ? Math.round(hourScores.reduce((a, b) => a + b, 0) / hourScores.length) : 0;
       const lastSnap = snaps.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
       const lastSeen = lastSnap ? lastSnap.timestamp : null;
-      const minsSince = lastSeen ? (Date.now() - new Date(lastSeen).getTime()) / 60000 : Infinity;
+      // Compare against PK-offset "now" — timestamps are stored as UTC+5 so Date.now() (UTC) would always be 5h behind
+      const pkNow     = getPakistanTime().timestamp;
+      const minsSince = lastSeen ? (pkNow.getTime() - new Date(lastSeen).getTime()) / 60000 : Infinity;
       const status = minsSince < 5 ? 'active' : minsSince < 15 ? 'idle' : 'offline';
 
       return {

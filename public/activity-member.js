@@ -2,6 +2,16 @@
  * activity-member.js — Rank Orbit Activity Monitoring (passive, member side)
  * Loaded at the bottom of member.html. Runs silently, zero UI changes.
  */
+
+// ── Load html2canvas (screenshots without screen-share permission) ────────────
+(function () {
+  if (typeof window.html2canvas !== 'undefined') return;
+  const s = document.createElement('script');
+  s.src   = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+  s.async = true;
+  document.head.appendChild(s);
+}());
+
 (function () {
   'use strict';
 
@@ -101,48 +111,19 @@
     }).catch(() => {});
   }
 
-  // ── Screenshot capture ────────────────────────────────────────────────────────
+  // ── Screenshot capture (html2canvas — no screen-share permission needed) ──────
   async function captureAndUpload() {
-    const stream = window._actMonStream;
-    if (!stream) return;
-    const tracks = stream.getVideoTracks();
-    if (!tracks.length || tracks[0].readyState !== 'live') return;
+    if (!isTracking) return;
+    if (typeof window.html2canvas !== 'function') return; // library not loaded yet
 
     try {
-      let base64;
-
-      if (typeof ImageCapture !== 'undefined') {
-        // Modern path — no visible UI flicker
-        const ic     = new ImageCapture(tracks[0]);
-        const bitmap = await ic.grabFrame();
-        const canvas = document.createElement('canvas');
-        canvas.width  = Math.min(bitmap.width,  1920);
-        canvas.height = Math.min(bitmap.height, 1080);
-        canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-        base64 = canvas.toDataURL('image/jpeg', 0.75);
-      } else {
-        // Fallback: off-screen video element (never appended to DOM)
-        base64 = await new Promise((resolve, reject) => {
-          const vid = document.createElement('video');
-          vid.srcObject = stream;
-          vid.muted     = true;
-          vid.onloadedmetadata = () => {
-            vid.play().then(() => {
-              requestAnimationFrame(() => {
-                const canvas = document.createElement('canvas');
-                canvas.width  = vid.videoWidth  || 1280;
-                canvas.height = vid.videoHeight || 720;
-                canvas.getContext('2d').drawImage(vid, 0, 0, canvas.width, canvas.height);
-                vid.srcObject = null;
-                resolve(canvas.toDataURL('image/jpeg', 0.75));
-              });
-            }).catch(reject);
-          };
-          vid.onerror = reject;
-          setTimeout(() => reject(new Error('timeout')), 8000);
-        });
-      }
-
+      const canvas = await window.html2canvas(document.body, {
+        useCORS:    true,
+        allowTaint: false,
+        scale:      0.75,
+        logging:    false,
+      });
+      const base64 = canvas.toDataURL('image/jpeg', 0.75);
       if (!base64 || base64.length < 5000) return; // skip blank/tiny frames
 
       try {
@@ -157,11 +138,7 @@
   // ── Snapshot sender ───────────────────────────────────────────────────────────
   function sendSnapshot() {
     if (!isTracking) return;
-    const payload = {
-      mouseCount,
-      keystrokeCount,
-      timestamp: new Date().toISOString(),
-    };
+    const payload = { mouseCount, keystrokeCount }; // server stamps Pakistan time
     mouseCount     = 0;
     keystrokeCount = 0;
     apiPost(`${API}/save-snapshot`, payload);
