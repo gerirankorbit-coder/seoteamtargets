@@ -21,6 +21,10 @@ let iceRestartTried = false;
 
 // ── Boot — wait for commands from main ───────────────────────────────────────
 window.shareAPI.onStart(async ({ cfg: config, sourceId: srcId }) => {
+  // Set sharing = true HERE, before any async work, so that stopSharing() can
+  // reliably set it back to false and every guard inside the call chain will see
+  // the updated value even if do-stop arrives while initPusher/getUserMedia is running.
+  sharing  = true;
   cfg      = config;
   sourceId = srcId;
   console.log('[share] starting for employee:', cfg.employeeId, 'source:', sourceId);
@@ -113,6 +117,9 @@ async function initPusher() {
 
 // ── Capture screen + begin WebRTC offer ──────────────────────────────────────
 async function startCapture() {
+  // Guard 1: stopSharing() may have been called while initPusher() was running
+  if (!sharing) return;
+
   try {
     stream = await navigator.mediaDevices.getUserMedia({
       audio: false,
@@ -132,7 +139,14 @@ async function startCapture() {
     return;
   }
 
-  sharing = true;
+  // Guard 2: stopSharing() may have been called while getUserMedia() was pending
+  if (!sharing) {
+    stream.getTracks().forEach(t => t.stop());
+    stream = null;
+    return;
+  }
+
+  // NOTE: sharing = true is now set at the top of the onStart handler, not here.
   resetBackoff();
 
   // If the OS revokes screen recording (e.g. user denies mid-session) the

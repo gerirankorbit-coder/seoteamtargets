@@ -1534,8 +1534,8 @@
   async function endWorking() {
     if (!confirm('End your working session?')) return;
     // Stop screen share — always clean up the browser stream, plus Electron IPC path
-    monStopSharing();                                      // stops monStream tracks + peer + badge
-    if (window.portalAPI) { window.portalAPI.stopSharing(); } // tells screenshare.js to stop
+    monStopSharing();                                             // stops monStream tracks + peer + badge
+    if (window.portalAPI) { await window.portalAPI.stopSharing(); } // await IPC round-trip to screenshare.js
     const time = nowTimeStr();
     const date = attRecord ? attRecord.date : todayISO();
     try {

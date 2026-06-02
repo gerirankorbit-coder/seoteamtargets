@@ -99,6 +99,18 @@ function initPortalMode(serverUrl) {
   updatePortalBounds();
   portalView.webContents.loadURL(`${serverUrl}/member`);
 
+  // Stop sharing when the portal navigates away from /member (logout, session expiry).
+  // will-navigate fires BEFORE the page is destroyed, giving screenshare.js time to
+  // send the screenshare-stopped signal to the manager portal.
+  portalView.webContents.on('will-navigate', (_, url) => {
+    if (!url.includes('/member')) {
+      console.log('[main] portal navigating away — stopping share');
+      if (shareWindow && !shareWindow.isDestroyed()) {
+        shareWindow.webContents.send('do-stop');
+      }
+    }
+  });
+
   // ── Hidden window for WebRTC / Pusher ──────────────────────────────────────
   createShareWindow();
 }
