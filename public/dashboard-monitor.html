@@ -608,25 +608,42 @@ async function handleOffer(empId, sdp) {
   peers[empId].pc = pc;
 
   pc.ontrack = (e) => {
+    // Use e.track.kind — always reliable at fire time.
+    // Do NOT check stream.getVideoTracks(): Chrome may not have populated
+    // the stream's track list yet when ontrack fires (race condition).
+    if (e.track.kind !== 'video') return;
+
+    // Prefer the stream that came with the event so srcObject carries the same
+    // stream ID as the sender; fall back to a fresh MediaStream if absent.
     const stream = (e.streams && e.streams[0]) ? e.streams[0] : new MediaStream([e.track]);
-    if (!stream.getVideoTracks().length) return;
 
     const video = document.getElementById(`video-${empId}`);
     const ph    = document.getElementById(`ph-${empId}`);
+
     if (video) {
-      video.muted    = true;
-      video.srcObject = stream;
+      video.muted      = true;
+      video.srcObject  = stream;
       video.style.display = 'block';
-      video.play().catch(() => {});
+
+      // play() can be rejected in some autoplay-policy scenarios; retry on
+      // loadedmetadata as a fallback so we don't silently lose the frame.
+      const tryPlay = () => video.play().catch(err => {
+        console.warn(`[webrtc] video play() rejected for ${empId}:`, err.name);
+      });
+      video.addEventListener('loadedmetadata', tryPlay, { once: true });
+      tryPlay();
     }
     if (ph) ph.style.display = 'none';
 
     setCardState(empId, 'live');
 
-    // Mirror into fullscreen if this employee is currently fullscreened
+    // Mirror into fullscreen overlay if this employee is currently fullscreened
     if (fsEmployeeId === empId) {
       const fsV = document.getElementById('fs-video');
-      if (fsV) { fsV.srcObject = stream; fsV.play().catch(() => {}); }
+      if (fsV) {
+        fsV.srcObject = stream;
+        fsV.play().catch(() => {});
+      }
     }
   };
 
