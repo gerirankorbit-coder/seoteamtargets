@@ -89,6 +89,7 @@ function initPortalMode(serverUrl) {
 
   portalView = new BrowserView({
     webPreferences: {
+      preload:          path.join(__dirname, 'preload-portal.js'),
       contextIsolation: true,
       nodeIntegration:  false,
     },
@@ -215,12 +216,11 @@ ipcMain.handle('get-sources', async () => {
   }
 });
 
-// Start sharing — toolbar clicks this; main picks the first screen and forwards
-ipcMain.handle('start-sharing', async () => {
+// ── Shared helper: pick source + send do-start ────────────────────────────────
+async function _startSharingInternal() {
   if (!shareWindow || shareWindow.isDestroyed()) {
     return { error: 'Share window not ready — try again in a moment.' };
   }
-
   let sources;
   try {
     sources = await desktopCapturer.getSources({
@@ -231,22 +231,29 @@ ipcMain.handle('start-sharing', async () => {
   } catch (err) {
     return { error: `Could not list screens: ${err.message}` };
   }
-
   if (!sources.length) return { error: 'No screens found. Check screen recording permissions.' };
-
   const src = sources.find(s => s.id.startsWith('screen:')) || sources[0];
   const cfg = store.getAll();
-
-  shownLiveNotification = false; // reset so notification fires on next "live"
+  shownLiveNotification = false;
   shareWindow.webContents.send('do-start', { cfg, sourceId: src.id });
   return { success: true };
+}
+
+// Start sharing — toolbar renderer invokes this
+ipcMain.handle('start-sharing', () => _startSharingInternal());
+
+// Start sharing — member portal BrowserView invokes this (via preload-portal.js)
+ipcMain.handle('portal-start-sharing', () => _startSharingInternal());
+
+// Stop sharing — toolbar renderer
+ipcMain.handle('stop-sharing', () => {
+  if (shareWindow && !shareWindow.isDestroyed()) shareWindow.webContents.send('do-stop');
+  return true;
 });
 
-// Stop sharing — toolbar clicks this
-ipcMain.handle('stop-sharing', () => {
-  if (shareWindow && !shareWindow.isDestroyed()) {
-    shareWindow.webContents.send('do-stop');
-  }
+// Stop sharing — member portal BrowserView
+ipcMain.handle('portal-stop-sharing', () => {
+  if (shareWindow && !shareWindow.isDestroyed()) shareWindow.webContents.send('do-stop');
   return true;
 });
 
@@ -255,9 +262,14 @@ ipcMain.on('sharing-status', (_, { state, text }) => {
   updateTrayMenu(state);
   if (tray) tray.setToolTip(`Rank Orbit — ${text || state}`);
 
-  // Forward to toolbar
+  // Forward to toolbar renderer
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('sharing-status', { state, text });
+  }
+
+  // Forward to member portal BrowserView (updates monitor-badge, etc.)
+  if (portalView && !portalView.webContents.isDestroyed()) {
+    portalView.webContents.send('portal-sharing-status', { state, text });
   }
 
   // System notification the first time sharing goes fully live

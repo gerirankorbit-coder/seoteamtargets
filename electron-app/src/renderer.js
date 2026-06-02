@@ -1,6 +1,6 @@
 'use strict';
 
-// ── Boot ──────────────────────────────────────────────────────────────────────
+// Boot
 let cfg = null;
 
 (async function boot() {
@@ -18,7 +18,7 @@ let cfg = null;
   });
 })();
 
-// ── Mode switching ────────────────────────────────────────────────────────────
+// Mode switching
 function showSetupMode() {
   document.getElementById('setup-screen').style.display   = 'flex';
   document.getElementById('portal-toolbar').style.display = 'none';
@@ -39,7 +39,7 @@ function showPortalMode() {
   updateToolbar('offline', '');
 }
 
-// ── Setup form ────────────────────────────────────────────────────────────────
+// Setup form
 async function setupSave() {
   const serverUrl    = getVal('inp-server').replace(/\/$/, '');
   const employeeId   = getVal('inp-empid').trim();
@@ -53,7 +53,7 @@ async function setupSave() {
     return;
   }
 
-  setBtnLoading('btn-setup-save', true, 'Connecting…');
+  setBtnLoading('btn-setup-save', true, 'Connecting...');
 
   // Verify server is reachable
   try {
@@ -79,59 +79,30 @@ async function setupSave() {
   showPortalMode();
 }
 
-// ── Toolbar actions ───────────────────────────────────────────────────────────
-async function startWorking() {
-  const btnStart = document.getElementById('btn-start-working');
-  const errEl    = document.getElementById('tb-err');
-
-  if (btnStart) { btnStart.disabled = true; btnStart.textContent = 'Starting…'; }
-  if (errEl)    errEl.textContent = '';
-
-  const result = await window.electronAPI.startSharing();
-
-  if (result && result.error) {
-    if (errEl)    errEl.textContent = result.error;
-    if (btnStart) { btnStart.disabled = false; btnStart.textContent = '▶ Start Working'; }
-  }
-  // On success the share window reports status via onSharingStatus -> updateToolbar
-}
-
-async function endWorking() {
-  await window.electronAPI.stopSharing();
-}
-
+// Toolbar actions
 function openSettings() {
   showSetupMode();
 }
 
-// ── Toolbar state ─────────────────────────────────────────────────────────────
+// Toolbar state — no Start/End Working buttons; sharing is triggered from
+// the attendance bar inside the member portal (via portalAPI in BrowserView).
+// This just keeps the status dot + label in sync.
 function updateToolbar(state, text) {
   const dot       = document.getElementById('tb-status-dot');
   const label     = document.getElementById('tb-status-text');
   const statusRow = document.getElementById('tb-status-row');
-  const btnStart  = document.getElementById('btn-start-working');
-  const btnEnd    = document.getElementById('btn-end-working');
-  const errEl     = document.getElementById('tb-err');
 
   const isWorking = state === 'live' || state === 'connecting';
 
   if (dot)   dot.className = 'tb-dot ' + state;
   if (label) label.textContent =
     state === 'live'       ? '● Working' :
-    state === 'connecting' ? '◌ Connecting…' : '';
+    state === 'connecting' ? '◌ Connecting...' : '';
 
   if (statusRow) statusRow.style.display = isWorking ? 'flex' : 'none';
-
-  if (btnStart) {
-    btnStart.style.display = isWorking ? 'none' : 'flex';
-    btnStart.disabled      = false;
-    btnStart.textContent   = '▶ Start Working';
-  }
-  if (btnEnd)  btnEnd.style.display = isWorking ? 'flex' : 'none';
-  if (errEl && state !== 'error') errEl.textContent = '';
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// Helpers
 function getVal(id)      { return document.getElementById(id)?.value || ''; }
 function setVal(id, val) { const el = document.getElementById(id); if (el) el.value = val; }
 function setBtnLoading(id, loading, label) {

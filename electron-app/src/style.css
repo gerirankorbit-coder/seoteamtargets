@@ -82,26 +82,6 @@ html, body {
 .tb-status-text { font-size: 12px; font-weight: 600; color: var(--text); white-space: nowrap; }
 
 /* Toolbar buttons */
-.btn-start-working {
-  display: flex; align-items: center; gap: 6px;
-  padding: 6px 14px;
-  background: var(--pink); border: none; border-radius: 8px;
-  color: #fff; font-size: 12px; font-weight: 700;
-  cursor: pointer; white-space: nowrap;
-  transition: opacity 0.15s;
-}
-.btn-start-working:hover:not(:disabled) { opacity: 0.85; }
-.btn-start-working:disabled { opacity: 0.5; cursor: not-allowed; }
-
-.btn-end-working {
-  display: flex; align-items: center; gap: 6px;
-  padding: 6px 14px;
-  background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.35);
-  border-radius: 8px; color: #f87171; font-size: 12px; font-weight: 700;
-  cursor: pointer; white-space: nowrap;
-  transition: background 0.15s;
-}
-.btn-end-working:hover { background: rgba(239,68,68,0.22); }
 
 .tb-settings {
   padding: 5px 8px;
@@ -112,10 +92,6 @@ html, body {
 }
 .tb-settings:hover { background: rgba(255,255,255,0.08); color: var(--text); }
 
-.tb-err {
-  font-size: 11px; color: var(--red);
-  max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
 
 /* ══════════════════════════════════════════════════════════════════════════════
    SETUP SCREEN  (first run or settings)

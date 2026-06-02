@@ -604,7 +604,12 @@ async function handleOffer(empId, sdp) {
   setCardError(empId, '');
   teardownPeer(empId, true);
 
-  const pc = new RTCPeerConnection({ iceServers: cfg.iceServers });
+  const pc = new RTCPeerConnection({
+    iceServers:          cfg.iceServers,
+    iceCandidatePoolSize: 10,
+    bundlePolicy:        'max-bundle',
+    rtcpMuxPolicy:       'require',
+  });
   peers[empId].pc = pc;
 
   pc.ontrack = (event) => {

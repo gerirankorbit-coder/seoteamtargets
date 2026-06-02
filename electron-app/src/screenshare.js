@@ -151,8 +151,22 @@ async function sendOffer(iceRestart = false) {
 
   if (pc) { try { pc.close(); } catch {} pc = null; }
 
-  const iceServers = serverCfg?.iceServers || [{ urls: 'stun:stun.l.google.com:19302' }];
-  pc = new RTCPeerConnection({ iceServers });
+  const iceServers = serverCfg?.iceServers || [
+    { urls: 'stun:stun.l.google.com:19302'  },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' },
+    { urls: 'turn:openrelay.metered.ca:80',                username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turn:openrelay.metered.ca:443',               username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+  ];
+  pc = new RTCPeerConnection({
+    iceServers,
+    iceCandidatePoolSize: 10,
+    bundlePolicy:        'max-bundle',
+    rtcpMuxPolicy:       'require',
+  });
 
   // Attach all tracks (video only in practice) with the stream reference so the
   // manager side receives event.streams[0] correctly in its ontrack handler.

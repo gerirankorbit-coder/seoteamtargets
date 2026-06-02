@@ -1485,8 +1485,29 @@
     _pendingWorkMode = null;
     if (!workMode) return;
     await _doStartWorking(workMode);
-    // Start screen share immediately — auto-allowed, no manager approval needed
-    await monStartSharing();
+    // Start screen share — silently via Electron IPC when available, else browser picker
+    if (window.portalAPI) {
+      window.portalAPI.startSharing();
+      showSharingToast();
+    } else {
+      await monStartSharing();
+    }
+  }
+
+  // Brief in-page toast shown when Electron screen sharing begins
+  function showSharingToast() {
+    const t = document.createElement('div');
+    t.style.cssText = [
+      'position:fixed', 'bottom:24px', 'left:50%', 'transform:translateX(-50%)',
+      'background:#13161e', 'border:1px solid rgba(34,197,94,0.45)',
+      'color:#22c55e', 'padding:10px 22px', 'border-radius:10px',
+      'font-size:13px', 'font-weight:600', 'z-index:99999',
+      'box-shadow:0 4px 24px rgba(0,0,0,0.5)', 'white-space:nowrap',
+      'transition:opacity 0.3s',
+    ].join(';');
+    t.textContent = '🖥️  Screen sharing started — your manager can now see your screen';
+    document.body.appendChild(t);
+    setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 3000);
   }
   async function _doStartWorking(workMode) {
     const date = document.getElementById('wm-date-input').value || todayISO();
@@ -1512,7 +1533,8 @@
 
   async function endWorking() {
     if (!confirm('End your working session?')) return;
-    monStopSharing(); // stop screen share on end
+    // Stop screen share — via Electron IPC when available, else browser track stop
+    if (window.portalAPI) { window.portalAPI.stopSharing(); } else { monStopSharing(); }
     const time = nowTimeStr();
     const date = attRecord ? attRecord.date : todayISO();
     try {
@@ -1929,10 +1951,21 @@
   // ── Screen monitoring (member side) ──────────────────────────────────────
   const MON_PUSHER_KEY     = 'fb8240c1bcccb2cde5d0';
   const MON_PUSHER_CLUSTER = 'ap2';
-  const MON_RTC_CONFIG     = { iceServers: [
-    { urls: 'stun:stun.l.google.com:19302'  },
-    { urls: 'stun:stun1.l.google.com:19302' },
-  ]};
+  const MON_RTC_CONFIG = {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302'  },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' },
+      { urls: 'stun:stun3.l.google.com:19302' },
+      { urls: 'stun:stun4.l.google.com:19302' },
+      { urls: 'turn:openrelay.metered.ca:80',                username: 'openrelayproject', credential: 'openrelayproject' },
+      { urls: 'turn:openrelay.metered.ca:443',               username: 'openrelayproject', credential: 'openrelayproject' },
+      { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+    ],
+    iceCandidatePoolSize: 10,
+    bundlePolicy:        'max-bundle',
+    rtcpMuxPolicy:       'require',
+  };
 
   let monPusher     = null;
   let monChannel    = null;
@@ -2062,7 +2095,23 @@
     } catch(e) {}
   }
 
-  window.addEventListener('load', () => { try { monInit(); } catch(e) { console.warn('monInit failed:', e); } });
+  window.addEventListener('load', () => {
+    try { monInit(); } catch(e) { console.warn('monInit failed:', e); }
+
+    // When running inside the Electron portal, sync the monitor-badge to Electron
+    // sharing status (IPC events forwarded from the main process via preload-portal.js)
+    if (window.portalAPI) {
+      window.portalAPI.onSharingStatus(({ state }) => {
+        const badge = document.getElementById('monitor-badge');
+        if (!badge) return;
+        if (state === 'live' || state === 'connecting') {
+          badge.classList.add('active');
+        } else if (state === 'offline') {
+          badge.classList.remove('active');
+        }
+      });
+    }
+  });
 </script>
 <script src="/activity-member.js"></script>
 </body>
