@@ -27,20 +27,33 @@ function getIceServers() {
   return servers;
 }
 
-// Allow Electron (file:// / no-origin) to reach this router
+// ── CORS ──────────────────────────────────────────────────────────────────────
+// /config  → fully public: wildcard origin, NO credentials header
+//            (wildcard + credentials is invalid per CORS spec and rejected by
+//            Electron's renderer security even with webSecurity:false)
+// /pusher-auth → reflects origin + credentials so manager session cookie works
 router.use((req, res, next) => {
-  const origin = req.headers.origin || '*';
-  res.header('Access-Control-Allow-Origin',      origin);
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.header('Access-Control-Allow-Headers',     'Content-Type');
-  res.header('Access-Control-Allow-Methods',     'GET,POST,OPTIONS');
+  if (req.path === '/config' || req.path === '/config/') {
+    res.header('Access-Control-Allow-Origin',  '*');
+    res.header('Access-Control-Allow-Methods', 'GET,OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+  } else {
+    // pusher-auth and any future credentialed routes
+    const origin = req.headers.origin || '*';
+    res.header('Access-Control-Allow-Origin',      origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods',     'POST,OPTIONS');
+    res.header('Access-Control-Allow-Headers',     'Content-Type');
+  }
   if (req.method === 'OPTIONS') return res.sendStatus(200);
   next();
 });
 
 // ── GET /api/screenshare/config ───────────────────────────────────────────────
-// Public-safe config for browser + Electron clients (no secrets).
+// Fully public — returns Pusher key/cluster + ICE servers.
+// No secrets. Safe for Electron (file:// origin) and unauthenticated browsers.
 router.get('/config', (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*'); // belt-and-suspenders on the route itself
   res.json({
     pusherKey:     process.env.PUSHER_KEY,
     pusherCluster: process.env.PUSHER_CLUSTER,
