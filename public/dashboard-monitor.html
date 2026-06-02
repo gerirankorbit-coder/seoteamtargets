@@ -544,6 +544,26 @@ function buildCard(emp) {
     </div>`;
 }
 
+// ── Server-side signaling helper ──────────────────────────────────────────────
+// Uses the /api/screenshare/signal endpoint (server-side pusher.trigger) so we
+// don't depend on Pusher "Client Events" being enabled in the dashboard.
+async function apiSignal(employeeId, event, data = {}) {
+  try {
+    const r = await fetch('/api/screenshare/signal', {
+      method:      'POST',
+      credentials: 'include',
+      headers:     { 'Content-Type': 'application/json' },
+      body:        JSON.stringify({ employeeId, event, data }),
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      console.error('[signal] POST failed:', r.status, err);
+    }
+  } catch (e) {
+    console.error('[signal] fetch error:', e);
+  }
+}
+
 // ── Pusher subscription ───────────────────────────────────────────────────────
 function subscribeEmployee(emp) {
   if (!pusherClient || !cfg) return;
@@ -563,16 +583,16 @@ function subscribeEmployee(emp) {
   channel.bind('pusher:subscription_succeeded', () => {
     setCardState(emp.id, 'offline');
     // Nudge employee to send offer if already sharing
-    try { channel.trigger('client-reconnect-request', {}); } catch {}
+    apiSignal(emp.id, 'screenshare-reconnect', {}).catch(() => {});
   });
 
   // Employee sent us an offer → create answer
-  channel.bind('client-offer', async ({ sdp }) => {
+  channel.bind('screenshare-offer', async ({ sdp }) => {
     await handleOffer(emp.id, sdp);
   });
 
   // Employee stopped sharing
-  channel.bind('client-stopped', () => {
+  channel.bind('screenshare-stopped', () => {
     teardownPeer(emp.id);
     setCardState(emp.id, 'offline');
   });
@@ -630,7 +650,7 @@ async function handleOffer(empId, sdp) {
     // Vanilla ICE — wait for full gathering before sending
     await waitIceComplete(pc);
 
-    peers[empId].channel.trigger('client-answer', { sdp: pc.localDescription });
+    await apiSignal(empId, 'screenshare-answer', { sdp: pc.localDescription });
   } catch (err) {
     console.error('[screenshare] handleOffer error:', err);
     setCardError(empId, 'Connection error');
@@ -653,14 +673,13 @@ function requestReconnect(empId) {
   if (!peers[empId]) return;
   setCardState(empId, 'connecting');
   setCardError(empId, '');
-  try { peers[empId].channel.trigger('client-reconnect-request', {}); }
-  catch (e) { setCardError(empId, 'Could not send request'); }
+  apiSignal(empId, 'screenshare-reconnect', {}).catch(() => setCardError(empId, 'Could not send request'));
 }
 
 function disconnectEmployee(empId) {
   teardownPeer(empId);
   setCardState(empId, 'offline');
-  try { peers[empId]?.channel.trigger('client-stopped', {}); } catch {}
+  apiSignal(empId, 'screenshare-stopped', {}).catch(() => {});
 }
 
 function teardownPeer(empId, keepVideo = false) {

@@ -7,7 +7,6 @@ let pusherClient = null;
 let channel      = null;
 let pc           = null;   // RTCPeerConnection
 let stream       = null;   // captured screen MediaStream
-let selectedSource = null; // { id, name }
 
 // Reconnect backoff
 let backoffMs         = 1000;
@@ -23,7 +22,7 @@ let sharing           = false;   // true while actively sharing
 
   if (cfg.serverUrl && cfg.employeeId) {
     await initPusher();
-    showSources();
+    showHome();
   } else {
     showSetup();
   }
@@ -73,75 +72,19 @@ async function setupSave() {
   setBtnLoading('btn-setup-save', false, 'Connect');
 
   await initPusher();
-  showSources();
+  showHome();
 }
 
-// ── Source picker ─────────────────────────────────────────────────────────────
-async function showSources() {
-  show('screen-sources');
-  await checkPermission();
-  await loadSources();
-}
-
-async function checkPermission() {
-  const status = await window.electronAPI.checkScreenPermission();
-  const banner = document.getElementById('perm-warning');
-  if (status !== 'granted') {
-    banner.style.display = 'flex';
-  } else {
-    banner.style.display = 'none';
-  }
-}
-
-async function openPerms() {
-  await window.electronAPI.openPermissions();
-  setTimeout(checkPermission, 2000);
-}
-
-async function loadSources() {
-  const grid    = document.getElementById('sources-grid');
-  const spinner = document.getElementById('sources-loading');
-  grid.innerHTML = '';
-  if (spinner) grid.appendChild(spinner);
-  spinner.style.display = 'block';
-
-  const sources = await window.electronAPI.getSources();
-  spinner.style.display = 'none';
-
-  if (!sources.length) {
-    grid.innerHTML = '<div class="sources-empty">No screens found. Check permissions.</div>';
-    return;
-  }
-
-  sources.forEach(src => {
-    const el = document.createElement('div');
-    el.className = 'source-thumb';
-    el.dataset.id   = src.id;
-    el.dataset.name = src.name;
-    el.innerHTML = `
-      <img src="${src.thumbnail}" alt="${esc(src.name)}" />
-      <div class="source-name">${esc(src.name)}</div>`;
-    el.onclick = () => selectSource(src, el);
-    grid.appendChild(el);
-  });
-
-  // Re-select previously selected source if still present
-  if (selectedSource) {
-    const el = grid.querySelector(`[data-id="${selectedSource.id}"]`);
-    if (el) el.classList.add('selected');
-  }
-  updateStartBtn();
-}
-
-function selectSource(src, el) {
-  document.querySelectorAll('.source-thumb').forEach(t => t.classList.remove('selected'));
-  el.classList.add('selected');
-  selectedSource = src;
-  updateStartBtn();
-}
-
-function updateStartBtn() {
-  document.getElementById('btn-start-share').disabled = !selectedSource;
+// ── Home screen ───────────────────────────────────────────────────────────────
+function showHome() {
+  show('screen-home');
+  const name     = cfg?.employeeName || 'Employee';
+  const nameEl   = document.getElementById('home-employee-name');
+  const idEl     = document.getElementById('home-employee-id');
+  const initEl   = document.getElementById('home-employee-initial');
+  if (nameEl)  nameEl.textContent  = name;
+  if (idEl)    idEl.textContent    = cfg?.employeeId ? `ID: ${cfg.employeeId}` : '';
+  if (initEl)  initEl.textContent  = name.charAt(0).toUpperCase();
 }
 
 // ── Pusher init ───────────────────────────────────────────────────────────────
@@ -200,18 +143,17 @@ async function initPusher() {
   });
 
   // Manager requests we reconnect / re-send offer
-  channel.bind('client-reconnect-request', () => {
-    console.log('[pusher] reconnect-request received');
+  channel.bind('screenshare-reconnect', () => {
+    console.log('[pusher] reconnect request received from manager');
     if (sharing && stream && stream.getVideoTracks()[0]?.readyState === 'live') {
       sendOffer();
     } else if (sharing) {
-      // Stream dead — do full reconnect
       scheduleFullReconnect(0);
     }
   });
 
   // Manager sent answer
-  channel.bind('client-answer', async ({ sdp }) => {
+  channel.bind('screenshare-answer', async ({ sdp }) => {
     if (!pc) return;
     try {
       await pc.setRemoteDescription(new RTCSessionDescription(sdp));
@@ -223,11 +165,44 @@ async function initPusher() {
   });
 }
 
-// ── Start sharing ─────────────────────────────────────────────────────────────
-async function startSharing() {
-  if (!selectedSource) return;
+// ── Server-side signaling helper ──────────────────────────────────────────────
+async function apiSignal(event, data = {}) {
+  try {
+    const r = await fetch(`${cfg.serverUrl}/api/screenshare/signal`, {
+      method:      'POST',
+      credentials: 'omit',
+      headers:     { 'Content-Type': 'application/json' },
+      body:        JSON.stringify({ employeeId: cfg.employeeId, event, data }),
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      console.error('[signal] POST failed:', r.status, err);
+    }
+  } catch (e) {
+    console.error('[signal] fetch error:', e);
+  }
+}
+
+// ── Auto-start sharing (picks first screen source automatically) ──────────────
+async function autoStartSharing() {
   if (!pusherClient || !channel) {
     await initPusher();
+  }
+
+  // Get available sources and pick the first screen (not a window)
+  let sources;
+  try {
+    sources = await window.electronAPI.getSources();
+  } catch (e) {
+    setError(`Could not list sources: ${e.message}`);
+    return;
+  }
+
+  // Prefer a source whose id starts with 'screen:' (entire display)
+  const screenSource = sources.find(s => s.id.startsWith('screen:')) || sources[0];
+  if (!screenSource) {
+    setError('No screen source found. Check screen recording permissions.');
+    return;
   }
 
   try {
@@ -236,7 +211,7 @@ async function startSharing() {
       video: {
         mandatory: {
           chromeMediaSource:   'desktop',
-          chromeMediaSourceId: selectedSource.id,
+          chromeMediaSourceId: screenSource.id,
           maxWidth:  1920,
           maxHeight: 1080,
           maxFrameRate: 15,
@@ -256,7 +231,6 @@ async function startSharing() {
   if (prev) { prev.srcObject = stream; prev.play().catch(() => {}); }
 
   // Update UI
-  document.getElementById('preview-source-name').textContent = selectedSource.name;
   document.getElementById('meta-empid').textContent = `ID: ${cfg.employeeId}`;
   document.getElementById('meta-name').textContent  = cfg.employeeName ? `· ${cfg.employeeName}` : '';
   show('screen-sharing');
@@ -293,7 +267,6 @@ async function sendOffer(iceRestart = false) {
       iceRestartTried = false;
     } else if (s === 'disconnected') {
       setStatus('connecting', 'Connection unstable…');
-      // Try ICE restart after 4s
       iceRestartTimer = setTimeout(() => tryIceRestart(), 4000);
     } else if (s === 'failed') {
       if (!iceRestartTried) {
@@ -312,7 +285,7 @@ async function sendOffer(iceRestart = false) {
     // Vanilla ICE — wait for all candidates before sending
     await waitIceComplete(pc);
 
-    channel.trigger('client-offer', { sdp: pc.localDescription });
+    await apiSignal('screenshare-offer', { sdp: pc.localDescription });
     setStatus('connecting', 'Offer sent — waiting for manager…');
   } catch (e) {
     console.error('[webrtc] sendOffer error:', e);
@@ -342,7 +315,7 @@ async function tryIceRestart() {
     const offer = await pc.createOffer({ iceRestart: true });
     await pc.setLocalDescription(offer);
     await waitIceComplete(pc);
-    channel.trigger('client-offer', { sdp: pc.localDescription });
+    await apiSignal('screenshare-offer', { sdp: pc.localDescription });
 
     // If not recovered in 8s, escalate to full reconnect
     iceRestartTimer = setTimeout(() => {
@@ -375,17 +348,21 @@ function scheduleFullReconnect(overrideMs = null) {
     if (!stream || stream.getVideoTracks()[0]?.readyState !== 'live') {
       try {
         if (stream) stream.getTracks().forEach(t => t.stop());
+
+        const sources = await window.electronAPI.getSources();
+        const screenSource = sources.find(s => s.id.startsWith('screen:')) || sources[0];
+        if (!screenSource) throw new Error('No screen source available');
+
         stream = await navigator.mediaDevices.getUserMedia({
           audio: false,
           video: {
             mandatory: {
               chromeMediaSource:   'desktop',
-              chromeMediaSourceId: selectedSource.id,
+              chromeMediaSourceId: screenSource.id,
               maxWidth: 1920, maxHeight: 1080, maxFrameRate: 15,
             }
           }
         });
-        // Re-attach track ended handler
         stream.getVideoTracks()[0].onended = () => { if (sharing) scheduleFullReconnect(2000); };
         const prev = document.getElementById('preview-video');
         if (prev) { prev.srcObject = stream; prev.play().catch(() => {}); }
@@ -409,7 +386,7 @@ function resetBackoff() {
 }
 
 // ── Stop sharing ──────────────────────────────────────────────────────────────
-function stopSharing(goBackToSources = false) {
+function stopSharing() {
   sharing = false;
   clearTimeout(reconnectTimer);
   clearTimeout(iceRestartTimer);
@@ -418,14 +395,10 @@ function stopSharing(goBackToSources = false) {
   if (pc) { try { pc.close(); } catch {} pc = null; }
   if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
 
-  try { channel?.trigger('client-stopped', {}); } catch {}
+  apiSignal('screenshare-stopped', {}).catch(() => {});
 
   window.electronAPI.updateStatus('offline');
-
-  if (goBackToSources) {
-    selectedSource = null;
-    showSources();
-  }
+  showHome();
 }
 
 // ── Manual reconnect button ───────────────────────────────────────────────────
@@ -440,12 +413,10 @@ async function reconnect() {
 
 // ── Status helpers ────────────────────────────────────────────────────────────
 function setStatus(state, text) {
-  const dot  = document.getElementById('status-dot');
+  const dot   = document.getElementById('status-dot');
   const label = document.getElementById('status-text');
   const errEl = document.getElementById('share-err');
-  if (dot) {
-    dot.className = `status-dot ${state}`;
-  }
+  if (dot)   dot.className = `status-dot ${state}`;
   if (label) label.textContent = text;
   if (errEl && state !== 'error') errEl.textContent = '';
 }
@@ -458,7 +429,7 @@ function setError(msg) {
 
 // ── Screen helpers ────────────────────────────────────────────────────────────
 function show(screenId) {
-  ['screen-setup','screen-sources','screen-sharing'].forEach(id => {
+  ['screen-setup','screen-home','screen-sharing'].forEach(id => {
     document.getElementById(id).style.display = (id === screenId) ? 'flex' : 'none';
   });
 }
@@ -472,6 +443,6 @@ function esc(s) {
 function setBtnLoading(id, loading, label) {
   const btn = document.getElementById(id);
   if (!btn) return;
-  btn.disabled     = loading;
-  btn.textContent  = label;
+  btn.disabled    = loading;
+  btn.textContent = label;
 }

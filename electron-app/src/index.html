@@ -3,8 +3,6 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <!-- Pusher loaded from CDN. Bundled copy is at node_modules — renderer can't
-       require() without nodeIntegration, so CDN is simpler for this app. -->
   <script src="https://js.pusher.com/8.3.0/pusher.min.js"></script>
   <title>RO Screen Share</title>
   <link rel="stylesheet" href="style.css" />
@@ -38,27 +36,23 @@
     </div>
   </div>
 
-  <!-- ── Source picker ── -->
-  <div id="screen-sources" class="screen" style="display:none">
-    <div class="screen-header">
-      <div class="header-title">Select Screen to Share</div>
-      <button class="btn-ghost" onclick="showSetup()">⚙ Settings</button>
+  <!-- ── Home screen ── -->
+  <div id="screen-home" class="screen" style="display:none">
+    <div class="home-header">
+      <div class="logo-sm">RO</div>
+      <button class="btn-ghost btn-sm" onclick="showSetup()">⚙ Settings</button>
     </div>
-
-    <div id="perm-warning" class="warning-banner" style="display:none">
-      ⚠ Screen recording permission required.
-      <button class="btn-perm" onclick="openPerms()">Open Settings</button>
-    </div>
-
-    <div id="sources-grid" class="sources-grid">
-      <div class="loading-ring" id="sources-loading"></div>
-    </div>
-
-    <div class="source-actions">
-      <button class="btn-primary" id="btn-start-share" onclick="startSharing()" disabled>
-        ▶ Start Sharing
+    <div class="home-content">
+      <div class="home-avatar">
+        <span id="home-employee-initial">E</span>
+      </div>
+      <div class="home-greeting">Ready to work?</div>
+      <div class="home-employee-name" id="home-employee-name">Employee</div>
+      <div class="home-employee-id" id="home-employee-id"></div>
+      <button class="btn-start" onclick="autoStartSharing()">
+        <span class="btn-start-icon">▶</span>
+        Start Working
       </button>
-      <button class="btn-ghost" onclick="loadSources()">↻ Refresh</button>
     </div>
   </div>
 
@@ -66,13 +60,12 @@
   <div id="screen-sharing" class="screen" style="display:none">
     <div class="screen-header">
       <div class="header-title">Screen Sharing</div>
-      <button class="btn-ghost" onclick="stopSharing(true)">Stop & Change Screen</button>
+      <button class="btn-ghost" onclick="stopSharing()">⏹ End Working</button>
     </div>
 
     <div class="sharing-info">
       <div class="share-preview-wrap">
         <video id="preview-video" autoplay muted playsinline></video>
-        <div class="preview-label" id="preview-source-name"></div>
       </div>
 
       <div class="status-row">
@@ -88,7 +81,7 @@
       <div id="share-err" class="err-msg"></div>
 
       <div class="sharing-actions">
-        <button class="btn-danger" onclick="stopSharing(true)">⏹ Stop Sharing</button>
+        <button class="btn-danger" onclick="stopSharing()">⏹ End Working</button>
         <button class="btn-ghost"  onclick="reconnect()">⟳ Reconnect</button>
       </div>
     </div>

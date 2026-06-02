@@ -100,4 +100,33 @@ router.post('/pusher-auth', (req, res) => {
   return res.status(403).json({ error: 'Not authorised' });
 });
 
+// ── POST /api/screenshare/signal ──────────────────────────────────────────────
+// Server-side relay so both Electron (no Pusher client-events) and browser can
+// send signaling messages without needing "Client Events" enabled in Pusher.
+// Allowed events use the screenshare- prefix (not client- prefix).
+router.post('/signal', async (req, res) => {
+  const { employeeId, event, data = {} } = req.body;
+  const allowed = [
+    'screenshare-offer',
+    'screenshare-answer',
+    'screenshare-reconnect',
+    'screenshare-stopped',
+  ];
+
+  if (!employeeId || !event) {
+    return res.status(400).json({ error: 'employeeId and event required' });
+  }
+  if (!allowed.includes(event)) {
+    return res.status(400).json({ error: `Event not allowed: ${event}` });
+  }
+
+  try {
+    await pusher.trigger(`private-screenshare-${employeeId}`, event, data);
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('[screenshare/signal] Pusher error:', err);
+    return res.status(500).json({ error: 'Pusher trigger failed' });
+  }
+});
+
 module.exports = router;
