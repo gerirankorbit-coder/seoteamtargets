@@ -55,7 +55,11 @@ async function setupSave() {
 
   // Verify we can reach the server
   try {
-    const r = await fetch(`${serverUrl}/api/screenshare/config`);
+    const r = await fetch(`${serverUrl}/api/screenshare/config`, {
+      method:      'GET',
+      credentials: 'omit',
+      headers:     { 'Accept': 'application/json' },
+    });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     serverCfg = await r.json();
   } catch (e) {
@@ -144,7 +148,11 @@ function updateStartBtn() {
 async function initPusher() {
   if (!serverCfg) {
     try {
-      const r  = await fetch(`${cfg.serverUrl}/api/screenshare/config`);
+      const r = await fetch(`${cfg.serverUrl}/api/screenshare/config`, {
+        method:      'GET',
+        credentials: 'omit',
+        headers:     { 'Accept': 'application/json' },
+      });
       serverCfg = await r.json();
     } catch (e) {
       console.error('[renderer] Could not fetch server config:', e);

@@ -43,8 +43,6 @@ function createWindow() {
       preload:          path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration:  false,
-      // Required so renderer can call getUserMedia with chromeMediaSource
-      webSecurity:      false,
     },
   });
 
