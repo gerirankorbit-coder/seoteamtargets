@@ -1533,8 +1533,9 @@
 
   async function endWorking() {
     if (!confirm('End your working session?')) return;
-    // Stop screen share — via Electron IPC when available, else browser track stop
-    if (window.portalAPI) { window.portalAPI.stopSharing(); } else { monStopSharing(); }
+    // Stop screen share — always clean up the browser stream, plus Electron IPC path
+    monStopSharing();                                      // stops monStream tracks + peer + badge
+    if (window.portalAPI) { window.portalAPI.stopSharing(); } // tells screenshare.js to stop
     const time = nowTimeStr();
     const date = attRecord ? attRecord.date : todayISO();
     try {
@@ -2096,7 +2097,12 @@
   }
 
   window.addEventListener('load', () => {
-    try { monInit(); } catch(e) { console.warn('monInit failed:', e); }
+    // monInit uses getDisplayMedia (browser screen picker) and auto-starts sharing
+    // when the server has a stored permission — must NOT run in Electron where
+    // screen capture is driven exclusively by portalAPI / the hidden share window.
+    if (!window.portalAPI) {
+      try { monInit(); } catch(e) { console.warn('monInit failed:', e); }
+    }
 
     // When running inside the Electron portal, sync the monitor-badge to Electron
     // sharing status (IPC events forwarded from the main process via preload-portal.js)
