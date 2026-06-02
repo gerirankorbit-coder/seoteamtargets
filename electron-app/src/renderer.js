@@ -16,6 +16,12 @@ let cfg = null;
   window.electronAPI.onSharingStatus(({ state, text }) => {
     updateToolbar(state, text);
   });
+
+  // Update the toolbar name badge whenever the portal detects a new logged-in user
+  window.electronAPI.onEmployeeUpdated(({ employeeName }) => {
+    const nameEl = document.getElementById('tb-emp-name');
+    if (nameEl) nameEl.textContent = employeeName;
+  });
 })();
 
 // Mode switching

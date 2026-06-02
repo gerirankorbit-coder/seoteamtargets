@@ -18,6 +18,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // ── Status updates from share window (via main process) ─────────────────────
   onSharingStatus: (cb) => ipcRenderer.on('sharing-status', (_, data) => cb(data)),
 
+  // ── Portal user identity updates ────────────────────────────────────────────
+  // Fires when member.html resolves /api/me so the toolbar name badge can
+  // update to show the currently logged-in employee instead of the setup name.
+  onEmployeeUpdated: (cb) => ipcRenderer.on('employee-updated', (_, data) => cb(data)),
+
   // ── Tray status (kept for compat) ───────────────────────────────────────────
   updateStatus: (s) => ipcRenderer.send('status-update', s),
 

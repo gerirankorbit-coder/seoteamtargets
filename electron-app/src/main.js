@@ -17,6 +17,12 @@ let tray        = null;
 let isQuitting  = false;
 let shownLiveNotification = false; // fire notification only on first "live" per session
 
+// Dynamically set from the portal session (overrides setup-form identity).
+// When member.html resolves /api/me it calls portal-notify-user IPC which
+// sets this.  _startSharingInternal uses this instead of the stored config so
+// every employee uses THEIR OWN Pusher channel, not whoever set up the app.
+let currentUser = null; // { employeeId: string, employeeName: string }
+
 // ── App lifecycle ─────────────────────────────────────────────────────────────
 app.whenReady().then(createWindow);
 
@@ -104,7 +110,8 @@ function initPortalMode(serverUrl) {
   // send the screenshare-stopped signal to the manager portal.
   portalView.webContents.on('will-navigate', (_, url) => {
     if (!url.includes('/member')) {
-      console.log('[main] portal navigating away — stopping share');
+      console.log('[main] portal navigating away — stopping share + clearing user');
+      currentUser = null; // clear identity; next login will re-notify
       if (shareWindow && !shareWindow.isDestroyed()) {
         shareWindow.webContents.send('do-stop');
       }
@@ -244,8 +251,14 @@ async function _startSharingInternal() {
     return { error: `Could not list screens: ${err.message}` };
   }
   if (!sources.length) return { error: 'No screens found. Check screen recording permissions.' };
-  const src = sources.find(s => s.id.startsWith('screen:')) || sources[0];
-  const cfg = store.getAll();
+  const src     = sources.find(s => s.id.startsWith('screen:')) || sources[0];
+  const baseCfg = store.getAll();
+  // Override identity with the portal's currently logged-in user so each
+  // employee uses their OWN Pusher channel regardless of what was typed in
+  // the setup form.
+  const cfg = currentUser
+    ? { ...baseCfg, employeeId: currentUser.employeeId, employeeName: currentUser.employeeName }
+    : baseCfg;
   shownLiveNotification = false;
   shareWindow.webContents.send('do-start', { cfg, sourceId: src.id });
   return { success: true };
@@ -266,6 +279,20 @@ ipcMain.handle('stop-sharing', () => {
 // Stop sharing — member portal BrowserView
 ipcMain.handle('portal-stop-sharing', () => {
   if (shareWindow && !shareWindow.isDestroyed()) shareWindow.webContents.send('do-stop');
+  return true;
+});
+
+// Portal tells us which employee is currently logged in.
+// Called by member.html immediately after /api/me resolves.
+// We store this and use it as the identity for all subsequent start/stop calls
+// so the correct Pusher channel is used regardless of who set up the app.
+ipcMain.handle('portal-notify-user', (_, { username, display }) => {
+  currentUser = { employeeId: username, employeeName: display };
+  console.log('[main] current portal user:', username, display);
+  // Update the toolbar employee name badge to reflect the logged-in user
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('employee-updated', { employeeName: display });
+  }
   return true;
 });
 

@@ -158,7 +158,8 @@ router.post('/signal', async (req, res) => {
     return res.status(400).json({ error: 'JSON body required' });
   }
 
-  const { employeeId, event, data = {} } = req.body;
+  // employeeName is optional metadata used for manager-side auto-discovery
+  const { employeeId, employeeName, event, data = {} } = req.body;
 
   const allowed = [
     'screenshare-offer',
@@ -176,6 +177,21 @@ router.post('/signal', async (req, res) => {
 
   try {
     await pusher.trigger(`private-screenshare-${employeeId}`, event, data);
+
+    // Broadcast presence changes to the manager notification channel so the
+    // manager portal can auto-discover employees without manual configuration.
+    // Fire-and-forget — don't let a secondary trigger failure block the response.
+    if (event === 'screenshare-offer') {
+      pusher.trigger('private-screenshare-notifications', 'employee-online', {
+        employeeId,
+        employeeName: employeeName || employeeId,
+      }).catch(e => console.warn('[screenshare/signal] notifications trigger failed:', e.message));
+    } else if (event === 'screenshare-stopped') {
+      pusher.trigger('private-screenshare-notifications', 'employee-offline', {
+        employeeId,
+      }).catch(e => console.warn('[screenshare/signal] notifications trigger failed:', e.message));
+    }
+
     return res.json({ success: true });
   } catch (err) {
     console.error('[screenshare/signal] Pusher error:', err.message);

@@ -1937,6 +1937,12 @@
       memberUsername = me.username;
       document.getElementById('member-name-badge').textContent = me.display;
       document.title = me.display + ' — Rank Orbit';
+      // Notify the Electron main process of the logged-in user's identity so
+      // it uses the correct Pusher channel (private-screenshare-{username}).
+      // This fixes the "wrong employee" bug when multiple employees share a PC.
+      if (window.portalAPI) {
+        window.portalAPI.notifyUser(me.username, me.display).catch(() => {});
+      }
     } catch {
       window.location.href = '/login';
       return;

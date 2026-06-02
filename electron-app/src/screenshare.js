@@ -334,7 +334,7 @@ async function apiSignal(event, data = {}) {
       method:      'POST',
       credentials: 'omit',
       headers:     { 'Content-Type': 'application/json' },
-      body:        JSON.stringify({ employeeId: cfg.employeeId, event, data }),
+      body:        JSON.stringify({ employeeId: cfg.employeeId, employeeName: cfg.employeeName || '', event, data }),
     });
     if (!r.ok) {
       const err = await r.json().catch(() => ({}));
