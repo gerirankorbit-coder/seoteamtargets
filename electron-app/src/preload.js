@@ -1,26 +1,30 @@
 'use strict';
-
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  /** Return array of { id, name, thumbnail } for all screens + windows */
-  getSources: () => ipcRenderer.invoke('get-sources'),
+  // ── Config ──────────────────────────────────────────────────────────────────
+  getConfig:   ()     => ipcRenderer.invoke('get-config'),
+  setConfig:   (data) => ipcRenderer.invoke('set-config', data),
+  clearConfig: ()     => ipcRenderer.invoke('clear-config'),
 
-  /** Read persisted config ({ serverUrl, employeeId, employeeName }) */
-  getConfig: () => ipcRenderer.invoke('get-config'),
+  // ── Setup → portal transition ────────────────────────────────────────────────
+  // Call after saving config to resize window + create portal BrowserView.
+  setupComplete: (data) => ipcRenderer.invoke('setup-complete', data),
 
-  /** Write/merge config fields */
-  setConfig: (data) => ipcRenderer.invoke('set-config', data),
+  // ── Screen sharing control ───────────────────────────────────────────────────
+  startSharing: () => ipcRenderer.invoke('start-sharing'),
+  stopSharing:  () => ipcRenderer.invoke('stop-sharing'),
 
-  /** Wipe all saved config (reset to setup screen) */
-  clearConfig: () => ipcRenderer.invoke('clear-config'),
+  // ── Status updates from share window (via main process) ─────────────────────
+  onSharingStatus: (cb) => ipcRenderer.on('sharing-status', (_, data) => cb(data)),
 
-  /** Tell main process the current sharing status for tray icon */
-  updateStatus: (status) => ipcRenderer.send('status-update', status),
+  // ── Tray status (kept for compat) ───────────────────────────────────────────
+  updateStatus: (s) => ipcRenderer.send('status-update', s),
 
-  /** Check screen capture permission (macOS). Returns 'granted'|'denied'|'restricted' */
+  // ── macOS screen-recording permissions ──────────────────────────────────────
   checkScreenPermission: () => ipcRenderer.invoke('check-screen-permission'),
+  openPermissions:       () => ipcRenderer.invoke('open-permissions'),
 
-  /** Open macOS screen-recording permissions pane */
-  openPermissions: () => ipcRenderer.invoke('open-permissions'),
+  // ── Screen sources (kept for compat) ────────────────────────────────────────
+  getSources: () => ipcRenderer.invoke('get-sources'),
 });
