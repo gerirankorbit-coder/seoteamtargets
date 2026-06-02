@@ -319,6 +319,7 @@ app.use((req, res, next) => {
   cors({ origin: true, credentials: true })(req, res, next);
 });
 app.use(express.json());
+app.use(express.urlencoded({ extended: false })); // needed for Pusher auth (sends form-encoded body)
 app.use(session({
   secret: process.env.SESSION_SECRET || 'gmb-secret-key-2026',
   resave: false,
