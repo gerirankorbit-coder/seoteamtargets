@@ -610,32 +610,32 @@ async function handleOffer(empId, sdp) {
   pc.ontrack = (event) => {
     const video = document.getElementById('video-' + empId);
     if (!video) return;
-    if (video.srcObject === event.streams[0]) return; // avoid re-setting same stream
 
-    video.srcObject = event.streams[0];
+    // Use event.streams[0] if available, otherwise build stream from track
+    const incomingStream = (event.streams && event.streams[0])
+      ? event.streams[0]
+      : new MediaStream([event.track]);
+
+    if (video.srcObject === incomingStream) return;
+
+    video.srcObject = incomingStream;
     video.muted = true;
     video.style.display = 'block';
 
-    const playPromise = video.play();
-    if (playPromise) {
-      playPromise.catch(() => {
-        video.muted = true;
-        video.load();
-        video.play().catch(() => {});
-      });
-    }
+    video.play().catch(() => {
+      video.muted = true;
+      video.play().catch(() => {});
+    });
 
-    // Hide placeholder
     const ph = document.getElementById('ph-' + empId);
     if (ph) ph.style.display = 'none';
 
     setCardState(empId, 'live');
 
-    // Mirror into fullscreen overlay if this employee is currently fullscreened
     if (fsEmployeeId === empId) {
       const fsV = document.getElementById('fs-video');
       if (fsV) {
-        fsV.srcObject = event.streams[0];
+        fsV.srcObject = incomingStream;
         fsV.play().catch(() => {});
       }
     }
