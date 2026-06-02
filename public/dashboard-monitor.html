@@ -608,6 +608,15 @@ async function handleOffer(empId, sdp) {
   peers[empId].pc = pc;
 
   pc.ontrack = (event) => {
+    console.log('[ontrack] fired', {
+      kind:          event.track.kind,
+      readyState:    event.track.readyState,
+      muted:         event.track.muted,
+      streamsCount:  event.streams.length,
+      stream0:       event.streams[0] ? event.streams[0].id : 'undefined',
+      trackInStream: event.streams[0] ? event.streams[0].getTracks().length : 0,
+    });
+
     const video = document.getElementById('video-' + empId);
     if (!video) return;
 
@@ -642,6 +651,7 @@ async function handleOffer(empId, sdp) {
   };
 
   pc.oniceconnectionstatechange = () => {
+    console.log('[ICE] state:', pc.iceConnectionState);
     const s = pc.iceConnectionState;
     if (s === 'connected' || s === 'completed') {
       setCardState(empId, 'live');
@@ -662,6 +672,7 @@ async function handleOffer(empId, sdp) {
     await waitIceComplete(pc);
 
     await apiSignal(empId, 'screenshare-answer', { sdp: pc.localDescription });
+    console.log('[answer] sent to employee, PC signalingState:', pc.signalingState);
   } catch (err) {
     console.error('[screenshare] handleOffer error:', err);
     setCardError(empId, 'Connection error');
