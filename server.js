@@ -311,7 +311,13 @@ function getLocalIP() {
 
 // ── Middleware ─────────────────────────────────────────────────────────────
 app.set('trust proxy', 1);
-app.use(cors({ origin: true, credentials: true }));
+// /api/screenshare/* has its own per-route CORS (wildcard, no credentials).
+// The global cors() must NOT run on those routes: reflecting Origin: null from
+// Electron's file:// with credentials:true causes Chromium to block the response.
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/screenshare')) return next();
+  cors({ origin: true, credentials: true })(req, res, next);
+});
 app.use(express.json());
 app.use(session({
   secret: process.env.SESSION_SECRET || 'gmb-secret-key-2026',
