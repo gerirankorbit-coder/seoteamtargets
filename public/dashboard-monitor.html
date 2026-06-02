@@ -621,17 +621,10 @@ async function handleOffer(empId, sdp) {
     const ph    = document.getElementById(`ph-${empId}`);
 
     if (video) {
-      video.muted      = true;
-      video.srcObject  = stream;
+      video.muted     = true;
+      video.srcObject = stream;
       video.style.display = 'block';
-
-      // play() can be rejected in some autoplay-policy scenarios; retry on
-      // loadedmetadata as a fallback so we don't silently lose the frame.
-      const tryPlay = () => video.play().catch(err => {
-        console.warn(`[webrtc] video play() rejected for ${empId}:`, err.name);
-      });
-      video.addEventListener('loadedmetadata', tryPlay, { once: true });
-      tryPlay();
+      video.play().catch(() => { video.muted = true; video.play(); });
     }
     if (ph) ph.style.display = 'none';
 
