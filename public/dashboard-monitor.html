@@ -607,25 +607,26 @@ async function handleOffer(empId, sdp) {
   const pc = new RTCPeerConnection({ iceServers: cfg.iceServers });
   peers[empId].pc = pc;
 
-  pc.ontrack = (e) => {
-    // Use e.track.kind — always reliable at fire time.
-    // Do NOT check stream.getVideoTracks(): Chrome may not have populated
-    // the stream's track list yet when ontrack fires (race condition).
-    if (e.track.kind !== 'video') return;
+  pc.ontrack = (event) => {
+    const video = document.getElementById('video-' + empId);
+    if (!video) return;
+    if (video.srcObject === event.streams[0]) return; // avoid re-setting same stream
 
-    // Prefer the stream that came with the event so srcObject carries the same
-    // stream ID as the sender; fall back to a fresh MediaStream if absent.
-    const stream = (e.streams && e.streams[0]) ? e.streams[0] : new MediaStream([e.track]);
+    video.srcObject = event.streams[0];
+    video.muted = true;
+    video.style.display = 'block';
 
-    const video = document.getElementById(`video-${empId}`);
-    const ph    = document.getElementById(`ph-${empId}`);
-
-    if (video) {
-      video.muted     = true;
-      video.srcObject = stream;
-      video.style.display = 'block';
-      video.play().catch(() => { video.muted = true; video.play(); });
+    const playPromise = video.play();
+    if (playPromise) {
+      playPromise.catch(() => {
+        video.muted = true;
+        video.load();
+        video.play().catch(() => {});
+      });
     }
+
+    // Hide placeholder
+    const ph = document.getElementById('ph-' + empId);
     if (ph) ph.style.display = 'none';
 
     setCardState(empId, 'live');
@@ -634,7 +635,7 @@ async function handleOffer(empId, sdp) {
     if (fsEmployeeId === empId) {
       const fsV = document.getElementById('fs-video');
       if (fsV) {
-        fsV.srcObject = stream;
+        fsV.srcObject = event.streams[0];
         fsV.play().catch(() => {});
       }
     }
