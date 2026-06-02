@@ -1069,6 +1069,11 @@ app.get('/activity-dashboard', requireManager, (req, res) =>
   res.sendFile(path.join(__dirname, 'public', 'activity-dashboard.html')));
 app.use('/api/activity', require('./api/activity'));
 
+// ── Screen Share Monitor (WebRTC + Pusher private channels) ──────────────────
+app.get('/dashboard/monitor', requireManager, (req, res) =>
+  res.sendFile(path.join(__dirname, 'public', 'dashboard-monitor.html')));
+app.use('/api/screenshare', require('./api/screenshare'));
+
 // ── Start ──────────────────────────────────────────────────────────────────
 if (require.main === module) {
   app.listen(PORT, '0.0.0.0', () => {
