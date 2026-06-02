@@ -413,11 +413,13 @@ app.post('/api/logout', (req, res) => {
   res.json({ success: true });
 });
 
+// ── Public API routes (no auth required) ──────────────────────────────────
+// Must be mounted BEFORE app.use(requireAuth) so Electron clients (no session)
+// can reach /api/screenshare/config and /api/screenshare/pusher-auth freely.
+app.use('/api/screenshare', require('./api/screenshare'));
+
 // ── Auth middleware ────────────────────────────────────────────────────────
 function requireAuth(req, res, next) {
-  // Screenshare API is intentionally public — Electron clients have no session cookie
-  if (req.path.startsWith('/api/screenshare/')) return next();
-
   if (!req.session.role) {
     if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'Not authenticated' });
     return res.redirect('/login');
@@ -1075,7 +1077,6 @@ app.use('/api/activity', require('./api/activity'));
 // ── Screen Share Monitor (WebRTC + Pusher private channels) ──────────────────
 app.get('/dashboard/monitor', requireManager, (req, res) =>
   res.sendFile(path.join(__dirname, 'public', 'dashboard-monitor.html')));
-app.use('/api/screenshare', require('./api/screenshare'));
 
 // ── Start ──────────────────────────────────────────────────────────────────
 if (require.main === module) {
