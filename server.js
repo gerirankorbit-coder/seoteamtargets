@@ -415,6 +415,9 @@ app.post('/api/logout', (req, res) => {
 
 // ── Auth middleware ────────────────────────────────────────────────────────
 function requireAuth(req, res, next) {
+  // Screenshare API is intentionally public — Electron clients have no session cookie
+  if (req.path.startsWith('/api/screenshare/')) return next();
+
   if (!req.session.role) {
     if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'Not authenticated' });
     return res.redirect('/login');
