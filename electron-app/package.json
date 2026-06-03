@@ -5,36 +5,39 @@
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
-    "build:win":   "electron-builder --win",
-    "build:mac":   "electron-builder --mac",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
     "build:linux": "electron-builder --linux"
   },
   "build": {
-    "appId":       "com.rankorbit.screenshare",
+    "appId": "com.rankorbit.screenshare",
     "productName": "RO Screen Share",
-    "files": ["src/**/*"],
+    "files": [
+      "src/**/*"
+    ],
     "win": {
       "target": "nsis",
-      "icon":   "src/assets/icon.ico"
+      "icon": "src/assets/icon.ico"
     },
     "mac": {
       "target": "dmg",
-      "icon":   "src/assets/icon.icns"
+      "icon": "src/assets/icon.icns"
     },
     "linux": {
       "target": "AppImage",
-      "icon":   "src/assets/icon.png"
+      "icon": "src/assets/icon.png"
     },
     "nsis": {
-      "oneClick":        false,
+      "oneClick": false,
       "allowToChangeInstallationDirectory": true
     }
   },
   "dependencies": {
+    "livekit-client": "^2.19.1",
     "pusher-js": "^8.5.0"
   },
   "devDependencies": {
-    "electron":         "^31.0.0",
+    "electron": "^31.0.0",
     "electron-builder": "^24.13.3"
   }
 }
