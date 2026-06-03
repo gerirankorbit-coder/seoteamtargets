@@ -725,19 +725,23 @@ function timeDiffMins(startStr, endStr) {
   return Math.max(0, e - s);
 }
 
-// Recalculate totalWorkingMinutes accounting for sessions and breaks
+// Recalculate totalWorkingMinutes as first-start → last-end minus break time.
+//
+// Why not sum individual session durations?
+// Multiple Start/End cycles on the same day (e.g. accidental End Working then
+// re-Start) are treated as one continuous shift, not separate chunks.
+// The gap between an accidental End and the next Start is therefore included
+// in the total — employees should use Check Out / Check In for intentional
+// breaks, which are properly subtracted via totalCheckOutMinutes.
+//
+// record.startTime is set ONLY on the first session (see /start route).
+// record.endTime   is updated to the latest end on every /end call.
+// So these two fields always represent "first clock-in" and "last clock-out".
 function recalcWorkMins(record) {
-  const sessions = record.sessions || [];
-  if (sessions.length > 0) {
-    let total = 0;
-    sessions.forEach(s => {
-      if (s.startTime && s.endTime)
-        total += timeDiffMins(s.startTime, s.endTime);
-    });
-    record.totalWorkingMinutes = Math.max(0, total - (record.totalCheckOutMinutes || 0));
-  } else if (record.startTime && record.endTime) {
-    const rawMins = timeDiffMins(record.startTime, record.endTime);
-    record.totalWorkingMinutes = Math.max(0, rawMins - (record.totalCheckOutMinutes || 0));
+  if (record.startTime && record.endTime) {
+    record.totalWorkingMinutes = Math.max(0,
+      timeDiffMins(record.startTime, record.endTime) - (record.totalCheckOutMinutes || 0)
+    );
   }
 }
 
@@ -810,6 +814,10 @@ app.post('/api/attendance/end', async (req, res) => {
 });
 
 // POST /api/attendance/checkout — take a break
+// Check Out is intentionally independent of the Start/End Working (screen-share)
+// state. An employee can check out at any point after their first Start Working,
+// regardless of how many End/Start cycles have happened that day.
+// The only guards are: (1) must have started today, (2) not already checked out.
 app.post('/api/attendance/checkout', async (req, res) => {
   const { time, date: reqDate } = req.body;
   const date    = (reqDate && /^\d{4}-\d{2}-\d{2}$/.test(reqDate)) ? reqDate : new Date().toISOString().split('T')[0];
@@ -818,8 +826,9 @@ app.post('/api/attendance/checkout', async (req, res) => {
     const record = await Attendance.findOne({ username: req.session.username, date });
     if (!record || !record.startTime)
       return res.status(400).json({ error: 'Not working yet' });
-    if (record.endTime)
-      return res.status(400).json({ error: 'Work session already ended' });
+    // NOTE: deliberately no check on record.endTime — checkout is allowed even
+    // after an End Working, because the employee may Start Working again the
+    // same day and should never be locked out of the break system.
     const openCheckout = (record.checkOuts || []).find(co => co.outTime && !co.inTime);
     if (openCheckout)
       return res.status(400).json({ error: 'Already checked out — check in first' });
