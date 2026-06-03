@@ -5,44 +5,52 @@
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
-    "build:win":   "electron-builder --win",
-    "build:mac":   "electron-builder --mac",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
     "build:linux": "electron-builder --linux"
   },
   "build": {
-    "appId":       "com.rankorbit.screenshare",
+    "appId": "com.rankorbit.screenshare",
     "productName": "RO Screen Share",
     "directories": {
       "output": "dist"
     },
     "files": [
-      "src/**/*",
+      "**/*",
       "!src/assets/icon.icns",
       "!src/assets/icon.png"
     ],
+    "publish": {
+      "provider":     "github",
+      "owner":        "gerirankorbit-coder",
+      "repo":         "seoteamtargets",
+      "releaseType":  "release"
+    },
     "win": {
       "target": "nsis",
-      "icon":   "src/assets/icon.ico"
+      "icon": "src/assets/icon.ico"
     },
     "mac": {
       "target": "dmg",
-      "icon":   "src/assets/icon.icns"
+      "icon": "src/assets/icon.icns"
     },
     "linux": {
       "target": "AppImage",
-      "icon":   "src/assets/icon.png"
+      "icon": "src/assets/icon.png"
     },
     "nsis": {
-      "oneClick":                          false,
+      "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "installerIcon":                     "src/assets/icon.ico",
-      "uninstallerIcon":                   "src/assets/icon.ico"
+      "installerIcon": "src/assets/icon.ico",
+      "uninstallerIcon": "src/assets/icon.ico"
     }
   },
-  "dependencies": {},
+  "dependencies": {
+    "electron-updater": "^6.8.3"
+  },
   "devDependencies": {
-    "electron":         "^31.0.0",
+    "electron": "^31.0.0",
     "electron-builder": "^24.13.3",
-    "livekit-client":   "^2.19.1"
+    "livekit-client": "^2.19.1"
   }
 }

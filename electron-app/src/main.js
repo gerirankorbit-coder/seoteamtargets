@@ -5,6 +5,7 @@ const {
   desktopCapturer, nativeImage, shell, systemPreferences, Notification,
 } = require('electron');
 const path = require('path');
+const { autoUpdater } = require('electron-updater');
 
 // ── Hardcoded server URL — no setup form needed ───────────────────────────────
 const SERVER_URL = 'https://seoteamtargets.vercel.app';
@@ -24,7 +25,10 @@ let shownLiveNotification = false; // fire notification only on first "live" per
 let currentUser = null; // { employeeId: string, employeeName: string }
 
 // ── App lifecycle ─────────────────────────────────────────────────────────────
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  createWindow();
+  setupAutoUpdater();
+});
 
 app.on('before-quit', () => {
   isQuitting = true;
@@ -309,3 +313,52 @@ ipcMain.handle('open-permissions', () => {
     shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture');
   }
 });
+
+// ── Auto-updater ──────────────────────────────────────────────────────────────
+function setupAutoUpdater() {
+  // Skip entirely in dev — app is not packaged, there is no release to check.
+  if (!app.isPackaged) {
+    console.log('[updater] dev mode — skipping update check');
+    return;
+  }
+
+  autoUpdater.autoDownload        = true;   // download silently in background
+  autoUpdater.autoInstallOnAppQuit = true;  // install when the user next quits
+
+  autoUpdater.on('checking-for-update', () => {
+    console.log('[updater] checking for update…');
+  });
+
+  autoUpdater.on('update-available', (info) => {
+    console.log('[updater] update available:', info.version);
+  });
+
+  autoUpdater.on('update-not-available', () => {
+    console.log('[updater] already up to date');
+  });
+
+  autoUpdater.on('download-progress', (p) => {
+    console.log(`[updater] downloading… ${Math.round(p.percent)}%`);
+  });
+
+  autoUpdater.on('update-downloaded', (info) => {
+    console.log('[updater] update downloaded:', info.version);
+    if (Notification.isSupported()) {
+      new Notification({
+        title: 'Update available',
+        body:  'App will restart to install the latest version.',
+      }).show();
+    }
+  });
+
+  autoUpdater.on('error', (err) => {
+    console.error('[updater] error:', err.message);
+  });
+
+  // Check 5 seconds after startup so the main window has time to appear first.
+  setTimeout(() => {
+    autoUpdater.checkForUpdates().catch((err) => {
+      console.error('[updater] check failed:', err.message);
+    });
+  }, 5_000);
+}
