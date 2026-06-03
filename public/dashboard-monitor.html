@@ -118,7 +118,10 @@
     #main {
       margin-left: var(--sidebar-w);
       margin-top: var(--topbar-h);
-      flex: 1; overflow-y: auto; padding: 20px;
+      flex: 1;
+      min-height: 0;        /* override flex min-height:auto so overflow-y actually scrolls */
+      overflow-y: auto;
+      padding: 20px;
     }
     #main::-webkit-scrollbar { width: 5px; }
     #main::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
@@ -138,6 +141,7 @@
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
       gap: 16px;
+      align-content: start;   /* rows pack to top; don't stretch to fill remaining height */
     }
 
     /* ── Employee card ── */
@@ -279,6 +283,20 @@
       opacity: 0; transition: opacity 0.3s; pointer-events: none;
     }
     #toast.show { opacity: 1; }
+
+    /* ── Checkout overlay (shown on card video when employee is on break) ── */
+    .checkout-overlay {
+      position: absolute; inset: 0; z-index: 2;
+      background: rgba(0,0,0,0.72);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 8px; pointer-events: none;
+    }
+    .co-icon  { font-size: 30px; line-height: 1; }
+    .co-label { font-size: 15px; font-weight: 700; color: #fb923c; letter-spacing: 0.01em; }
+    .co-time  { font-size: 11px; color: rgba(255,255,255,0.55); }
+    /* When employee checks back in — flash green then overlay disappears */
+    .checkout-overlay.co-checkin .co-label { color: #4ade80; }
   </style>
 </head>
 <body>
@@ -378,6 +396,9 @@ let fsEmployeeId = null;
   renderSidebar();
   renderGrid();
   employees.forEach(e => connectEmployee(e));
+
+  // Start attendance polling — shows checkout overlay on cards
+  pollAttendance();
 
   // ── Auto-discovery via Pusher notifications channel ───────────────────────
   // private-screenshare-notifications fires employee-online/-offline when the
@@ -549,6 +570,11 @@ function buildCard(emp) {
           <p>Waiting for stream…</p>
         </div>
         <video id="video-${esc(emp.id)}" autoplay muted playsinline style="display:none"></video>
+        <div class="checkout-overlay" id="co-${esc(emp.id)}" style="display:none">
+          <div class="co-icon">⏸</div>
+          <div class="co-label" id="co-label-${esc(emp.id)}">Checked Out</div>
+          <div class="co-time"  id="co-time-${esc(emp.id)}"></div>
+        </div>
       </div>
       <div class="card-footer">
         <button class="btn-card btn-disconnect" id="btn-disc-${esc(emp.id)}"
@@ -777,6 +803,74 @@ function showToast(msg) {
   el.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ── Attendance polling — checkout overlay ─────────────────────────────────────
+// Maps empId → 'working' | 'checked_out'  (undefined = never seen)
+const attendanceState  = {};
+let   attendancePollTimer = null;
+
+async function pollAttendance() {
+  const date = new Date().toISOString().split('T')[0];
+  try {
+    const r = await fetch(`/api/attendance/all/${date}`, { credentials: 'same-origin' });
+    if (!r.ok) return;
+    const records = await r.json();
+
+    // Build lookup: username → { checkedOut, outTime }
+    const lookup = {};
+    for (const rec of records) {
+      const openCO = (rec.checkOuts || []).find(co => co.outTime && !co.inTime);
+      lookup[rec.username] = { checkedOut: !!openCO, outTime: openCO ? openCO.outTime : '' };
+    }
+
+    for (const emp of employees) {
+      const info         = lookup[emp.id] || { checkedOut: false, outTime: '' };
+      const wasCheckedOut = attendanceState[emp.id] === 'checked_out';
+
+      if (info.checkedOut && !wasCheckedOut) {
+        // Newly checked out (or first poll and already out)
+        attendanceState[emp.id] = 'checked_out';
+        setCheckoutOverlay(emp.id, 'checked_out', info.outTime);
+
+      } else if (!info.checkedOut && wasCheckedOut) {
+        // Just checked back in — flash green for 3 s then hide
+        attendanceState[emp.id] = 'working';
+        setCheckoutOverlay(emp.id, 'checked_in', '');
+        setTimeout(() => setCheckoutOverlay(emp.id, 'hidden', ''), 3000);
+      }
+    }
+  } catch (e) {
+    console.warn('[attendance] poll error:', e.message);
+  }
+
+  clearTimeout(attendancePollTimer);
+  attendancePollTimer = setTimeout(pollAttendance, 30_000);
+}
+
+function setCheckoutOverlay(empId, state, outTime) {
+  const overlay = document.getElementById(`co-${empId}`);
+  const label   = document.getElementById(`co-label-${empId}`);
+  const timeEl  = document.getElementById(`co-time-${empId}`);
+  if (!overlay) return;
+
+  if (state === 'hidden') {
+    overlay.style.display = 'none';
+    overlay.classList.remove('co-checkin');
+    return;
+  }
+
+  if (state === 'checked_out') {
+    overlay.classList.remove('co-checkin');
+    if (label)  label.textContent = 'Checked Out';
+    if (timeEl) timeEl.textContent = outTime ? `Since ${outTime}` : '';
+  } else if (state === 'checked_in') {
+    overlay.classList.add('co-checkin');
+    if (label)  label.textContent = 'Checked In ✓';
+    if (timeEl) timeEl.textContent = '';
+  }
+
+  overlay.style.display = 'flex';
 }
 
 // ── Util ──────────────────────────────────────────────────────────────────────
