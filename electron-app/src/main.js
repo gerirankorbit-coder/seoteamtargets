@@ -30,18 +30,30 @@ app.whenReady().then(() => {
   createWindow();
   setupAutoUpdater();
 
-  // Forward OS screen-lock / screen-unlock to the share window so it can
-  // gracefully disconnect on lock and auto-restart on unlock.
-  powerMonitor.on('lock-screen', () => {
-    console.log('[main] screen locked');
+  // Forward OS power/lock events to the share window so it can gracefully
+  // disconnect and auto-restart for all of these scenarios:
+  //   • Win+L (lock-screen / unlock-screen)
+  //   • Laptop lid close / open (suspend / resume)
+  //   • System sleep / wake (suspend / resume)
+  //   • Monitor sleep waking the lock screen (lock-screen / unlock-screen)
+  //
+  // Both suspend and lock-screen map to the same 'screen-locked' IPC message.
+  // Both resume  and unlock-screen map to 'screen-unlocked'.
+  // screenshare.js uses the screenLocked flag to deduplicate: if both events
+  // fire on the same transition (common on Windows), only the first has effect.
+  function sendLocked() {
     if (shareWindow && !shareWindow.isDestroyed())
       shareWindow.webContents.send('screen-locked');
-  });
-  powerMonitor.on('unlock-screen', () => {
-    console.log('[main] screen unlocked');
+  }
+  function sendUnlocked() {
     if (shareWindow && !shareWindow.isDestroyed())
       shareWindow.webContents.send('screen-unlocked');
-  });
+  }
+
+  powerMonitor.on('lock-screen',   () => { console.log('[main] lock-screen');  sendLocked();   });
+  powerMonitor.on('unlock-screen', () => { console.log('[main] unlock-screen'); sendUnlocked(); });
+  powerMonitor.on('suspend',       () => { console.log('[main] suspend');       sendLocked();   });
+  powerMonitor.on('resume',        () => { console.log('[main] resume');        sendUnlocked(); });
 });
 
 app.on('before-quit', () => {

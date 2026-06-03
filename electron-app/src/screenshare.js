@@ -59,13 +59,24 @@ window.shareAPI.onScreenLocked(() => {
   }
 });
 
-// ── Screen unlock ─────────────────────────────────────────────────────────────
+// ── Screen unlock / wake from sleep ──────────────────────────────────────────
+// Handles all four resume scenarios:
+//   1. Win+L unlock          — fired by powerMonitor unlock-screen
+//   2. Lid open              — fired by powerMonitor resume
+//   3. Sleep/hibernate wake  — fired by powerMonitor resume
+//   4. Monitor sleep + lock  — fired by powerMonitor unlock-screen
+//
+// The screenLocked flag deduplicates: on Windows, lock-screen and suspend can
+// both fire on the same transition, so only the first onScreenLocked call acts.
+// Similarly, both unlock-screen and resume can fire on wake; only the first
+// onScreenUnlocked call proceeds (screenLocked is already false for subsequent
+// calls, so they return early).
 window.shareAPI.onScreenUnlocked(() => {
-  if (!sharing || !screenLocked) return; // not locked by us — ignore
+  if (!sharing || !screenLocked) return; // not locked by us, or already handled
   screenLocked = false;
-  console.log('[share] screen unlocked — restarting share in 2 s');
+  console.log('[share] screen unlocked / resumed — restarting share in 3 s');
 
-  // Tell the manager portal to hide the lock overlay
+  // Tell the manager portal to hide the lock overlay immediately
   if (cfg) {
     fetch(`${cfg.serverUrl}/api/screenshare/status`, {
       method:      'POST',
@@ -75,11 +86,12 @@ window.shareAPI.onScreenUnlocked(() => {
     }).catch(e => console.warn('[share] unlock notify failed:', e.message));
   }
 
-  // Wait 2 s for the display to fully render before capturing
+  // Wait 3 s — enough for the display stack to reinitialize after both a simple
+  // unlock (needs ~1 s) and a full sleep wake (needs ~2-3 s on most hardware).
   setTimeout(async () => {
     if (!sharing || screenLocked) return; // re-locked while waiting
 
-    // Refresh source ID — some systems reassign IDs after unlock
+    // Refresh source ID — screen IDs can change after wake/unlock on some systems
     try {
       const sources = await window.shareAPI.getSources();
       if (sources && sources.length) {
@@ -87,12 +99,12 @@ window.shareAPI.onScreenUnlocked(() => {
         sourceId = primary.id;
       }
     } catch (e) {
-      console.warn('[share] getSources failed on unlock:', e.message);
+      console.warn('[share] getSources failed on resume:', e.message);
     }
 
     reportStatus('connecting', 'Reconnecting…');
     await startCapture();
-  }, 2000);
+  }, 3000);
 });
 
 // ── Capture screen ────────────────────────────────────────────────────────────
