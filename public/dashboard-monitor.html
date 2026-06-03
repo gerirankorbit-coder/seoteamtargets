@@ -115,16 +115,23 @@
     .btn-add-emp:hover { background: rgba(233,30,140,0.22); }
 
     /* ── Main ── */
+    /* position:fixed gives #main a hard pixel-perfect bounding box so that
+       overflow-y:scroll is unambiguous and mouse-wheel events are reliably
+       delivered to this element rather than falling through to the flex
+       container / body (both of which have overflow:hidden).              */
     #main {
-      margin-left: var(--sidebar-w);
-      margin-top: var(--topbar-h);
-      flex: 1;
-      min-height: 0;        /* override flex min-height:auto so overflow-y actually scrolls */
-      overflow-y: auto;
+      position: fixed;
+      top:    var(--topbar-h);
+      left:   var(--sidebar-w);
+      right:  0;
+      bottom: 0;
+      overflow-y: scroll;
       padding: 20px;
     }
-    #main::-webkit-scrollbar { width: 5px; }
-    #main::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+    #main::-webkit-scrollbar       { width: 8px; }
+    #main::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
+    #main::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.3); border-radius: 4px; }
+    #main::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.5); }
 
     /* ── No employees ── */
     #empty-state {
