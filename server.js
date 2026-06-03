@@ -1008,9 +1008,9 @@ app.put('/api/attendance/edit/:id', async (req, res) => {
 const screenPermissions = {}; // { username: true/false }
 const activeScreens     = {}; // { username: { sharedAt: Date } }
 
-// GET /monitor — manager-only monitoring page
+// GET /monitor — redirect to new screen-share monitor (old page removed)
 app.get('/monitor', requireAuth, requireManager, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'monitor.html'));
+  res.redirect('/dashboard/monitor');
 });
 
 // POST /api/monitor/signal — WebRTC signaling relay via Pusher
@@ -1076,9 +1076,10 @@ app.get('/api/monitor/permission', requireAuth, (req, res) => {
   res.json({ allowed });
 });
 
-// ── Activity Monitoring (new separate system) ─────────────────────────────
+// ── Activity Monitoring ───────────────────────────────────────────────────────
+// /activity-dashboard redirects to the new screen-share monitor
 app.get('/activity-dashboard', requireManager, (req, res) =>
-  res.sendFile(path.join(__dirname, 'public', 'activity-dashboard.html')));
+  res.redirect('/dashboard/monitor'));
 app.use('/api/activity', require('./api/activity'));
 
 // ── Screen Share Monitor (WebRTC + Pusher private channels) ──────────────────

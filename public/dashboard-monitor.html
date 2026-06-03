@@ -401,6 +401,22 @@ let fsEmployeeId = null;
   // Auto-subscribe all saved employees
   employees.forEach(e => subscribeEmployee(e));
 
+  // ── Auto-discovery: listen for any employee who starts / stops sharing ────
+  // private-screenshare-notifications is a server-side-only channel that the
+  // /api/screenshare/signal endpoint broadcasts to when an offer (start) or
+  // screenshare-stopped (end) event is processed.  Managers are authorised to
+  // subscribe to any private-screenshare-* channel by the pusher-auth endpoint.
+  const notifChannel = pusherClient.subscribe('private-screenshare-notifications');
+  notifChannel.bind('employee-online', ({ employeeId, employeeName }) => {
+    autoAddEmployee(employeeId, employeeName || employeeId);
+  });
+  notifChannel.bind('employee-offline', ({ employeeId }) => {
+    if (peers[employeeId]) {
+      teardownPeer(employeeId);
+      setCardState(employeeId, 'offline');
+    }
+  });
+
   // Sidebar search
   document.getElementById('sb-search').addEventListener('input', renderSidebar);
 
@@ -430,6 +446,23 @@ function openAddModal() {
 function closeAddModal(e) {
   if (e && e.target !== document.getElementById('add-modal')) return;
   document.getElementById('add-modal').classList.remove('show');
+}
+
+// ── Auto-add from notification channel (no manual input needed) ──────────────
+function autoAddEmployee(id, name) {
+  if (employees.some(e => e.id === id)) {
+    // Already in the list — just make sure we're subscribed and mark connecting
+    if (peers[id]) setCardState(id, 'connecting');
+    else subscribeEmployee({ id, name });
+    return;
+  }
+  const emp = { id, name };
+  employees.push(emp);
+  saveEmployees();
+  renderSidebar();
+  renderGrid();
+  subscribeEmployee(emp);
+  console.log('[autodiscover] added employee:', id, name);
 }
 
 function saveEmployee() {
@@ -604,7 +637,12 @@ async function handleOffer(empId, sdp) {
   setCardError(empId, '');
   teardownPeer(empId, true);
 
-  const pc = new RTCPeerConnection({ iceServers: cfg.iceServers });
+  const pc = new RTCPeerConnection({
+    iceServers:          cfg.iceServers,
+    iceCandidatePoolSize: 10,
+    bundlePolicy:        'max-bundle',
+    rtcpMuxPolicy:       'require',
+  });
   peers[empId].pc = pc;
 
   pc.ontrack = (event) => {

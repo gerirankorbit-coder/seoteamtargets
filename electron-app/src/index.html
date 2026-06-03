@@ -3,87 +3,31 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <script src="https://js.pusher.com/8.3.0/pusher.min.js"></script>
-  <title>RO Screen Share</title>
+  <title>Rank Orbit</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
-  <!-- ── Setup screen (first run) ── -->
-  <div id="screen-setup" class="screen">
-    <div class="logo-wrap">
-      <div class="logo">RO</div>
-      <div class="logo-title">Screen Share</div>
-    </div>
-    <div class="setup-form">
-      <h2>Connect to your server</h2>
-      <p class="sub">Enter your server URL and Employee ID to start screen sharing.</p>
+  <!-- ════════════════════════════════════════════════════════════════════════
+       TOOLBAR — always visible; employee name filled in by portalAPI.notifyUser
+       ════════════════════════════════════════════════════════════════════════ -->
+  <div id="portal-toolbar" class="toolbar">
 
-      <div class="form-group">
-        <label>Server URL</label>
-        <input id="inp-server" type="url" placeholder="http://192.168.1.x:3000" autocomplete="url" />
-      </div>
-      <div class="form-group">
-        <label>Employee ID</label>
-        <input id="inp-empid" type="text" placeholder="e.g. EMP001" autocomplete="off" />
-      </div>
-      <div class="form-group">
-        <label>Your Name <span class="opt">(optional)</span></label>
-        <input id="inp-name" type="text" placeholder="e.g. John Smith" autocomplete="name" />
-      </div>
-      <div id="setup-err" class="err-msg"></div>
-      <button class="btn-primary" id="btn-setup-save" onclick="setupSave()">Connect</button>
-    </div>
-  </div>
-
-  <!-- ── Home screen ── -->
-  <div id="screen-home" class="screen" style="display:none">
-    <div class="home-header">
-      <div class="logo-sm">RO</div>
-      <button class="btn-ghost btn-sm" onclick="showSetup()">⚙ Settings</button>
-    </div>
-    <div class="home-content">
-      <div class="home-avatar">
-        <span id="home-employee-initial">E</span>
-      </div>
-      <div class="home-greeting">Ready to work?</div>
-      <div class="home-employee-name" id="home-employee-name">Employee</div>
-      <div class="home-employee-id" id="home-employee-id"></div>
-      <button class="btn-start" onclick="autoStartSharing()">
-        <span class="btn-start-icon">▶</span>
-        Start Working
-      </button>
-    </div>
-  </div>
-
-  <!-- ── Sharing screen ── -->
-  <div id="screen-sharing" class="screen" style="display:none">
-    <div class="screen-header">
-      <div class="header-title">Screen Sharing</div>
-      <button class="btn-ghost" onclick="stopSharing()">⏹ End Working</button>
+    <div class="tb-left">
+      <div class="tb-logo">RO</div>
+      <div class="tb-emp-name" id="tb-emp-name"></div>
     </div>
 
-    <div class="sharing-info">
-      <div class="share-preview-wrap">
-        <video id="preview-video" autoplay muted playsinline></video>
+    <div class="tb-center">
+      <!-- Visible only while sharing -->
+      <div class="tb-status-row" id="tb-status-row" style="display:none">
+        <div class="tb-dot" id="tb-status-dot"></div>
+        <span class="tb-status-text" id="tb-status-text"></span>
       </div>
+    </div>
 
-      <div class="status-row">
-        <div class="status-dot" id="status-dot"></div>
-        <div class="status-text" id="status-text">Connecting…</div>
-      </div>
-
-      <div class="meta-row">
-        <span id="meta-empid"></span>
-        <span id="meta-name"></span>
-      </div>
-
-      <div id="share-err" class="err-msg"></div>
-
-      <div class="sharing-actions">
-        <button class="btn-danger" onclick="stopSharing()">⏹ End Working</button>
-        <button class="btn-ghost"  onclick="reconnect()">⟳ Reconnect</button>
-      </div>
+    <div class="tb-right">
+      <!-- intentionally empty — no settings needed (server URL is hardcoded) -->
     </div>
   </div>
 

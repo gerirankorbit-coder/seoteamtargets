@@ -1,26 +1,16 @@
 'use strict';
-
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  /** Return array of { id, name, thumbnail } for all screens + windows */
-  getSources: () => ipcRenderer.invoke('get-sources'),
+  // ── Status updates from share window (via main process) ─────────────────────
+  onSharingStatus: (cb) => ipcRenderer.on('sharing-status', (_, data) => cb(data)),
 
-  /** Read persisted config ({ serverUrl, employeeId, employeeName }) */
-  getConfig: () => ipcRenderer.invoke('get-config'),
+  // ── Portal user identity updates ────────────────────────────────────────────
+  // Fires when member.html resolves /api/me so the toolbar name badge updates
+  // to show the currently logged-in employee.
+  onEmployeeUpdated: (cb) => ipcRenderer.on('employee-updated', (_, data) => cb(data)),
 
-  /** Write/merge config fields */
-  setConfig: (data) => ipcRenderer.invoke('set-config', data),
-
-  /** Wipe all saved config (reset to setup screen) */
-  clearConfig: () => ipcRenderer.invoke('clear-config'),
-
-  /** Tell main process the current sharing status for tray icon */
-  updateStatus: (status) => ipcRenderer.send('status-update', status),
-
-  /** Check screen capture permission (macOS). Returns 'granted'|'denied'|'restricted' */
+  // ── macOS screen-recording permissions ──────────────────────────────────────
   checkScreenPermission: () => ipcRenderer.invoke('check-screen-permission'),
-
-  /** Open macOS screen-recording permissions pane */
-  openPermissions: () => ipcRenderer.invoke('open-permissions'),
+  openPermissions:       () => ipcRenderer.invoke('open-permissions'),
 });
