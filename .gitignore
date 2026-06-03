@@ -4,3 +4,10 @@ data.json
 
 .vercel
 .env*.local
+
+# Electron build artifacts (unpacked app, only commit the installer .exe)
+electron-app/dist/win-unpacked/
+electron-app/dist/mac/
+electron-app/dist/linux-unpacked/
+electron-app/dist-build/
+electron-app/dist-new/
