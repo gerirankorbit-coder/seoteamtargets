@@ -5,22 +5,22 @@ const {
   desktopCapturer, nativeImage, shell, systemPreferences, Notification,
 } = require('electron');
 const path = require('path');
-const Store = require('./store');
 
-const store    = new Store();
+// ── Hardcoded server URL — no setup form needed ───────────────────────────────
+const SERVER_URL = 'https://seoteamtargets.vercel.app';
+
 const TOOLBAR_H = 44; // height of the top toolbar bar (px)
 
 let mainWindow  = null;
-let portalView  = null; // BrowserView showing {serverUrl}/member
+let portalView  = null; // BrowserView showing {SERVER_URL}/member
 let shareWindow = null; // hidden BrowserWindow running WebRTC
 let tray        = null;
 let isQuitting  = false;
 let shownLiveNotification = false; // fire notification only on first "live" per session
 
-// Dynamically set from the portal session (overrides setup-form identity).
-// When member.html resolves /api/me it calls portal-notify-user IPC which
-// sets this.  _startSharingInternal uses this instead of the stored config so
-// every employee uses THEIR OWN Pusher channel, not whoever set up the app.
+// Dynamically set from the portal session (overrides any fallback identity).
+// When member.html resolves /api/me it calls portal-notify-user IPC which sets this.
+// _startSharingInternal uses this so every employee uses THEIR OWN Pusher channel.
 let currentUser = null; // { employeeId: string, employeeName: string }
 
 // ── App lifecycle ─────────────────────────────────────────────────────────────
@@ -45,14 +45,11 @@ app.on('activate', () => {
 
 // ── Create main window ────────────────────────────────────────────────────────
 function createWindow() {
-  const cfg       = store.getAll();
-  const hasConfig = !!(cfg.serverUrl && cfg.employeeId);
-
   mainWindow = new BrowserWindow({
-    width:     hasConfig ? 1280 : 500,
-    height:    hasConfig ? 820  : 640,
-    minWidth:  hasConfig ? 900  : 460,
-    minHeight: hasConfig ? 600  : 560,
+    width:     1280,
+    height:    820,
+    minWidth:  900,
+    minHeight: 600,
     title:     'Rank Orbit',
     backgroundColor: '#0d0f14',
     show: false,
@@ -67,9 +64,8 @@ function createWindow() {
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
-    if (hasConfig) {
-      initPortalMode(cfg.serverUrl);
-    }
+    // Always launch portal mode — server URL is hardcoded
+    initPortalMode(SERVER_URL);
   });
 
   mainWindow.on('resize', updatePortalBounds);
@@ -199,27 +195,6 @@ function updateTrayMenu(status) {
 
 // ── IPC handlers ──────────────────────────────────────────────────────────────
 
-// Config
-ipcMain.handle('get-config', () => store.getAll());
-
-ipcMain.handle('set-config', (_, data) => {
-  Object.entries(data).forEach(([k, v]) => store.set(k, v));
-  return true;
-});
-
-ipcMain.handle('clear-config', () => {
-  store.clear();
-  return true;
-});
-
-// Called by renderer after the setup form is saved — switch to portal mode
-ipcMain.handle('setup-complete', (_, { serverUrl }) => {
-  mainWindow.setMinimumSize(900, 600);
-  mainWindow.setSize(1280, 820);
-  initPortalMode(serverUrl);
-  return true;
-});
-
 // Screen sources — used by share window when re-capturing after a track dies
 ipcMain.handle('get-sources', async () => {
   try {
@@ -251,30 +226,27 @@ async function _startSharingInternal() {
     return { error: `Could not list screens: ${err.message}` };
   }
   if (!sources.length) return { error: 'No screens found. Check screen recording permissions.' };
-  const src     = sources.find(s => s.id.startsWith('screen:')) || sources[0];
-  const baseCfg = store.getAll();
-  // Override identity with the portal's currently logged-in user so each
-  // employee uses their OWN Pusher channel regardless of what was typed in
-  // the setup form.
-  const cfg = currentUser
-    ? { ...baseCfg, employeeId: currentUser.employeeId, employeeName: currentUser.employeeName }
-    : baseCfg;
+  const src = sources.find(s => s.id.startsWith('screen:')) || sources[0];
+
+  // Build config: server URL is hardcoded; identity comes from the portal session.
+  // currentUser is set by portal-notify-user IPC when member.html resolves /api/me.
+  const cfg = {
+    serverUrl:    SERVER_URL,
+    employeeId:   currentUser?.employeeId   || '',
+    employeeName: currentUser?.employeeName || '',
+  };
+
+  if (!cfg.employeeId) {
+    return { error: 'Not logged in — please log in to the portal before starting.' };
+  }
+
   shownLiveNotification = false;
   shareWindow.webContents.send('do-start', { cfg, sourceId: src.id });
   return { success: true };
 }
 
-// Start sharing — toolbar renderer invokes this
-ipcMain.handle('start-sharing', () => _startSharingInternal());
-
 // Start sharing — member portal BrowserView invokes this (via preload-portal.js)
 ipcMain.handle('portal-start-sharing', () => _startSharingInternal());
-
-// Stop sharing — toolbar renderer
-ipcMain.handle('stop-sharing', () => {
-  if (shareWindow && !shareWindow.isDestroyed()) shareWindow.webContents.send('do-stop');
-  return true;
-});
 
 // Stop sharing — member portal BrowserView
 ipcMain.handle('portal-stop-sharing', () => {
@@ -320,9 +292,6 @@ ipcMain.on('sharing-status', (_, { state, text }) => {
     }).show();
   }
 });
-
-// Tray-status update from toolbar (kept for compat)
-ipcMain.on('status-update', (_, status) => updateTrayMenu(status));
 
 // macOS screen-capture permission
 ipcMain.handle('check-screen-permission', async () => {

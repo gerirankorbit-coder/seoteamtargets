@@ -9,9 +9,9 @@
 <body>
 
   <!-- ════════════════════════════════════════════════════════════════════════
-       TOOLBAR — shown in portal mode (44 px, sits above BrowserView)
+       TOOLBAR — always visible; employee name filled in by portalAPI.notifyUser
        ════════════════════════════════════════════════════════════════════════ -->
-  <div id="portal-toolbar" class="toolbar" style="display:none">
+  <div id="portal-toolbar" class="toolbar">
 
     <div class="tb-left">
       <div class="tb-logo">RO</div>
@@ -27,39 +27,7 @@
     </div>
 
     <div class="tb-right">
-      <!-- Settings gear (returns to setup form) -->
-      <button class="tb-settings" onclick="openSettings()" title="Settings">⚙</button>
-    </div>
-  </div>
-
-  <!-- ════════════════════════════════════════════════════════════════════════
-       SETUP SCREEN — shown on first run or via Settings button
-       ════════════════════════════════════════════════════════════════════════ -->
-  <div id="setup-screen" class="screen" style="display:none">
-    <div class="logo-wrap">
-      <div class="logo">RO</div>
-      <div class="logo-title">Rank Orbit</div>
-    </div>
-
-    <div class="setup-form">
-      <h2>Connect to your server</h2>
-      <p class="sub">Enter your server URL and Employee ID to get started.</p>
-
-      <div class="form-group">
-        <label>Server URL</label>
-        <input id="inp-server" type="url" placeholder="https://your-server.com" autocomplete="url" />
-      </div>
-      <div class="form-group">
-        <label>Employee ID</label>
-        <input id="inp-empid" type="text" placeholder="e.g. EMP001" autocomplete="off" />
-      </div>
-      <div class="form-group">
-        <label>Your Name <span class="opt">(optional)</span></label>
-        <input id="inp-name" type="text" placeholder="e.g. John Smith" autocomplete="name" />
-      </div>
-
-      <div id="setup-err" class="err-msg"></div>
-      <button class="btn-primary" id="btn-setup-save" onclick="setupSave()">Connect</button>
+      <!-- intentionally empty — no settings needed (server URL is hardcoded) -->
     </div>
   </div>
 
