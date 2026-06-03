@@ -39,7 +39,7 @@ window.shareAPI.onStop(() => {
 
 // ── Pusher init ───────────────────────────────────────────────────────────────
 async function initPusher() {
-  if (!serverCfg) {
+  if (!serverCfg || !serverCfg.pusherKey) {
     try {
       const r = await fetch(`${cfg.serverUrl}/api/screenshare/config`, {
         method:      'GET',
