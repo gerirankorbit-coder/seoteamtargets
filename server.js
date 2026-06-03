@@ -168,6 +168,7 @@ const USERS = {
   "naveed.liaqat":  { password: "naveed@123#RO",  role: "member",    display: "Naveed Liaqat",     passwordVersion: 1 },
   "abler.khan":     { password: "abler@123#RO",   role: "member",    display: "Abler Khan",        passwordVersion: 1 },
   "ali.raza":       { password: "raza@123#RO",    role: "member",    display: "Ali Raza",          passwordVersion: 1 },
+  "ali.miraj":      { password: "miraj@123#RO",   role: "member",    display: "Ali Miraj Din",     passwordVersion: 1 },
 };
 
 // User lookup — reads from in-memory cache (populated from MongoDB on startup)
@@ -294,6 +295,10 @@ const TEAM = {
     { name: "Reddit",             type: "links_note", label: "Links" },
     { name: "Sites Finding",      type: "count",      label: "Sites" },
     { name: "Pinterest",          type: "count",      label: "Pins" },
+  ],
+  "Ali Miraj Din": [
+    { name: "Profile Creation", type: "count_note", label: "Profiles" },
+    { name: "Local Citations",  type: "count_note", label: "Citations" },
   ],
 };
 
