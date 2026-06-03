@@ -203,8 +203,6 @@
       transition: all 0.15s;
     }
     .btn-card:hover { background: rgba(255,255,255,0.08); color: var(--text); }
-    .btn-card.btn-connect { color: var(--green); border-color: rgba(34,197,94,0.3); background: rgba(34,197,94,0.06); }
-    .btn-card.btn-connect:hover { background: rgba(34,197,94,0.14); }
     .btn-card.btn-disconnect { color: var(--red); border-color: rgba(239,68,68,0.3); background: rgba(239,68,68,0.06); }
     .btn-card.btn-disconnect:hover { background: rgba(239,68,68,0.14); }
     .btn-card.btn-fs { margin-left: auto; }
@@ -553,8 +551,6 @@ function buildCard(emp) {
         <video id="video-${esc(emp.id)}" autoplay muted playsinline style="display:none"></video>
       </div>
       <div class="card-footer">
-        <button class="btn-card btn-connect" id="btn-connect-${esc(emp.id)}"
-                onclick="requestReconnect('${esc(emp.id)}')">⟳ Request</button>
         <button class="btn-card btn-disconnect" id="btn-disc-${esc(emp.id)}"
                 onclick="disconnectEmployee('${esc(emp.id)}')" style="display:none">⏹ Disconnect</button>
         <span class="card-err" id="err-${esc(emp.id)}"></span>
@@ -683,22 +679,6 @@ function clearVideoEl(empId) {
   if (rooms[empId]) rooms[empId].videoTrack = null;
 }
 
-// ── Request reconnect / disconnect ────────────────────────────────────────────
-function requestReconnect(empId) {
-  const emp = employees.find(e => e.id === empId);
-  if (!emp) return;
-  setCardState(empId, 'connecting');
-  setCardError(empId, '');
-  // Drop current room and open a fresh one (new token, clean slate)
-  if (rooms[empId]) {
-    rooms[empId].intentionalDisconnect = true;
-    rooms[empId].room.removeAllListeners();
-    try { rooms[empId].room.disconnect(); } catch {}
-    delete rooms[empId];
-  }
-  connectEmployee(emp);
-}
-
 function disconnectEmployee(empId) {
   if (rooms[empId]) {
     rooms[empId].intentionalDisconnect = true;
@@ -714,12 +694,11 @@ function disconnectEmployee(empId) {
 function setCardState(empId, state) {
   if (rooms[empId]) rooms[empId].state = state;
 
-  const card       = document.getElementById(`card-${empId}`);
-  const dot        = document.getElementById(`dot-${empId}`);
-  const badge      = document.getElementById(`badge-${empId}`);
-  const sbDot      = document.querySelector(`#sb-${empId} .emp-dot`);
-  const btnConnect = document.getElementById(`btn-connect-${empId}`);
-  const btnDisc    = document.getElementById(`btn-disc-${empId}`);
+  const card    = document.getElementById(`card-${empId}`);
+  const dot     = document.getElementById(`dot-${empId}`);
+  const badge   = document.getElementById(`badge-${empId}`);
+  const sbDot   = document.querySelector(`#sb-${empId} .emp-dot`);
+  const btnDisc = document.getElementById(`btn-disc-${empId}`);
 
   if (dot)   dot.className   = `card-dot ${state}`;
   if (sbDot) sbDot.className = `emp-dot ${state}`;
@@ -733,8 +712,7 @@ function setCardState(empId, state) {
     if (state === 'live')       card.classList.add('card-live');
     if (state === 'connecting') card.classList.add('card-connecting');
   }
-  if (btnConnect) btnConnect.style.display = (state === 'live') ? 'none' : '';
-  if (btnDisc)    btnDisc.style.display    = (state === 'live') ? ''     : 'none';
+  if (btnDisc) btnDisc.style.display = (state === 'live') ? '' : 'none';
 
   // Update fullscreen badge if open for this employee
   if (fsEmployeeId === empId) {
