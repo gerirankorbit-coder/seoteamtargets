@@ -166,14 +166,20 @@ async function sendOffer(iceRestart = false) {
   if (pc) { try { pc.close(); } catch {} pc = null; }
 
   const iceServers = serverCfg?.iceServers || [
-    { urls: 'stun:stun.l.google.com:19302'  },
-    { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun2.l.google.com:19302' },
-    { urls: 'stun:stun3.l.google.com:19302' },
-    { urls: 'stun:stun4.l.google.com:19302' },
-    { urls: 'turn:openrelay.metered.ca:80',                username: 'openrelayproject', credential: 'openrelayproject' },
-    { urls: 'turn:openrelay.metered.ca:443',               username: 'openrelayproject', credential: 'openrelayproject' },
-    { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+    // Xirsys fallback — used only if /api/screenshare/config is unreachable
+    {
+      urls: [
+        'stun:ss-turn1.xirsys.com',
+        'turn:ss-turn1.xirsys.com:80?transport=udp',
+        'turn:ss-turn1.xirsys.com:3478?transport=udp',
+        'turn:ss-turn1.xirsys.com:80?transport=tcp',
+        'turn:ss-turn1.xirsys.com:3478?transport=tcp',
+        'turns:ss-turn1.xirsys.com:443?transport=tcp',
+        'turns:ss-turn1.xirsys.com:5349?transport=tcp',
+      ],
+      username:   'gerirankorbit',
+      credential: '1495cc4e-5f75-11f1-82c8-0242ac140002',
+    },
   ];
   pc = new RTCPeerConnection({
     iceServers,

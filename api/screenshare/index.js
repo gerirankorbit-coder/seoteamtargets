@@ -29,28 +29,27 @@ function getPusher() {
   return _pusher;
 }
 
-// ── ICE servers (STUN always; TURN via OpenRelay + optional env override) ─────
+// ── ICE servers (Xirsys STUN + TURN) ─────────────────────────────────────────
+// Credentials fall back to the hardcoded Xirsys values; override via
+// TURN_USERNAME / TURN_CREDENTIAL env vars to rotate without a code deploy.
 function getIceServers() {
-  const servers = [
-    { urls: 'stun:stun.l.google.com:19302'  },
-    { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun2.l.google.com:19302' },
-    { urls: 'stun:stun3.l.google.com:19302' },
-    { urls: 'stun:stun4.l.google.com:19302' },
-    // OpenRelay free TURN (reliable fallback when STUN NAT traversal fails)
-    { urls: 'turn:openrelay.metered.ca:80',                username: 'openrelayproject', credential: 'openrelayproject' },
-    { urls: 'turn:openrelay.metered.ca:443',               username: 'openrelayproject', credential: 'openrelayproject' },
-    { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+  const username   = process.env.TURN_USERNAME   || 'gerirankorbit';
+  const credential = process.env.TURN_CREDENTIAL || '1495cc4e-5f75-11f1-82c8-0242ac140002';
+  return [
+    {
+      urls: [
+        'stun:ss-turn1.xirsys.com',
+        'turn:ss-turn1.xirsys.com:80?transport=udp',
+        'turn:ss-turn1.xirsys.com:3478?transport=udp',
+        'turn:ss-turn1.xirsys.com:80?transport=tcp',
+        'turn:ss-turn1.xirsys.com:3478?transport=tcp',
+        'turns:ss-turn1.xirsys.com:443?transport=tcp',
+        'turns:ss-turn1.xirsys.com:5349?transport=tcp',
+      ],
+      username,
+      credential,
+    },
   ];
-  // Optional: override/extend with your own TURN server via env vars
-  if (process.env.TURN_URL) {
-    servers.push({
-      urls:       process.env.TURN_URL,
-      username:   process.env.TURN_USERNAME   || '',
-      credential: process.env.TURN_CREDENTIAL || '',
-    });
-  }
-  return servers;
 }
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
