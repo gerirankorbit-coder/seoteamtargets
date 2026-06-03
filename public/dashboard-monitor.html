@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Screen Monitor — Rank Orbit</title>
   <script src="https://js.pusher.com/8.3.0/pusher.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -356,10 +357,11 @@
 'use strict';
 
 // ── State ─────────────────────────────────────────────────────────────────────
+// Pusher is kept only for the auto-discovery notifications channel
+// (employee-online / employee-offline). All video is handled by LiveKit.
 let pusherClient = null;
-let cfg          = null;   // { pusherKey, pusherCluster, iceServers }
-let employees    = [];     // [{ name, id }]
-const peers      = {};     // id → { channel, pc, state }
+let employees    = [];   // [{ name, id }]
+const rooms      = {};   // id → { room, videoTrack, state, intentionalDisconnect }
 let fsEmployeeId = null;
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
@@ -373,54 +375,44 @@ let fsEmployeeId = null;
     document.getElementById('tb-user').textContent = me.display || me.username;
   } catch { location.href = '/login'; return; }
 
-  // Load Pusher + ICE config
-  try {
-    const r = await fetch('/api/screenshare/config', { credentials: 'same-origin' });
-    cfg = await r.json();
-  } catch {
-    showToast('Failed to load Pusher config — check server logs');
-    return;
-  }
-
-  // Init Pusher client
-  pusherClient = new Pusher(cfg.pusherKey, {
-    cluster:         cfg.pusherCluster,
-    activityTimeout: 20000,
-    pongTimeout:     10000,
-    channelAuthorization: {
-      endpoint:  '/api/screenshare/pusher-auth',
-      transport: 'ajax',
-    },
-  });
-
-  // Load employees from localStorage, render cards
+  // Load employees from localStorage, render, connect LiveKit rooms
   employees = loadEmployees();
   renderSidebar();
   renderGrid();
+  employees.forEach(e => connectEmployee(e));
 
-  // Auto-subscribe all saved employees
-  employees.forEach(e => subscribeEmployee(e));
-
-  // ── Auto-discovery: listen for any employee who starts / stops sharing ────
-  // private-screenshare-notifications is a server-side-only channel that the
-  // /api/screenshare/signal endpoint broadcasts to when an offer (start) or
-  // screenshare-stopped (end) event is processed.  Managers are authorised to
-  // subscribe to any private-screenshare-* channel by the pusher-auth endpoint.
-  const notifChannel = pusherClient.subscribe('private-screenshare-notifications');
-  notifChannel.bind('employee-online', ({ employeeId, employeeName }) => {
-    autoAddEmployee(employeeId, employeeName || employeeId);
-  });
-  notifChannel.bind('employee-offline', ({ employeeId }) => {
-    if (peers[employeeId]) {
-      teardownPeer(employeeId);
-      setCardState(employeeId, 'offline');
+  // ── Auto-discovery via Pusher notifications channel ───────────────────────
+  // private-screenshare-notifications fires employee-online/-offline when the
+  // employee Electron app calls /api/screenshare/signal. This is the only
+  // Pusher channel used here — WebRTC signaling is gone entirely.
+  try {
+    const cfgR = await fetch('/api/screenshare/config', { credentials: 'same-origin' });
+    const cfg  = await cfgR.json();
+    if (cfg.pusherKey) {
+      pusherClient = new Pusher(cfg.pusherKey, {
+        cluster:         cfg.pusherCluster,
+        activityTimeout: 20000,
+        pongTimeout:     10000,
+        channelAuthorization: {
+          endpoint:  '/api/screenshare/pusher-auth',
+          transport: 'ajax',
+        },
+      });
+      const notifCh = pusherClient.subscribe('private-screenshare-notifications');
+      notifCh.bind('employee-online', ({ employeeId, employeeName }) => {
+        autoAddEmployee(employeeId, employeeName || employeeId);
+      });
+      notifCh.bind('employee-offline', ({ employeeId }) => {
+        // LiveKit ParticipantDisconnected handles this too; belt-and-braces update
+        clearVideoEl(employeeId);
+        setCardState(employeeId, 'offline');
+      });
     }
-  });
+  } catch (e) {
+    console.warn('[boot] Pusher notifications unavailable — auto-discovery disabled:', e.message);
+  }
 
-  // Sidebar search
   document.getElementById('sb-search').addEventListener('input', renderSidebar);
-
-  // Keyboard shortcuts
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') { closeFullscreen(); closeAddModal(); }
   });
@@ -448,12 +440,11 @@ function closeAddModal(e) {
   document.getElementById('add-modal').classList.remove('show');
 }
 
-// ── Auto-add from notification channel (no manual input needed) ──────────────
+// ── Auto-add from notification channel ───────────────────────────────────────
 function autoAddEmployee(id, name) {
   if (employees.some(e => e.id === id)) {
-    // Already in the list — just make sure we're subscribed and mark connecting
-    if (peers[id]) setCardState(id, 'connecting');
-    else subscribeEmployee({ id, name });
+    // Already in the list — ensure a LiveKit room is connected
+    if (!rooms[id]) connectEmployee({ id, name });
     return;
   }
   const emp = { id, name };
@@ -461,7 +452,7 @@ function autoAddEmployee(id, name) {
   saveEmployees();
   renderSidebar();
   renderGrid();
-  subscribeEmployee(emp);
+  connectEmployee(emp);
   console.log('[autodiscover] added employee:', id, name);
 }
 
@@ -478,7 +469,7 @@ function saveEmployee() {
   saveEmployees();
   renderSidebar();
   renderGrid();
-  subscribeEmployee(emp);
+  connectEmployee(emp);
   document.getElementById('add-modal').classList.remove('show');
   showToast(`${name} added`);
 }
@@ -488,12 +479,7 @@ function removeEmployee(id) {
   if (!emp) return;
   if (!confirm(`Remove ${emp.name}?`)) return;
 
-  // Cleanup peer
-  teardownPeer(id);
-  if (peers[id]) {
-    try { pusherClient.unsubscribe(`private-screenshare-${id}`); } catch {}
-    delete peers[id];
-  }
+  disconnectEmployee(id);
 
   employees = employees.filter(e => e.id !== id);
   saveEmployees();
@@ -511,7 +497,7 @@ function renderSidebar() {
   );
 
   list.innerHTML = filtered.map(e => {
-    const state = (peers[e.id] || {}).state || 'offline';
+    const state = (rooms[e.id] || {}).state || 'offline';
     return `
       <div class="emp-item" id="sb-${e.id}">
         <div class="emp-dot ${state}"></div>
@@ -526,7 +512,7 @@ function renderSidebar() {
 
 // ── Video grid render ─────────────────────────────────────────────────────────
 function renderGrid() {
-  const grid = document.getElementById('video-grid');
+  const grid  = document.getElementById('video-grid');
   const empty = document.getElementById('empty-state');
 
   if (!employees.length) {
@@ -577,211 +563,180 @@ function buildCard(emp) {
     </div>`;
 }
 
-// ── Server-side signaling helper ──────────────────────────────────────────────
-// Uses the /api/screenshare/signal endpoint (server-side pusher.trigger) so we
-// don't depend on Pusher "Client Events" being enabled in the dashboard.
-async function apiSignal(employeeId, event, data = {}) {
+// ── LiveKit: connect one room per employee ────────────────────────────────────
+async function connectEmployee(emp) {
+  if (rooms[emp.id]) return; // already connecting / connected
+
+  // Fetch a manager token for this employee's room
+  let token, livekitUrl;
   try {
-    const r = await fetch('/api/screenshare/signal', {
+    const r = await fetch('/api/screenshare/token', {
       method:      'POST',
       credentials: 'include',
       headers:     { 'Content-Type': 'application/json' },
-      body:        JSON.stringify({ employeeId, event, data }),
+      body:        JSON.stringify({ role: 'manager', employeeId: emp.id }),
     });
-    if (!r.ok) {
-      const err = await r.json().catch(() => ({}));
-      console.error('[signal] POST failed:', r.status, err);
-    }
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    ({ token, livekitUrl } = await r.json());
   } catch (e) {
-    console.error('[signal] fetch error:', e);
+    console.error(`[livekit] token error for ${emp.id}:`, e.message);
+    setCardError(emp.id, 'Token error');
+    return;
   }
-}
 
-// ── Pusher subscription ───────────────────────────────────────────────────────
-function subscribeEmployee(emp) {
-  if (!pusherClient || !cfg) return;
-  if (peers[emp.id]) return; // already subscribed
-
-  const channelName = `private-screenshare-${emp.id}`;
-  const channel     = pusherClient.subscribe(channelName);
-
-  peers[emp.id] = { channel, pc: null, state: 'offline' };
-
-  channel.bind('pusher:subscription_error', (err) => {
-    console.warn(`[screenshare] Auth failed for ${emp.id}:`, err);
-    setCardState(emp.id, 'offline');
-    setCardError(emp.id, 'Auth failed');
+  const room = new LivekitClient.Room({
+    adaptiveStream: true,
+    dynacast:       true,
   });
 
-  channel.bind('pusher:subscription_succeeded', () => {
-    setCardState(emp.id, 'offline');
-    // Nudge employee to send offer if already sharing
-    apiSignal(emp.id, 'screenshare-reconnect', {}).catch(() => {});
-  });
+  // Initialise the rooms entry before attaching events so handlers can safely
+  // read/write rooms[emp.id] without null-checking the entry itself.
+  rooms[emp.id] = { room, videoTrack: null, state: 'offline', intentionalDisconnect: false };
 
-  // Employee sent us an offer → create answer
-  channel.bind('screenshare-offer', async ({ sdp }) => {
-    await handleOffer(emp.id, sdp);
-  });
+  // ── Track subscribed — employee's screen arrived ──────────────────────────
+  room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, _pub, participant) => {
+    if (track.kind !== LivekitClient.Track.Kind.Video) return;
+    console.log(`[livekit] track subscribed from ${participant.identity} for ${emp.id}`);
 
-  // Employee stopped sharing
-  channel.bind('screenshare-stopped', () => {
-    teardownPeer(emp.id);
-    setCardState(emp.id, 'offline');
-  });
-}
+    const videoEl = document.getElementById(`video-${emp.id}`);
+    if (!videoEl) return;
 
-// ── WebRTC: receive offer, send answer ────────────────────────────────────────
-async function handleOffer(empId, sdp) {
-  setCardState(empId, 'connecting');
-  setCardError(empId, '');
-  teardownPeer(empId, true);
+    track.attach(videoEl);
+    videoEl.muted = true;
+    videoEl.style.display = 'block';
 
-  const pc = new RTCPeerConnection({
-    iceServers:          cfg.iceServers,
-    iceCandidatePoolSize: 10,
-    bundlePolicy:        'max-bundle',
-    rtcpMuxPolicy:       'require',
-  });
-  peers[empId].pc = pc;
-
-  pc.ontrack = (event) => {
-    console.log('[ontrack] fired', {
-      kind:          event.track.kind,
-      readyState:    event.track.readyState,
-      muted:         event.track.muted,
-      streamsCount:  event.streams.length,
-      stream0:       event.streams[0] ? event.streams[0].id : 'undefined',
-      trackInStream: event.streams[0] ? event.streams[0].getTracks().length : 0,
-    });
-
-    const video = document.getElementById('video-' + empId);
-    if (!video) return;
-
-    // Use event.streams[0] if available, otherwise build stream from track
-    const incomingStream = (event.streams && event.streams[0])
-      ? event.streams[0]
-      : new MediaStream([event.track]);
-
-    if (video.srcObject === incomingStream) return;
-
-    video.srcObject = incomingStream;
-    video.muted = true;
-    video.style.display = 'block';
-
-    video.play().catch(() => {
-      video.muted = true;
-      video.play().catch(() => {});
-    });
-
-    const ph = document.getElementById('ph-' + empId);
+    const ph = document.getElementById(`ph-${emp.id}`);
     if (ph) ph.style.display = 'none';
 
-    setCardState(empId, 'live');
+    rooms[emp.id].videoTrack = track;
+    setCardState(emp.id, 'live');
 
-    if (fsEmployeeId === empId) {
-      const fsV = document.getElementById('fs-video');
-      if (fsV) {
-        fsV.srcObject = incomingStream;
-        fsV.play().catch(() => {});
-      }
+    // Mirror to fullscreen modal if it is open for this employee
+    if (fsEmployeeId === emp.id) attachTrackToFullscreen(track);
+  });
+
+  // ── Track unsubscribed — employee stopped / paused sharing ────────────────
+  room.on(LivekitClient.RoomEvent.TrackUnsubscribed, (track) => {
+    if (track.kind !== LivekitClient.Track.Kind.Video) return;
+    track.detach();
+    if (rooms[emp.id]) rooms[emp.id].videoTrack = null;
+    clearVideoEl(emp.id);
+    setCardState(emp.id, 'offline');
+  });
+
+  // ── Participant connected — employee joined the room ──────────────────────
+  room.on(LivekitClient.RoomEvent.ParticipantConnected, (participant) => {
+    console.log(`[livekit] participant connected: ${participant.identity} (${emp.id})`);
+    setCardState(emp.id, 'connecting');
+    setCardError(emp.id, '');
+  });
+
+  // ── Participant disconnected — employee left the room ─────────────────────
+  room.on(LivekitClient.RoomEvent.ParticipantDisconnected, (participant) => {
+    console.log(`[livekit] participant disconnected: ${participant.identity} (${emp.id})`);
+    clearVideoEl(emp.id);
+    setCardState(emp.id, 'offline');
+  });
+
+  // ── Room disconnected — network error or server closed the room ───────────
+  room.on(LivekitClient.RoomEvent.Disconnected, (reason) => {
+    console.log(`[livekit] room disconnected for ${emp.id}, reason:`, reason);
+    clearVideoEl(emp.id);
+    setCardState(emp.id, 'offline');
+    // Auto-reconnect unless the manager intentionally disconnected
+    if (!rooms[emp.id]?.intentionalDisconnect) {
+      setTimeout(() => reconnectEmployee(emp), 4000);
     }
-  };
+  });
 
-  pc.oniceconnectionstatechange = () => {
-    console.log('[ICE] state:', pc.iceConnectionState);
-    const s = pc.iceConnectionState;
-    if (s === 'connected' || s === 'completed') {
-      setCardState(empId, 'live');
-    } else if (s === 'disconnected') {
-      setCardState(empId, 'connecting');
-    } else if (s === 'failed' || s === 'closed') {
-      teardownPeer(empId);
-      setCardState(empId, 'offline');
-    }
-  };
-
+  // ── Connect ───────────────────────────────────────────────────────────────
   try {
-    await pc.setRemoteDescription(new RTCSessionDescription(sdp));
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
+    setCardState(emp.id, 'connecting');
+    await room.connect(livekitUrl, token);
+    console.log(`[livekit] connected to room ${room.name} for employee ${emp.id}`);
 
-    // Vanilla ICE — wait for full gathering before sending
-    await waitIceComplete(pc);
-
-    await apiSignal(empId, 'screenshare-answer', { sdp: pc.localDescription });
-    console.log('[answer] sent to employee, PC signalingState:', pc.signalingState);
-  } catch (err) {
-    console.error('[screenshare] handleOffer error:', err);
-    setCardError(empId, 'Connection error');
-    setCardState(empId, 'offline');
+    // If no track arrived during connect (employee not yet sharing), go offline
+    if (!rooms[emp.id]?.videoTrack) setCardState(emp.id, 'offline');
+  } catch (e) {
+    console.error(`[livekit] connect error for ${emp.id}:`, e.message);
+    setCardError(emp.id, 'Connection failed');
+    setCardState(emp.id, 'offline');
   }
 }
 
-function waitIceComplete(pc) {
-  return new Promise(resolve => {
-    if (pc.iceGatheringState === 'complete') { resolve(); return; }
-    pc.onicegatheringstatechange = () => {
-      if (pc.iceGatheringState === 'complete') resolve();
-    };
-    setTimeout(resolve, 3000);
-  });
+// Tear down the current room entry and open a fresh connection
+async function reconnectEmployee(emp) {
+  if (rooms[emp.id]) {
+    rooms[emp.id].room.removeAllListeners();
+    try { rooms[emp.id].room.disconnect(); } catch {}
+    delete rooms[emp.id];
+  }
+  await connectEmployee(emp);
 }
 
-// ── Request / disconnect ──────────────────────────────────────────────────────
+// Clear the video element and placeholder back to waiting state
+function clearVideoEl(empId) {
+  const videoEl = document.getElementById(`video-${empId}`);
+  const ph      = document.getElementById(`ph-${empId}`);
+  if (videoEl) { videoEl.srcObject = null; videoEl.style.display = 'none'; }
+  if (ph)      ph.style.display = 'flex';
+  if (rooms[empId]) rooms[empId].videoTrack = null;
+}
+
+// ── Request reconnect / disconnect ────────────────────────────────────────────
 function requestReconnect(empId) {
-  if (!peers[empId]) return;
+  const emp = employees.find(e => e.id === empId);
+  if (!emp) return;
   setCardState(empId, 'connecting');
   setCardError(empId, '');
-  apiSignal(empId, 'screenshare-reconnect', {}).catch(() => setCardError(empId, 'Could not send request'));
+  // Drop current room and open a fresh one (new token, clean slate)
+  if (rooms[empId]) {
+    rooms[empId].intentionalDisconnect = true;
+    rooms[empId].room.removeAllListeners();
+    try { rooms[empId].room.disconnect(); } catch {}
+    delete rooms[empId];
+  }
+  connectEmployee(emp);
 }
 
 function disconnectEmployee(empId) {
-  teardownPeer(empId);
+  if (rooms[empId]) {
+    rooms[empId].intentionalDisconnect = true;
+    rooms[empId].room.removeAllListeners();
+    try { rooms[empId].room.disconnect(); } catch {}
+    delete rooms[empId];
+  }
+  clearVideoEl(empId);
   setCardState(empId, 'offline');
-  apiSignal(empId, 'screenshare-stopped', {}).catch(() => {});
-}
-
-function teardownPeer(empId, keepVideo = false) {
-  if (peers[empId]?.pc) {
-    peers[empId].pc.close();
-    peers[empId].pc = null;
-  }
-  if (!keepVideo) {
-    const video = document.getElementById(`video-${empId}`);
-    const ph    = document.getElementById(`ph-${empId}`);
-    if (video) { video.srcObject = null; video.style.display = 'none'; }
-    if (ph) ph.style.display = 'flex';
-  }
 }
 
 // ── Card state helpers ────────────────────────────────────────────────────────
 function setCardState(empId, state) {
-  if (peers[empId]) peers[empId].state = state;
+  if (rooms[empId]) rooms[empId].state = state;
 
-  const card  = document.getElementById(`card-${empId}`);
-  const dot   = document.getElementById(`dot-${empId}`);
-  const badge = document.getElementById(`badge-${empId}`);
-  const sbDot = document.querySelector(`#sb-${empId} .emp-dot`);
+  const card       = document.getElementById(`card-${empId}`);
+  const dot        = document.getElementById(`dot-${empId}`);
+  const badge      = document.getElementById(`badge-${empId}`);
+  const sbDot      = document.querySelector(`#sb-${empId} .emp-dot`);
   const btnConnect = document.getElementById(`btn-connect-${empId}`);
   const btnDisc    = document.getElementById(`btn-disc-${empId}`);
 
-  if (dot)   { dot.className   = `card-dot ${state}`; }
-  if (sbDot) { sbDot.className = `emp-dot ${state}`; }
+  if (dot)   dot.className   = `card-dot ${state}`;
+  if (sbDot) sbDot.className = `emp-dot ${state}`;
 
   if (badge) {
     badge.className   = `card-status-badge badge-${state}`;
     badge.textContent = { live:'Live', connecting:'Connecting…', offline:'Offline' }[state] || state;
   }
   if (card) {
-    card.classList.remove('card-live','card-connecting');
+    card.classList.remove('card-live', 'card-connecting');
     if (state === 'live')       card.classList.add('card-live');
     if (state === 'connecting') card.classList.add('card-connecting');
   }
   if (btnConnect) btnConnect.style.display = (state === 'live') ? 'none' : '';
   if (btnDisc)    btnDisc.style.display    = (state === 'live') ? ''     : 'none';
 
-  // Update fullscreen badge if open
+  // Update fullscreen badge if open for this employee
   if (fsEmployeeId === empId) {
     const fb = document.getElementById('fs-badge');
     if (fb) { fb.className = `badge-${state}`; fb.textContent = badge?.textContent || ''; }
@@ -794,25 +749,29 @@ function setCardError(empId, msg) {
 }
 
 // ── Fullscreen ────────────────────────────────────────────────────────────────
+function attachTrackToFullscreen(track) {
+  const fsV = document.getElementById('fs-video');
+  if (!fsV) return;
+  track.attach(fsV);
+  fsV.muted = true;
+  fsV.play().catch(() => {});
+}
+
 function openFullscreen(empId) {
-  const emp   = employees.find(e => e.id === empId);
-  const video = document.getElementById(`video-${empId}`);
+  const emp = employees.find(e => e.id === empId);
+  if (!emp) return;
+
+  fsEmployeeId = empId;
+  document.getElementById('fs-name').textContent = emp.name;
+  const fb = document.getElementById('fs-badge');
+  fb.className   = `badge-${rooms[empId]?.state || 'offline'}`;
+  fb.textContent = document.getElementById(`badge-${empId}`)?.textContent || '';
+
+  const track = rooms[empId]?.videoTrack;
   const fsV   = document.getElementById('fs-video');
-  const fsN   = document.getElementById('fs-name');
-  const fsB   = document.getElementById('fs-badge');
-
-  if (!emp || !video) return;
-
-  fsEmployeeId   = empId;
-  fsN.textContent = emp.name;
-  fsB.className   = `badge-${(peers[empId] || {}).state || 'offline'}`;
-  fsB.textContent = document.getElementById(`badge-${empId}`)?.textContent || '';
-
-  if (video.srcObject) {
-    fsV.srcObject = video.srcObject;
-    fsV.muted = true;
-    fsV.play().catch(() => {});
-  } else {
+  if (track) {
+    attachTrackToFullscreen(track);
+  } else if (fsV) {
     fsV.srcObject = null;
   }
 
@@ -820,9 +779,15 @@ function openFullscreen(empId) {
 }
 
 function closeFullscreen() {
+  if (fsEmployeeId) {
+    const track = rooms[fsEmployeeId]?.videoTrack;
+    const fsV   = document.getElementById('fs-video');
+    if (track && fsV) {
+      try { track.detach(fsV); } catch {}
+    }
+    if (fsV) fsV.srcObject = null;
+  }
   fsEmployeeId = null;
-  const fsV = document.getElementById('fs-video');
-  if (fsV) fsV.srcObject = null;
   document.getElementById('fullscreen-modal').classList.remove('show');
 }
 
