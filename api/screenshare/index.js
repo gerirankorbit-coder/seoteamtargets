@@ -1,7 +1,8 @@
 'use strict';
-const express = require('express');
-const router  = express.Router();
-const Pusher  = require('pusher');
+const express      = require('express');
+const router       = express.Router();
+const Pusher       = require('pusher');
+const { AccessToken } = require('livekit-server-sdk');
 
 // ── Pusher server client ──────────────────────────────────────────────────────
 // Constructed lazily so missing env vars don't crash the module at load time.
@@ -196,6 +197,98 @@ router.post('/signal', async (req, res) => {
     console.error('[screenshare/signal] Pusher error:', err.message);
     return res.status(500).json({ error: 'Pusher trigger failed', detail: err.message });
   }
+});
+
+// ── POST /api/screenshare/token ───────────────────────────────────────────────
+// Issues a short-lived LiveKit JWT for the given role.
+//
+//   Employee (Electron, no session)
+//     body: { role: 'employee', employeeId: '<id>', employeeName?: '<name>' }
+//     → canPublish: true,  canSubscribe: false, identity: employeeId
+//
+//   Manager (browser, session required)
+//     body: { role: 'manager', employeeId: '<id>' }
+//     → canPublish: false, canSubscribe: true,  identity: session username
+//
+//   Room name for both: "screenshare-{employeeId}"
+//   TTL: 4 h (covers a full work shift; refresh by calling again)
+//
+router.post('/token', async (req, res) => {
+  const apiKey    = process.env.LIVEKIT_API_KEY;
+  const apiSecret = process.env.LIVEKIT_API_SECRET;
+
+  if (!apiKey || !apiSecret) {
+    console.error('[livekit/token] Missing LIVEKIT_API_KEY or LIVEKIT_API_SECRET');
+    return res.status(500).json({ error: 'LiveKit not configured on server' });
+  }
+
+  if (!req.body || typeof req.body !== 'object') {
+    return res.status(400).json({ error: 'JSON body required' });
+  }
+
+  const { role, employeeId, employeeName } = req.body;
+
+  if (!employeeId || typeof employeeId !== 'string' || !employeeId.trim()) {
+    return res.status(400).json({ error: 'employeeId is required' });
+  }
+
+  const room = `screenshare-${employeeId.trim()}`;
+
+  // ── Employee path (Electron — no session) ────────────────────────────────
+  if (role === 'employee') {
+    const token = new AccessToken(apiKey, apiSecret, {
+      identity: employeeId.trim(),
+      name:     employeeName || employeeId.trim(),
+      ttl:      '4h',
+    });
+    token.addGrant({
+      roomJoin:     true,
+      room,
+      canPublish:   true,
+      canSubscribe: false,
+    });
+    try {
+      return res.json({
+        token:      await token.toJwt(),
+        room,
+        livekitUrl: process.env.LIVEKIT_URL || '',
+      });
+    } catch (e) {
+      console.error('[livekit/token] employee sign error:', e.message);
+      return res.status(500).json({ error: 'Token signing failed' });
+    }
+  }
+
+  // ── Manager path (browser — session required) ─────────────────────────────
+  if (role === 'manager') {
+    if (!req.session?.username ||
+        (req.session.role !== 'manager' && req.session.role !== 'assistant')) {
+      return res.status(403).json({ error: 'Manager session required' });
+    }
+    const token = new AccessToken(apiKey, apiSecret, {
+      identity: req.session.username,
+      name:     req.session.username,
+      ttl:      '4h',
+    });
+    token.addGrant({
+      roomJoin:     true,
+      room,
+      canPublish:   false,
+      canSubscribe: true,
+    });
+    try {
+      return res.json({
+        token:      await token.toJwt(),
+        room,
+        livekitUrl: process.env.LIVEKIT_URL || '',
+      });
+    } catch (e) {
+      console.error('[livekit/token] manager sign error:', e.message);
+      return res.status(500).json({ error: 'Token signing failed' });
+    }
+  }
+
+  return res.status(400).json({ error: 'role must be "employee" or "manager"' });
 });
 
 module.exports = router;
