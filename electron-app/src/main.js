@@ -3,6 +3,7 @@
 const {
   app, BrowserWindow, BrowserView, ipcMain, Tray, Menu,
   desktopCapturer, nativeImage, shell, systemPreferences, Notification,
+  powerMonitor,
 } = require('electron');
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
@@ -28,6 +29,19 @@ let currentUser = null; // { employeeId: string, employeeName: string }
 app.whenReady().then(() => {
   createWindow();
   setupAutoUpdater();
+
+  // Forward OS screen-lock / screen-unlock to the share window so it can
+  // gracefully disconnect on lock and auto-restart on unlock.
+  powerMonitor.on('lock-screen', () => {
+    console.log('[main] screen locked');
+    if (shareWindow && !shareWindow.isDestroyed())
+      shareWindow.webContents.send('screen-locked');
+  });
+  powerMonitor.on('unlock-screen', () => {
+    console.log('[main] screen unlocked');
+    if (shareWindow && !shareWindow.isDestroyed())
+      shareWindow.webContents.send('screen-unlocked');
+  });
 });
 
 app.on('before-quit', () => {

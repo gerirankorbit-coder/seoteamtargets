@@ -1,6 +1,6 @@
 {
   "name": "ro-screen-share",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Rank Orbit — Employee Screen Share Client",
   "main": "src/main.js",
   "scripts": {

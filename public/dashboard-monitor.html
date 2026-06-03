@@ -297,6 +297,17 @@
     .co-time  { font-size: 11px; color: rgba(255,255,255,0.55); }
     /* When employee checks back in — flash green then overlay disappears */
     .checkout-overlay.co-checkin .co-label { color: #4ade80; }
+
+    /* ── Screen-lock overlay (z-index 3 sits above checkout overlay at 2) ── */
+    .lock-overlay {
+      position: absolute; inset: 0; z-index: 3;
+      background: rgba(0,0,0,0.82);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 8px; pointer-events: none;
+    }
+    .lock-overlay .lo-icon  { font-size: 30px; line-height: 1; }
+    .lock-overlay .lo-label { font-size: 15px; font-weight: 700; color: #94a3b8; }
   </style>
 </head>
 <body>
@@ -426,6 +437,8 @@ let fsEmployeeId = null;
         clearVideoEl(employeeId);
         setCardState(employeeId, 'offline');
       });
+      notifCh.bind('employee-locked',   ({ employeeId }) => setLockOverlay(employeeId, true));
+      notifCh.bind('employee-unlocked', ({ employeeId }) => setLockOverlay(employeeId, false));
     }
   } catch (e) {
     console.warn('[boot] Pusher notifications unavailable — auto-discovery disabled:', e.message);
@@ -575,6 +588,10 @@ function buildCard(emp) {
           <div class="co-label" id="co-label-${esc(emp.id)}">Checked Out</div>
           <div class="co-time"  id="co-time-${esc(emp.id)}"></div>
         </div>
+        <div class="lock-overlay" id="lo-${esc(emp.id)}" style="display:none">
+          <div class="lo-icon">🔒</div>
+          <div class="lo-label">Screen Locked</div>
+        </div>
       </div>
       <div class="card-footer">
         <button class="btn-card btn-disconnect" id="btn-disc-${esc(emp.id)}"
@@ -632,6 +649,7 @@ async function connectEmployee(emp) {
 
     rooms[emp.id].videoTrack = track;
     setCardState(emp.id, 'live');
+    setLockOverlay(emp.id, false); // clear lock overlay when video arrives
 
     // Mirror to fullscreen modal if it is open for this employee
     if (fsEmployeeId === emp.id) attachTrackToFullscreen(track);
@@ -803,6 +821,12 @@ function showToast(msg) {
   el.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ── Screen-lock overlay ───────────────────────────────────────────────────────
+function setLockOverlay(empId, locked) {
+  const overlay = document.getElementById(`lo-${empId}`);
+  if (overlay) overlay.style.display = locked ? 'flex' : 'none';
 }
 
 // ── Attendance polling — checkout overlay ─────────────────────────────────────

@@ -19,4 +19,8 @@ contextBridge.exposeInMainWorld('shareAPI', {
 
   // Receive "stop sharing" command from main process
   onStop: (cb) => ipcRenderer.on('do-stop', () => cb()),
+
+  // Screen lock / unlock forwarded from powerMonitor in main process
+  onScreenLocked:   (cb) => ipcRenderer.on('screen-locked',   () => cb()),
+  onScreenUnlocked: (cb) => ipcRenderer.on('screen-unlocked', () => cb()),
 });

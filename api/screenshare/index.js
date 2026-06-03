@@ -199,6 +199,29 @@ router.post('/signal', async (req, res) => {
   }
 });
 
+// ── POST /api/screenshare/status ─────────────────────────────────────────────
+// Lightweight notification from the Electron app: employee screen locked or
+// unlocked. No auth required (same as the employee token route).
+// Broadcasts employee-locked / employee-unlocked on the notifications channel
+// so the manager portal can show / hide the lock overlay in real time.
+router.post('/status', async (req, res) => {
+  const pusher = getPusher();
+  if (!pusher) return res.status(500).json({ error: 'Pusher not configured' });
+
+  const { employeeId, status } = req.body || {};
+  if (!employeeId || !['locked', 'unlocked'].includes(status))
+    return res.status(400).json({ error: 'employeeId and status (locked|unlocked) required' });
+
+  const event = status === 'locked' ? 'employee-locked' : 'employee-unlocked';
+  try {
+    await pusher.trigger('private-screenshare-notifications', event, { employeeId });
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('[screenshare/status] Pusher error:', err.message);
+    return res.status(500).json({ error: 'Pusher trigger failed' });
+  }
+});
+
 // ── POST /api/screenshare/token ───────────────────────────────────────────────
 // Issues a short-lived LiveKit JWT for the given role.
 //

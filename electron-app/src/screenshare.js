@@ -5,11 +5,12 @@
 // All status updates go back to main via window.shareAPI.reportStatus().
 // LiveKit handles all reconnection — no manual backoff or ICE restart needed.
 
-let cfg      = null;   // { serverUrl, employeeId, employeeName }
-let sharing  = false;
-let stream   = null;   // captured screen MediaStream
-let sourceId = null;   // desktopCapturer source ID
-let room     = null;   // LiveKit Room instance
+let cfg         = null;   // { serverUrl, employeeId, employeeName }
+let sharing     = false;
+let screenLocked = false; // true while Windows screen lock is active
+let stream      = null;   // captured screen MediaStream
+let sourceId    = null;   // desktopCapturer source ID
+let room        = null;   // LiveKit Room instance
 
 // ── Boot — wait for commands from main ───────────────────────────────────────
 window.shareAPI.onStart(async ({ cfg: config, sourceId: srcId }) => {
@@ -25,6 +26,73 @@ window.shareAPI.onStart(async ({ cfg: config, sourceId: srcId }) => {
 window.shareAPI.onStop(() => {
   console.log('[share] stop command received');
   stopSharing();
+});
+
+// ── Screen lock (Win+L) ───────────────────────────────────────────────────────
+window.shareAPI.onScreenLocked(() => {
+  // Only act if we are actively sharing — ignore spurious events
+  if (!sharing) return;
+  screenLocked = true;
+  console.log('[share] screen locked — disconnecting LiveKit');
+
+  // Disconnect the room and stop the stream, but keep sharing = true
+  // so we can auto-restart when the screen unlocks.
+  if (room) {
+    try { room.disconnect(); } catch {}
+    room = null;
+  }
+  if (stream) {
+    stream.getTracks().forEach(t => t.stop());
+    stream = null;
+  }
+
+  reportStatus('locked', 'Screen Locked 🔒');
+
+  // Notify the manager portal so it can show the lock overlay
+  if (cfg) {
+    fetch(`${cfg.serverUrl}/api/screenshare/status`, {
+      method:      'POST',
+      credentials: 'omit',
+      headers:     { 'Content-Type': 'application/json' },
+      body:        JSON.stringify({ employeeId: cfg.employeeId, status: 'locked' }),
+    }).catch(e => console.warn('[share] lock notify failed:', e.message));
+  }
+});
+
+// ── Screen unlock ─────────────────────────────────────────────────────────────
+window.shareAPI.onScreenUnlocked(() => {
+  if (!sharing || !screenLocked) return; // not locked by us — ignore
+  screenLocked = false;
+  console.log('[share] screen unlocked — restarting share in 2 s');
+
+  // Tell the manager portal to hide the lock overlay
+  if (cfg) {
+    fetch(`${cfg.serverUrl}/api/screenshare/status`, {
+      method:      'POST',
+      credentials: 'omit',
+      headers:     { 'Content-Type': 'application/json' },
+      body:        JSON.stringify({ employeeId: cfg.employeeId, status: 'unlocked' }),
+    }).catch(e => console.warn('[share] unlock notify failed:', e.message));
+  }
+
+  // Wait 2 s for the display to fully render before capturing
+  setTimeout(async () => {
+    if (!sharing || screenLocked) return; // re-locked while waiting
+
+    // Refresh source ID — some systems reassign IDs after unlock
+    try {
+      const sources = await window.shareAPI.getSources();
+      if (sources && sources.length) {
+        const primary = sources.find(s => s.id.startsWith('screen:')) || sources[0];
+        sourceId = primary.id;
+      }
+    } catch (e) {
+      console.warn('[share] getSources failed on unlock:', e.message);
+    }
+
+    reportStatus('connecting', 'Reconnecting…');
+    await startCapture();
+  }, 2000);
 });
 
 // ── Capture screen ────────────────────────────────────────────────────────────
@@ -151,7 +219,8 @@ async function connectLiveKit() {
 
 // ── Stop sharing ──────────────────────────────────────────────────────────────
 function stopSharing() {
-  sharing = false;
+  sharing      = false;
+  screenLocked = false;
 
   // Disconnect room first — this unpublishes all local tracks cleanly
   if (room) {
