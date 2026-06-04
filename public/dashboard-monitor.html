@@ -217,6 +217,9 @@
     .btn-card.btn-disconnect { color: var(--red); border-color: rgba(239,68,68,0.3); background: rgba(239,68,68,0.06); }
     .btn-card.btn-disconnect:hover { background: rgba(239,68,68,0.14); }
     .btn-card.btn-fs { margin-left: auto; }
+    /* Subtle force-reconnect icon button — sits right of fullscreen button */
+    .btn-card.btn-reconnect { padding: 6px 8px; font-size: 15px; opacity: 0.5; transition: opacity 0.15s, background 0.15s; }
+    .btn-card.btn-reconnect:hover { opacity: 1; }
     .card-err { font-size: 11px; color: var(--red); flex: 1; padding: 0 4px; }
 
     /* ── Add Employee Modal ── */
@@ -397,6 +400,7 @@ let pusherClient = null;
 let employees    = [];   // [{ name, id }]
 const rooms      = {};   // id → { room, videoTrack, state, intentionalDisconnect }
 let fsEmployeeId = null;
+const connectingTimers = {}; // empId → setTimeout handle (auto force-reconnect after 15 s)
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
 (async function boot() {
@@ -604,7 +608,8 @@ function buildCard(emp) {
         <button class="btn-card btn-disconnect" id="btn-disc-${esc(emp.id)}"
                 onclick="disconnectEmployee('${esc(emp.id)}')" style="display:none">⏹ Disconnect</button>
         <span class="card-err" id="err-${esc(emp.id)}"></span>
-        <button class="btn-card btn-fs" onclick="openFullscreen('${esc(emp.id)}')" title="Fullscreen">⛶</button>
+        <button class="btn-card btn-fs"        onclick="openFullscreen('${esc(emp.id)}')"  title="Fullscreen">⛶</button>
+        <button class="btn-card btn-reconnect" onclick="forceReconnect('${esc(emp.id)}')" title="Force reconnect">↺</button>
       </div>
     </div>`;
 }
@@ -765,6 +770,17 @@ function setCardState(empId, state) {
   }
   if (btnDisc) btnDisc.style.display = (state === 'live') ? '' : 'none';
 
+  // Auto force-reconnect if card stays "connecting" for more than 15 s
+  clearTimeout(connectingTimers[empId]);
+  if (state === 'connecting') {
+    connectingTimers[empId] = setTimeout(() => {
+      if ((rooms[empId] || {}).state === 'connecting') {
+        console.log(`[auto-reconnect] ${empId} stuck connecting — triggering force reconnect`);
+        forceReconnect(empId);
+      }
+    }, 15_000);
+  }
+
   // Update fullscreen badge if open for this employee
   if (fsEmployeeId === empId) {
     const fb = document.getElementById('fs-badge');
@@ -902,6 +918,26 @@ function setCheckoutOverlay(empId, state, outTime) {
   }
 
   overlay.style.display = 'flex';
+}
+
+// ── Force reconnect ───────────────────────────────────────────────────────────
+// Silently asks the employee's Electron app to drop and re-establish its
+// LiveKit connection. The employee sees no notification or UI change.
+async function forceReconnect(empId) {
+  try {
+    const r = await fetch('/api/screenshare/force-reconnect', {
+      method:      'POST',
+      credentials: 'include',
+      headers:     { 'Content-Type': 'application/json' },
+      body:        JSON.stringify({ employeeId: empId }),
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      console.warn(`[forceReconnect] ${empId} failed:`, err.error || r.status);
+    }
+  } catch (e) {
+    console.warn(`[forceReconnect] ${empId} error:`, e.message);
+  }
 }
 
 // ── Util ──────────────────────────────────────────────────────────────────────

@@ -11,6 +11,7 @@ let screenLocked = false; // true while Windows screen lock is active
 let stream      = null;   // captured screen MediaStream
 let sourceId    = null;   // desktopCapturer source ID
 let room        = null;   // LiveKit Room instance
+let pusherConn  = null;   // Pusher client (receives force-reconnect from manager)
 
 // ── Boot — wait for commands from main ───────────────────────────────────────
 window.shareAPI.onStart(async ({ cfg: config, sourceId: srcId }) => {
@@ -20,6 +21,7 @@ window.shareAPI.onStart(async ({ cfg: config, sourceId: srcId }) => {
   cfg      = config;
   sourceId = srcId;
   console.log('[share] starting for employee:', cfg.employeeId, 'source:', sourceId);
+  initPusher(); // subscribe to manager commands (force-reconnect etc.) — fire-and-forget
   await startCapture();
 });
 
@@ -246,7 +248,72 @@ function stopSharing() {
     stream = null;
   }
 
+  // Disconnect Pusher — no need to keep the channel alive when not sharing
+  if (pusherConn) {
+    try { pusherConn.disconnect(); } catch {}
+    pusherConn = null;
+  }
+
   reportStatus('offline', 'Not working');
+}
+
+// ── Pusher — receive manager commands ────────────────────────────────────────
+// Subscribes to private-screenshare-notifications and listens for
+// 'force-reconnect'. Runs in the hidden screenshare BrowserWindow (real
+// browser environment) so the standard Pusher JS CDN library works directly.
+async function initPusher() {
+  if (pusherConn || !cfg) return; // already subscribed or no config yet
+  try {
+    const r = await fetch(`${cfg.serverUrl}/api/screenshare/config`, {
+      credentials: 'omit',
+    });
+    if (!r.ok) return;
+    const { pusherKey, pusherCluster } = await r.json();
+    if (!pusherKey) return;
+
+    pusherConn = new Pusher(pusherKey, {
+      cluster: pusherCluster,
+      channelAuthorization: {
+        endpoint:  `${cfg.serverUrl}/api/screenshare/pusher-auth`,
+        transport: 'ajax',
+        params:    { employeeId: cfg.employeeId },
+      },
+    });
+
+    const ch = pusherConn.subscribe('private-screenshare-notifications');
+    ch.bind('force-reconnect', ({ employeeId }) => {
+      if (employeeId !== cfg.employeeId) return; // not for us
+      console.log('[share] force-reconnect received from manager — silently reconnecting');
+      silentReconnect();
+    });
+
+    console.log('[share] Pusher subscribed for employee:', cfg.employeeId);
+  } catch (e) {
+    console.warn('[share] Pusher init failed:', e.message);
+  }
+}
+
+// ── Silent reconnect (force-reconnect from manager) ───────────────────────────
+// Drops the current LiveKit connection and restarts it transparently.
+// The employee sees zero UI change — status stays as-is until live again.
+async function silentReconnect() {
+  if (!sharing || screenLocked) return;
+
+  // Tear down existing room + stream
+  if (room) {
+    try { room.disconnect(); } catch {}
+    room = null;
+  }
+  if (stream) {
+    stream.getTracks().forEach(t => t.stop());
+    stream = null;
+  }
+
+  // 1.5 s pause — enough for LiveKit SFU to release the participant slot
+  await new Promise(resolve => setTimeout(resolve, 1500));
+  if (!sharing || screenLocked) return; // stopped or locked while waiting
+
+  await startCapture();
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

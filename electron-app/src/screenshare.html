@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <!-- LiveKit browser SDK (same CDN as manager portal) -->
   <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
+  <!-- Pusher JS — used to receive force-reconnect commands from the manager -->
+  <script src="https://js.pusher.com/8.3.0/pusher.min.js"></script>
 </head>
 <body>
   <!-- This window is hidden (show:false). It only runs WebRTC + Pusher JS. -->

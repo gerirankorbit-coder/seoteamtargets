@@ -140,6 +140,19 @@ router.post('/pusher-auth', (req, res) => {
     }
   }
 
+  // ── Employee subscribing to the global notifications channel ───────────────
+  // Required so the Electron app can receive server-pushed commands such as
+  // 'force-reconnect' without a manager session cookie.
+  if (employeeId && channel === 'private-screenshare-notifications') {
+    try {
+      const auth = pusher.authorizeChannel(socketId, channel);
+      return res.json(auth);
+    } catch (e) {
+      console.error('[pusher-auth] authorizeChannel error (employee-notif):', e.message);
+      return res.status(500).json({ error: 'Auth signing failed' });
+    }
+  }
+
   console.warn('[pusher-auth] Not authorised. session role:', req.session?.role, 'employeeId:', employeeId, 'channel:', channel);
   return res.status(403).json({ error: 'Not authorised' });
 });
@@ -218,6 +231,35 @@ router.post('/status', async (req, res) => {
     return res.json({ success: true });
   } catch (err) {
     console.error('[screenshare/status] Pusher error:', err.message);
+    return res.status(500).json({ error: 'Pusher trigger failed' });
+  }
+});
+
+// ── POST /api/screenshare/force-reconnect ────────────────────────────────────
+// Manager-only: silently triggers a reconnect on the target employee's
+// Electron app via a Pusher event. The employee sees zero UI change.
+router.post('/force-reconnect', async (req, res) => {
+  const pusher = getPusher();
+  if (!pusher) return res.status(500).json({ error: 'Pusher not configured' });
+
+  if (!req.session?.username ||
+      (req.session.role !== 'manager' && req.session.role !== 'assistant')) {
+    return res.status(403).json({ error: 'Manager session required' });
+  }
+
+  const { employeeId } = req.body || {};
+  if (!employeeId || typeof employeeId !== 'string' || !employeeId.trim()) {
+    return res.status(400).json({ error: 'employeeId required' });
+  }
+
+  try {
+    await pusher.trigger('private-screenshare-notifications', 'force-reconnect', {
+      employeeId: employeeId.trim(),
+    });
+    console.log(`[screenshare/force-reconnect] triggered for ${employeeId} by ${req.session.username}`);
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('[screenshare/force-reconnect] Pusher error:', err.message);
     return res.status(500).json({ error: 'Pusher trigger failed' });
   }
 });
