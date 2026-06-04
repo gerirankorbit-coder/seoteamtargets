@@ -217,9 +217,8 @@
     .btn-card.btn-disconnect { color: var(--red); border-color: rgba(239,68,68,0.3); background: rgba(239,68,68,0.06); }
     .btn-card.btn-disconnect:hover { background: rgba(239,68,68,0.14); }
     .btn-card.btn-fs { margin-left: auto; }
-    /* Subtle force-reconnect icon button — sits right of fullscreen button */
-    .btn-card.btn-reconnect { padding: 6px 8px; font-size: 15px; opacity: 0.5; transition: opacity 0.15s, background 0.15s; }
-    .btn-card.btn-reconnect:hover { opacity: 1; }
+    /* Force-reconnect icon button — sits right of fullscreen button */
+    .btn-card.btn-reconnect { padding: 6px 9px; font-size: 14px; }
     .card-err { font-size: 11px; color: var(--red); flex: 1; padding: 0 4px; }
 
     /* ── Add Employee Modal ── */
@@ -924,6 +923,7 @@ function setCheckoutOverlay(empId, state, outTime) {
 // Silently asks the employee's Electron app to drop and re-establish its
 // LiveKit connection. The employee sees no notification or UI change.
 async function forceReconnect(empId) {
+  const empName = (employees.find(e => e.id === empId) || {}).name || empId;
   try {
     const r = await fetch('/api/screenshare/force-reconnect', {
       method:      'POST',
@@ -931,11 +931,15 @@ async function forceReconnect(empId) {
       headers:     { 'Content-Type': 'application/json' },
       body:        JSON.stringify({ employeeId: empId }),
     });
-    if (!r.ok) {
+    if (r.ok) {
+      showToast(`↺ Reconnect signal sent to ${empName}`);
+    } else {
       const err = await r.json().catch(() => ({}));
+      showToast(`↺ Failed: ${err.error || r.status}`);
       console.warn(`[forceReconnect] ${empId} failed:`, err.error || r.status);
     }
   } catch (e) {
+    showToast(`↺ Error: ${e.message}`);
     console.warn(`[forceReconnect] ${empId} error:`, e.message);
   }
 }
