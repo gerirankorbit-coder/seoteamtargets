@@ -11,9 +11,6 @@
     "CLOUDINARY_API_KEY": "498183826645451",
     "CLOUDINARY_API_SECRET": "zIlJjufs1zHKLTwsVPS55DZv6QM",
     "TURN_USERNAME": "gerirankorbit",
-    "TURN_CREDENTIAL": "1495cc4e-5f75-11f1-82c8-0242ac140002",
-    "LIVEKIT_URL": "wss://ro-screen-share-uku158ve.livekit.cloud",
-    "LIVEKIT_API_KEY": "APIj8PB7mttiouf",
-    "LIVEKIT_API_SECRET": "TVTjW2i4o32CRk4ubSyS4CvdHzCOnX0SDL6ypqqnHRM"
+    "TURN_CREDENTIAL": "1495cc4e-5f75-11f1-82c8-0242ac140002"
   }
 }
