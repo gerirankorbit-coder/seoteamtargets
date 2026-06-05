@@ -693,9 +693,14 @@ async function connectEmployee(emp) {
   room.on(LivekitClient.RoomEvent.Disconnected, (reason) => {
     console.log(`[livekit] room disconnected for ${emp.id}, reason:`, reason);
     clearVideoEl(emp.id);
+    // If the disconnect was caused by a rate-limit (set by the catch block below,
+    // or surfaced in the reason string) — stop retrying entirely.
+    const rateLimited = rooms[emp.id]?.rateLimited ||
+      /minutes.limit|limit.exceeded|429/i.test(String(reason || ''));
     setCardState(emp.id, 'offline');
-    // Auto-reconnect unless the manager intentionally disconnected
-    if (!rooms[emp.id]?.intentionalDisconnect) {
+    if (rateLimited) {
+      setCardError(emp.id, 'Service unavailable');
+    } else if (!rooms[emp.id]?.intentionalDisconnect) {
       setTimeout(() => reconnectEmployee(emp), 4000);
     }
   });
@@ -710,7 +715,12 @@ async function connectEmployee(emp) {
     if (!rooms[emp.id]?.videoTrack) setCardState(emp.id, 'offline');
   } catch (e) {
     console.error(`[livekit] connect error for ${emp.id}:`, e.message);
-    setCardError(emp.id, 'Connection failed');
+    // Rate-limit errors must not trigger a reconnect loop — mark the entry
+    // so the Disconnected event handler (which fires after a failed connect)
+    // knows to stop retrying and show a permanent error instead.
+    const rateLimited = /minutes.limit|limit.exceeded|429/i.test(e.message);
+    if (rooms[emp.id]) rooms[emp.id].rateLimited = rateLimited;
+    setCardError(emp.id, rateLimited ? 'Service unavailable' : 'Connection failed');
     setCardState(emp.id, 'offline');
   }
 }
