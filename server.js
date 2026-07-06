@@ -169,6 +169,7 @@ const USERS = {
   "abler.khan":     { password: "abler@123#RO",   role: "member",    display: "Abler Khan",        passwordVersion: 1 },
   "ali.raza":       { password: "raza@123#RO",    role: "member",    display: "Ali Raza",          passwordVersion: 1 },
   "ali.miraj":      { password: "miraj@123#RO",   role: "member",    display: "Ali Miraj Din",     passwordVersion: 1 },
+  "muhammad.asim":  { password: "asim@123#RO",    role: "member",    display: "Muhammad Asim",     passwordVersion: 1 },
 };
 
 // User lookup — reads from in-memory cache (populated from MongoDB on startup)
@@ -299,6 +300,12 @@ const TEAM = {
   "Ali Miraj Din": [
     { name: "Profile Creation", type: "count_note", label: "Profiles" },
     { name: "Local Citations",  type: "count_note", label: "Citations" },
+  ],
+  "Muhammad Asim": [
+    { name: "Profile Creations",   type: "count", label: "Profiles" },
+    { name: "Podcast Submission",  type: "count", label: "Podcasts" },
+    { name: "Image Submission",    type: "count", label: "Images" },
+    { name: "Video Submission",    type: "count", label: "Videos" },
   ],
 };
 
