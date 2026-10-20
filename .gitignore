@@ -12,3 +12,4 @@ electron-app/dist/linux-unpacked/
 electron-app/dist-build/
 electron-app/dist-new/
 .env.staging
+.staging-db/

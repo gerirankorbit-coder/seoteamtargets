@@ -1,75 +1,82 @@
-# Staging environment (redesign)
+# Staging (redesign)
 
-Production stays exactly as it is: branch `main` → existing Vercel project → live domain
-`seoteamtargets.vercel.app` → production MongoDB. All redesign work happens on **`staging-v2`**.
+Production is untouched: branch `main` → the existing Vercel project → the live site
+`seoteamtargets.vercel.app` → the production MongoDB. All redesign work happens on **`staging-v2`**,
+and staging runs **locally** on your machine with its own local database.
 
-| | Production | Staging |
-|---|---|---|
-| Branch | `main` | `staging-v2` |
-| Vercel project | existing project (unchanged) | new project **`rank-orbit-staging`** |
-| URL | `seoteamtargets.vercel.app` | `rank-orbit-staging.vercel.app` (Vercel default) |
-| Database | production DB (unchanged) | `rankorbit_staging` (same cluster is fine) |
-| Pusher / LiveKit / Cloudinary | production keys | `STAGING_*` keys, or switched off |
-
-## Built-in safety guard (`server.js`)
-
-The server treats a run as **staging** when any of these is true: `APP_ENV` is set to anything
-other than `production`, `VERCEL_ENV=preview`, or Vercel is building a branch other than `main`.
-In staging it:
-
-1. **Refuses to start** unless the database name contains `staging`.
-2. Uses Pusher/LiveKit/Cloudinary keys **only** from `STAGING_*` variables. The production keys in
-   `vercel.json` are ignored, so staging can never message or view the live team's screens.
-
-On `main` in production none of this applies, and behaviour is unchanged.
-
-## One-time setup (Vercel and MongoDB dashboards)
-
-1. **MongoDB Atlas.** Use the same cluster. Recommended: create a separate database user with
-   `readWrite` on `rankorbit_staging` **only**, so staging credentials cannot touch production
-   even by mistake. The database itself is created on the first write.
-2. **Vercel → Add New → Project →** import `gerirankorbit-coder/seoteamtargets` again and name it
-   `rank-orbit-staging`.
-3. In the new project, open **Settings → Git → Production Branch** and set it to `staging-v2`.
-4. In the new project, open **Settings → Environment Variables** and add the variables below.
-5. Deploy. Do **not** add any custom domain to this project.
-6. Seed the staging database once from your computer: `npm run seed:staging`.
-
-Nothing in the existing production project needs to change. A push to `staging-v2` may also create a
-*Preview* in the production project. That preview cannot reach production data, because the guard
-stops it unless it has been given a staging database.
-
-## Environment variables
-
-| Name | Production | Staging |
-|---|---|---|
-| `APP_ENV` | not set | `staging` |
-| `MONGODB_URI` | production connection string | staging user's connection string (same cluster is OK) |
-| `MONGODB_DB_NAME` | not set | `rankorbit_staging` |
-| `SESSION_SECRET` | production secret | a **different** random string |
-| `STAGING_TEST_PASSWORD` | — | optional, password for the `test.*` users |
-| `STAGING_PUSHER_APP_ID`, `STAGING_PUSHER_KEY`, `STAGING_PUSHER_SECRET`, `STAGING_PUSHER_CLUSTER` | — | optional, a separate Pusher app |
-| `STAGING_LIVEKIT_URL`, `STAGING_LIVEKIT_API_KEY`, `STAGING_LIVEKIT_API_SECRET` | — | optional, a separate LiveKit project |
-| `STAGING_CLOUDINARY_CLOUD_NAME`, `STAGING_CLOUDINARY_API_KEY`, `STAGING_CLOUDINARY_API_SECRET` | — | optional, a separate Cloudinary account/folder |
-| `PUSHER_*`, `LIVEKIT_*`, `CLOUDINARY_*`, `TURN_*` | from `vercel.json` / dashboard | ignored in staging (`TURN_*` is only a relay and is harmless) |
-
-## Local staging
+## Start / stop
 
 ```bash
-cp .env.staging.example .env.staging   # fill in staging values (git-ignored)
-npm run seed:staging                   # structure + test users + test data
-npm run dev:staging                    # http://localhost:3001
+npm install            # first time only
+npm run dev:staging    # → http://localhost:3001
 ```
 
-`npm start` (production run) is unchanged.
+This one command:
+1. Creates `.env.staging` on first run, with `APP_ENV=staging`, database `rankorbit_staging`,
+   the local database URL and a random `SESSION_SECRET`.
+2. Starts the local staging database on `127.0.0.1:27018`, or reuses one that is already running.
+   - **Linux:** FerretDB (MongoDB-compatible), downloaded once.
+   - **Windows/macOS:** MongoDB `mongod`, taken from your PATH or downloaded once.
+3. Seeds the test data on the very first run only.
+4. Runs the app on port 3001.
 
-Test logins (password `staging-test-123`, or `STAGING_TEST_PASSWORD`):
-`test.manager` (dashboard), `test.member1`, `test.member2`. The seed also copies the app's normal
-account list from code, as the production server does on every start. It does **not** copy any
-production entries, attendance or task overrides.
+**Stop:** press **Ctrl+C**. This stops the app and the database the command started.
 
-## Promotion to production (later)
+Everything local lives in `.staging-db/` (database files, the downloaded database program, logs).
+The data **survives restarts**. To start from a clean database, delete `.staging-db/` and run the
+command again. `.staging-db/` and `.env.staging` are git-ignored and are never committed.
 
-`npm run promote` (`scripts/promote-to-prod.sh`). It asks you to type `PROMOTE`, aborts on any
-uncommitted change, merges `staging-v2` into `main`, pushes (Vercel then deploys the live domain),
-and prints rollback steps. It does not touch any database or Vercel setting.
+**Reset test data:** run `npm run seed:staging`. It replaces the `test.*` users' entries and
+attendance, and leaves other staging data alone.
+
+## Test logins
+
+Password for all three: `staging-test-123`
+
+| Username | Opens |
+|---|---|
+| `test.manager` | Dashboard (all tabs; the monitor page opens but has no live screens) |
+| `test.member1` | Member portal, with 3 days of TEST entries and attendance |
+| `test.member2` | Member portal, with 3 days of TEST entries and attendance |
+
+The app also copies its normal employee account list from code into the staging database, as it
+does in production. No production entries, attendance or settings are ever copied.
+
+## Safety guard (built into `server.js`)
+
+A run counts as staging when `APP_ENV` is set to anything other than `production`, when it is a
+Vercel preview, or when it is a Vercel build of any branch other than `main`. In staging:
+
+- The server **refuses to start** unless the database name contains `staging`.
+- Screen sharing and screenshots are **off**. The Pusher, LiveKit and Cloudinary keys (including
+  the production ones in `vercel.json`) are ignored; only `STAGING_*` keys are used, and none are set.
+- Sessions are cleaned by a timer, because the local database has no auto-expiry indexes.
+
+On `main` in production none of this applies, and every function and environment variable works
+exactly as today. One side effect after promotion: Vercel *preview* builds of other branches will
+also refuse to start unless they are given a staging database. That is intended, so previews can
+never write to live data.
+
+## Going live later (one command)
+
+```bash
+npm run promote
+```
+
+1. Asks you to type `PROMOTE`; anything else cancels.
+2. Stops if you are not on `staging-v2`, if anything is uncommitted, or if `staging-v2` is not
+   fully pushed.
+3. Merges `staging-v2` into `main` and pushes.
+4. Vercel auto-deploys `main` to the live site, exactly as it does today.
+5. Prints rollback steps: Vercel **Instant Rollback**, or `git revert`.
+
+It never touches any database or Vercel setting. Staging data is not copied to production.
+
+## Optional, later — not required
+
+These are deferred and not needed for local staging:
+- A hosted staging site: a separate Vercel project `rank-orbit-staging` with Production Branch
+  `staging-v2`, plus `APP_ENV=staging` and the variables listed in `.env.staging.example`.
+- A MongoDB Atlas staging database user limited to `rankorbit_staging`.
+- Separate Pusher, LiveKit and Cloudinary accounts (`STAGING_*` variables) for testing live
+  screen sharing in staging.

@@ -5,8 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev:staging": "node -r dotenv/config server.js dotenv_config_path=.env.staging",
-    "seed:staging": "node scripts/seed-staging.js",
+    "dev:staging": "node scripts/dev-staging.js",
+    "seed:staging": "node scripts/dev-staging.js --seed",
     "promote": "bash scripts/promote-to-prod.sh"
   },
   "dependencies": {

@@ -9,8 +9,8 @@
 #      and that staging-v2 is fully pushed to GitHub.
 #   3. Runs a quick syntax check on server.js.
 #   4. Merges staging-v2 into main (a merge commit; no history is rewritten).
-#   5. Pushes main to GitHub, which makes Vercel deploy production to the live
-#      domain. If PROD_DEPLOY_HOOK_URL is set it also calls that Vercel deploy hook.
+#   5. Pushes main to GitHub. The existing Vercel project auto-deploys main to the
+#      live domain, with its current environment variables — nothing else is needed.
 #   6. Prints how to roll back.
 #
 # It never touches any database or Vercel setting.
@@ -55,9 +55,6 @@ merge_sha="$(git rev-parse HEAD)"
 
 say "5/5  Pushing $PROD_BRANCH (Vercel deploys production from this push)…"
 git push "$REMOTE" "$PROD_BRANCH"
-if [ -n "${PROD_DEPLOY_HOOK_URL:-}" ]; then
-  curl -fsS -X POST "$PROD_DEPLOY_HOOK_URL" >/dev/null && echo "✓ Vercel deploy hook triggered"
-fi
 
 say "✓ Promoted. Production now runs $merge_sha (was $prev_prod)."
 cat <<EOF

@@ -433,6 +433,8 @@ app.use(session({
   saveUninitialized: false,
   store: new MongoStore({
     mongooseConnection: mongoose.connection,
+    // Staging's local FerretDB has no TTL indexes, so expire sessions by sweep there.
+    ...(IS_PRODUCTION ? {} : { autoRemove: 'interval', autoRemoveInterval: 10 }),
   }),
   cookie: {
     secure:   process.env.NODE_ENV === 'production',

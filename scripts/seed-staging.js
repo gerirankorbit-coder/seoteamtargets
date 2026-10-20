@@ -2,7 +2,7 @@
 // Seed the STAGING database with the production structure (collections +
 // indexes from the app's own schemas) plus clearly-labelled test users/data.
 //
-//   npm run seed:staging        (reads .env.staging)
+//   npm run seed:staging        (starts the local staging DB if needed; reads .env.staging)
 //
 // Safety: refuses to run unless the target database name contains "staging".
 // It never reads from or writes to the production database.
@@ -107,6 +107,7 @@ async function main() {
   console.log(`✓ Seeded ${TEST_USERS.length} test users (password: ${process.env.STAGING_TEST_PASSWORD ? 'from STAGING_TEST_PASSWORD' : TEST_PASSWORD}) and 3 days of test data`);
   await new Promise(r => setTimeout(r, 1500)); // let the app's own startup sync finish
   await mongoose.disconnect();
+  process.exit(0); // the session store's sweep timer would otherwise keep the process alive
 }
 
 main().catch(err => { console.error('✗ Seed failed:', err.message); process.exit(1); });
