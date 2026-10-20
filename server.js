@@ -4,10 +4,14 @@ require('dotenv').config();
 // Production = the live deployment of `main` (or a plain `npm start` with no
 // staging settings). Anything else — APP_ENV=staging, a Vercel preview, or a
 // Vercel deployment of any branch other than `main` — is treated as staging:
-//   1. It must use a MongoDB database whose name contains "staging", otherwise
-//      the server refuses to start, so test writes can never reach live data.
+//   1. Vercel previews always use the database "rankorbit_staging" (forced here,
+//      on the same cluster); other staging runs use MONGODB_DB_NAME. Either way
+//      the server refuses to start unless the name contains "staging", so test
+//      writes can never reach live data.
 //   2. Realtime/media keys are taken ONLY from STAGING_-prefixed variables, so a
 //      staging dashboard can never message or view the live team's screens.
+//   3. The real employee list is not loaded; only test.* accounts exist, seeded
+//      automatically on first start, and every page shows a STAGING banner.
 // In production none of this changes behaviour.
 const PROD_BRANCH   = 'main';
 const gitRef        = process.env.VERCEL_GIT_COMMIT_REF;
@@ -16,8 +20,11 @@ const IS_PRODUCTION = !(
   process.env.VERCEL_ENV === 'preview' ||
   (gitRef && gitRef !== PROD_BRANCH)
 );
+const STAGING_DB_NAME = 'rankorbit_staging';
 const MONGODB_URI     = process.env.MONGODB_URI;
-const MONGODB_DB_NAME = process.env.MONGODB_DB_NAME || '';
+const MONGODB_DB_NAME = IS_PRODUCTION
+  ? (process.env.MONGODB_DB_NAME || '')
+  : (process.env.VERCEL_ENV === 'preview' ? STAGING_DB_NAME : (process.env.MONGODB_DB_NAME || STAGING_DB_NAME));
 const uriDbName       = ((MONGODB_URI || '').match(/^mongodb(?:\+srv)?:\/\/[^/]+\/([^?]*)/) || [])[1] || '';
 const EFFECTIVE_DB    = MONGODB_DB_NAME || uriDbName || 'test';
 
@@ -25,7 +32,7 @@ if (!IS_PRODUCTION) {
   if (!/staging/i.test(EFFECTIVE_DB)) {
     throw new Error(
       `[staging guard] Refusing to start: non-production environment is pointed at database "${EFFECTIVE_DB}". ` +
-      'Set MONGODB_DB_NAME to a staging database (e.g. rankorbit_staging).'
+      `Set MONGODB_DB_NAME to a staging database (e.g. ${STAGING_DB_NAME}).`
     );
   }
   const ISOLATED_KEYS = [
@@ -45,6 +52,7 @@ const express  = require('express');
 const session  = require('express-session');
 const MongoStore = require('connect-mongo')(session);
 const path     = require('path');
+const fs       = require('fs');
 const cors     = require('cors');
 const os       = require('os');
 
@@ -124,6 +132,9 @@ let usersCache        = {}; // { username: { password, role, display, passwordVe
 
 mongoose.connection.once('open', async () => {
   try {
+    // Staging only: make sure the test.* accounts and TEST data exist (idempotent).
+    if (!IS_PRODUCTION) await require('./lib/staging-seed').seedStagingData({ User, Entry, Attendance, Config });
+
     // Load Config documents
     const [taskDoc, pwDoc, baseDoc] = await Promise.all([
       Config.findOne({ key: 'taskOverrides' }),
@@ -159,8 +170,10 @@ mongoose.connection.once('open', async () => {
         },
       };
     });
-    const bulkResult = await User.bulkWrite(upsertOps, { ordered: false });
-    console.log(`✓ Users synced — upserted: ${bulkResult.upsertedCount}, modified: ${bulkResult.modifiedCount}`);
+    if (upsertOps.length) {
+      const bulkResult = await User.bulkWrite(upsertOps, { ordered: false });
+      console.log(`✓ Users synced — upserted: ${bulkResult.upsertedCount}, modified: ${bulkResult.modifiedCount}`);
+    }
 
     // Load all users into in-memory cache
     const allUsers = await User.find(
@@ -219,6 +232,8 @@ const USERS = {
   "anas.raza":      { password: "anas@123#RO",    role: "member",    display: "Anas Raza",         passwordVersion: 1 },
   "atif.ahmad":     { password: "atif@123#RO",    role: "member",    display: "Atif Ahmad",        passwordVersion: 1 },
 };
+// Staging never loads the real team: only the seeded test.* accounts exist there.
+if (!IS_PRODUCTION) for (const k of Object.keys(USERS)) delete USERS[k];
 
 // User lookup — reads from in-memory cache (populated from MongoDB on startup)
 function getUser(username) {
@@ -443,6 +458,36 @@ app.use(session({
     maxAge:   30 * 24 * 60 * 60 * 1000, // 30 days — persists across browser restarts
   },
 }));
+
+// ── Staging banner (never in production) ──────────────────────────────────
+// Every HTML page — whether sent by a route or by express.static — gets a fixed
+// "STAGING — test data only" bar injected right after <body>.
+if (!IS_PRODUCTION) {
+  const PUBLIC_DIR = path.join(__dirname, 'public');
+  const BANNER =
+    '<div id="staging-banner" style="position:fixed;top:0;left:0;right:0;z-index:2147483647;' +
+    'background:#f59e0b;color:#111;font:700 12px/22px system-ui,sans-serif;text-align:center;' +
+    'letter-spacing:.05em;pointer-events:none;opacity:.95">STAGING — test data only</div>';
+  const withBanner = html => /<body[^>]*>/i.test(html)
+    ? html.replace(/<body[^>]*>/i, m => m + BANNER)
+    : BANNER + html;
+  app.use((req, res, next) => {
+    const sendFile = res.sendFile.bind(res);
+    res.sendFile = (file, ...rest) => {
+      if (typeof file !== 'string' || !file.endsWith('.html')) return sendFile(file, ...rest);
+      fs.readFile(file, 'utf8', (err, html) => err ? next(err) : res.type('html').send(withBanner(html)));
+    };
+    // express.static below answers "/" with index.html before any route runs, so mirror that.
+    const rel = req.path === '/' ? '/index.html' : req.path;
+    if (req.method === 'GET' && rel.endsWith('.html')) {
+      const file = path.join(PUBLIC_DIR, path.normalize(rel));
+      if (file.startsWith(PUBLIC_DIR + path.sep) && fs.existsSync(file)) {
+        return res.sendFile(file);
+      }
+    }
+    next();
+  });
+}
 
 // ── Static assets ─────────────────────────────────────────────────────────
 app.use(express.static(path.join(__dirname, 'public')));

@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // Local staging in one command:
 //
-//   npm run dev:staging     start (or reuse) the local staging DB, seed it on
-//                           first run, then run the app on http://localhost:3001
-//   npm run seed:staging    (re)seed the test data, then exit
+//   npm run dev:staging     start (or reuse) the local staging DB, then run the app on
+//                           http://localhost:3001 (the app seeds test data on first start)
+//   npm run seed:staging    reset the test data, then exit
 //
 // The database lives in .staging-db/ (git-ignored) and survives restarts.
 //   Linux:         FerretDB (MongoDB-compatible) with SQLite files in .staging-db/ferret-data
@@ -22,7 +22,6 @@ const ENV_FILE = path.join(ROOT, '.env.staging');
 const DB_PORT  = 27018;
 const FERRET_VERSION = 'v1.24.0';
 const MONGOD_VERSION = '7.0.14';
-const SEEDED_MARK    = path.join(DB_DIR, '.seeded');
 const seedOnly = process.argv.includes('--seed');
 
 const log = msg => console.log(`[staging] ${msg}`);
@@ -84,7 +83,7 @@ function ferretCommand() {
   const data = path.join(DB_DIR, 'ferret-data');
   fs.mkdirSync(data, { recursive: true });
   return [bin, ['--handler=sqlite', `--sqlite-url=file:${data}/`, `--listen-addr=127.0.0.1:${DB_PORT}`,
-                '--telemetry=disable', '--log-level=warn', `--state-dir=${DB_DIR}`]];
+                '--telemetry=disable', '--log-level=warn', '--debug-addr=-', `--state-dir=${DB_DIR}`]];
 }
 
 async function mongodCommand() {
@@ -130,7 +129,6 @@ function runSeed() {
   const r = spawnSync(process.execPath, [path.join(__dirname, 'seed-staging.js')],
                       { stdio: 'inherit', cwd: ROOT, env: { ...process.env, DOTENV_CONFIG_PATH: ENV_FILE } });
   if (r.status !== 0) throw new Error('seed failed');
-  fs.writeFileSync(SEEDED_MARK, new Date().toISOString() + '\n');
 }
 
 async function main() {
@@ -141,7 +139,7 @@ async function main() {
   process.on('exit', stopDb);
 
   try {
-    if (seedOnly || !fs.existsSync(SEEDED_MARK)) runSeed();
+    if (seedOnly) runSeed();
   } catch (e) { stopDb(); throw e; }
   if (seedOnly) { stopDb(); return; }
 
