@@ -4,7 +4,10 @@
   "description": "Rank Orbit — SEO Team Progress Tracking",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev:staging": "node -r dotenv/config server.js dotenv_config_path=.env.staging",
+    "seed:staging": "node scripts/seed-staging.js",
+    "promote": "bash scripts/promote-to-prod.sh"
   },
   "dependencies": {
     "cloudinary": "^2.10.0",

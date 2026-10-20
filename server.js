@@ -1,4 +1,45 @@
 require('dotenv').config();
+
+// ── Environment guard (staging isolation) ──────────────────────────────────
+// Production = the live deployment of `main` (or a plain `npm start` with no
+// staging settings). Anything else — APP_ENV=staging, a Vercel preview, or a
+// Vercel deployment of any branch other than `main` — is treated as staging:
+//   1. It must use a MongoDB database whose name contains "staging", otherwise
+//      the server refuses to start, so test writes can never reach live data.
+//   2. Realtime/media keys are taken ONLY from STAGING_-prefixed variables, so a
+//      staging dashboard can never message or view the live team's screens.
+// In production none of this changes behaviour.
+const PROD_BRANCH   = 'main';
+const gitRef        = process.env.VERCEL_GIT_COMMIT_REF;
+const IS_PRODUCTION = !(
+  (process.env.APP_ENV && process.env.APP_ENV !== 'production') ||
+  process.env.VERCEL_ENV === 'preview' ||
+  (gitRef && gitRef !== PROD_BRANCH)
+);
+const MONGODB_URI     = process.env.MONGODB_URI;
+const MONGODB_DB_NAME = process.env.MONGODB_DB_NAME || '';
+const uriDbName       = ((MONGODB_URI || '').match(/^mongodb(?:\+srv)?:\/\/[^/]+\/([^?]*)/) || [])[1] || '';
+const EFFECTIVE_DB    = MONGODB_DB_NAME || uriDbName || 'test';
+
+if (!IS_PRODUCTION) {
+  if (!/staging/i.test(EFFECTIVE_DB)) {
+    throw new Error(
+      `[staging guard] Refusing to start: non-production environment is pointed at database "${EFFECTIVE_DB}". ` +
+      'Set MONGODB_DB_NAME to a staging database (e.g. rankorbit_staging).'
+    );
+  }
+  const ISOLATED_KEYS = [
+    'PUSHER_APP_ID', 'PUSHER_KEY', 'PUSHER_SECRET', 'PUSHER_CLUSTER',
+    'LIVEKIT_URL', 'LIVEKIT_API_KEY', 'LIVEKIT_API_SECRET',
+    'CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET',
+  ];
+  for (const k of ISOLATED_KEYS) {
+    if (process.env['STAGING_' + k]) process.env[k] = process.env['STAGING_' + k];
+    else delete process.env[k];
+  }
+  console.log(`⚠ STAGING mode — database "${EFFECTIVE_DB}", realtime keys from STAGING_* only`);
+}
+
 const mongoose = require('mongoose');
 const express  = require('express');
 const session  = require('express-session');
@@ -20,7 +61,7 @@ const app  = express();
 const PORT = process.env.PORT || 3000;
 
 // ── MongoDB connection ─────────────────────────────────────────────────────
-mongoose.connect(process.env.MONGODB_URI)
+mongoose.connect(MONGODB_URI, MONGODB_DB_NAME ? { dbName: MONGODB_DB_NAME } : {})
   .then(() => console.log('✓ MongoDB connected'))
   .catch(err => console.error('✗ MongoDB error:', err));
 
