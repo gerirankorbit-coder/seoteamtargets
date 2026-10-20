@@ -320,7 +320,9 @@ const TEAM = {
     { name: "Google Stacking",     type: "layers",     label: "Layers" },
     { name: "Google Site Blogs",   type: "links",      label: "Links" },
     { name: "Reddit Profile",      type: "count",      label: "Profiles" },
+    { name: "Reddit",              type: "links_note", label: "Links" },
     { name: "Quora",               type: "links_note", label: "Links" },
+    { name: "Google Sites",        type: "count",      label: "Sites" },
   ],
   "Anas Irfan": [
     { name: "GMB Guest Posting", type: "count", label: "Posts" },
