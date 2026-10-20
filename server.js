@@ -170,6 +170,10 @@ const USERS = {
   "ali.raza":       { password: "raza@123#RO",    role: "member",    display: "Ali Raza",          passwordVersion: 1 },
   "ali.miraj":      { password: "miraj@123#RO",   role: "member",    display: "Ali Miraj Din",     passwordVersion: 1 },
   "muhammad.asim":  { password: "asim@123#RO",    role: "member",    display: "Muhammad Asim",     passwordVersion: 1 },
+  "anas.irfan":     { password: "irfan@123#RO",   role: "member",    display: "Anas Irfan",        passwordVersion: 1 },
+  "mazhar":         { password: "mazhar@123#RO",  role: "member",    display: "Mazhar",            passwordVersion: 1 },
+  "anas.raza":      { password: "anas@123#RO",    role: "member",    display: "Anas Raza",         passwordVersion: 1 },
+  "atif.ahmad":     { password: "atif@123#RO",    role: "member",    display: "Atif Ahmad",        passwordVersion: 1 },
 };
 
 // User lookup — reads from in-memory cache (populated from MongoDB on startup)
@@ -193,6 +197,7 @@ const TEAM = {
     { name: "Web 2.0 Sites Building", type: "count",      label: "Sites" },
     { name: "Web 2.0 Blogs",          type: "links",      label: "Links" },
     { name: "Reddit",                 type: "links_note", label: "Links" },
+    { name: "Geo Fencing",            type: "layers",     label: "Layers" },
   ],
   "Syed Salman Ali": [
     { name: "Citations",          type: "count",      label: "Citations" },
@@ -225,6 +230,7 @@ const TEAM = {
     { name: "Audio Submission",   type: "count", label: "Files" },
     { name: "Image Submission",   type: "count", label: "Images" },
     { name: "Profile Submission", type: "count", label: "Profiles" },
+    { name: "Web 2.0 Blogs",      type: "links", label: "Links" },
   ],
   "Haseeb Ahmed": [
     { name: "GMBS",           type: "count",      label: "GMBs" },
@@ -271,7 +277,7 @@ const TEAM = {
     { name: "Guest Posting",         type: "links",      label: "Links" },
     { name: "Reddit",                type: "links_note", label: "Links" },
     { name: "Blog Upload",           type: "count",      label: "Blogs" },
-    { name: "Schema Working",        type: "count_note", label: "Count" },
+    { name: "Content Write Keywords Tracking", type: "count", label: "Keywords" },
   ],
   "Abler Khan": [
     { name: "Contextual Links",                 type: "links",      label: "Links" },
@@ -296,16 +302,50 @@ const TEAM = {
     { name: "Reddit",             type: "links_note", label: "Links" },
     { name: "Sites Finding",      type: "count",      label: "Sites" },
     { name: "Pinterest",          type: "count",      label: "Pins" },
+    { name: "Client Name",        type: "note",       label: "Clients" },
+    { name: "Image Profile",      type: "count",      label: "Profiles" },
   ],
   "Ali Miraj Din": [
     { name: "Profile Creation", type: "count_note", label: "Profiles" },
     { name: "Local Citations",  type: "count_note", label: "Citations" },
+    { name: "GEO Tagging",      type: "count",      label: "Tagged" },
+    { name: "Quora",            type: "links_note", label: "Links" },
+    { name: "Reddit",           type: "links_note", label: "Links" },
   ],
   "Muhammad Asim": [
-    { name: "Profile Creations",   type: "count", label: "Profiles" },
-    { name: "Podcast Submission",  type: "count", label: "Podcasts" },
-    { name: "Image Submission",    type: "count", label: "Images" },
-    { name: "Video Submission",    type: "count", label: "Videos" },
+    { name: "Profile Creations",   type: "count",      label: "Profiles" },
+    { name: "Podcast Submission",  type: "count",      label: "Podcasts" },
+    { name: "Image Submission",    type: "count",      label: "Images" },
+    { name: "Video Submission",    type: "count",      label: "Videos" },
+    { name: "Google Stacking",     type: "layers",     label: "Layers" },
+    { name: "Google Site Blogs",   type: "links",      label: "Links" },
+    { name: "Reddit Profile",      type: "count",      label: "Profiles" },
+    { name: "Quora",               type: "links_note", label: "Links" },
+  ],
+  "Anas Irfan": [
+    { name: "GMB Guest Posting", type: "count", label: "Posts" },
+    { name: "Keyword Research",  type: "count", label: "Keywords" },
+    { name: "Reddit Profile",    type: "count", label: "Profiles" },
+  ],
+  "Mazhar": [
+    { name: "Blogs Uploading",   type: "links",      label: "Links" },
+    { name: "On Page Technical", type: "note",       label: "Notes" },
+    { name: "Web 2.0 Blogs",     type: "links",      label: "Links" },
+    { name: "Reddit",            type: "links_note", label: "Links" },
+  ],
+  "Anas Raza": [
+    { name: "Profiles",           type: "count",      label: "Profiles" },
+    { name: "Video Submission",   type: "count",      label: "Videos" },
+    { name: "Podcast Submission", type: "count",      label: "Podcasts" },
+    { name: "Image Submission",   type: "count",      label: "Images" },
+    { name: "Reddit Profile",     type: "count",      label: "Profiles" },
+    { name: "Quora",              type: "links_note", label: "Links" },
+  ],
+  "Atif Ahmad": [
+    { name: "Quora",          type: "links_note", label: "Links" },
+    { name: "Profile",        type: "count",      label: "Profiles" },
+    { name: "Citations",      type: "count",      label: "Citations" },
+    { name: "Reddit Profile", type: "count",      label: "Profiles" },
   ],
 };
 
