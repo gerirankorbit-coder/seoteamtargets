@@ -77,17 +77,20 @@ const Attendance = mongoose.models.Attendance || mongoose.model('Attendance', At
 
 // ── In-memory caches (loaded from DB on startup) ──────────────────────────
 let taskOverrides     = {};
+let taskBaselines     = {}; // { displayName: [TEAM task names at the time the override was saved] }
 let passwordOverrides = {}; // loaded for initial seed merge only
 let usersCache        = {}; // { username: { password, role, display, passwordVersion } }
 
 mongoose.connection.once('open', async () => {
   try {
     // Load Config documents
-    const [taskDoc, pwDoc] = await Promise.all([
+    const [taskDoc, pwDoc, baseDoc] = await Promise.all([
       Config.findOne({ key: 'taskOverrides' }),
       Config.findOne({ key: 'passwordOverrides' }),
+      Config.findOne({ key: 'taskBaselines' }),
     ]);
     if (taskDoc) taskOverrides     = taskDoc.value || {};
+    if (baseDoc) taskBaselines     = baseDoc.value || {};
     if (pwDoc)   passwordOverrides = pwDoc.value   || {};
 
     // Upsert every USERS entry into MongoDB on every startup.
@@ -351,8 +354,18 @@ const TEAM = {
   ],
 };
 
+// A manager-saved override wins, but TEAM tasks added in code after that override
+// was saved are appended automatically. Tasks that were in TEAM when the override
+// was saved (the baseline) stay as the manager left them, so deletions stick.
+// Overrides saved before baselines existed have none, so every missing TEAM task is appended.
 function getMemberTasks(displayName) {
-  return taskOverrides[displayName] || TEAM[displayName] || [];
+  const defaults = TEAM[displayName] || [];
+  const override = taskOverrides[displayName];
+  if (!override) return defaults;
+  const have     = new Set(override.map(t => t.name));
+  const baseline = new Set(taskBaselines[displayName] || []);
+  const added    = defaults.filter(t => !have.has(t.name) && !baseline.has(t.name));
+  return added.length ? [...override, ...added] : override;
 }
 
 function getLocalIP() {
@@ -672,11 +685,19 @@ app.post('/api/tasks/:displayName', requireManager, async (req, res) => {
   if (!TEAM[displayName]) return res.status(404).json({ error: 'Member not found' });
   try {
     taskOverrides[displayName] = tasks;
-    await Config.findOneAndUpdate(
-      { key: 'taskOverrides' },
-      { key: 'taskOverrides', value: taskOverrides },
-      { upsert: true, new: true }
-    );
+    taskBaselines[displayName] = TEAM[displayName].map(t => t.name);
+    await Promise.all([
+      Config.findOneAndUpdate(
+        { key: 'taskOverrides' },
+        { key: 'taskOverrides', value: taskOverrides },
+        { upsert: true, new: true }
+      ),
+      Config.findOneAndUpdate(
+        { key: 'taskBaselines' },
+        { key: 'taskBaselines', value: taskBaselines },
+        { upsert: true, new: true }
+      ),
+    ]);
     res.json({ success: true });
   } catch (err) {
     console.error('Task override save error:', err);
@@ -689,11 +710,19 @@ app.delete('/api/tasks/:displayName', requireManager, async (req, res) => {
   const displayName = decodeURIComponent(req.params.displayName);
   try {
     delete taskOverrides[displayName];
-    await Config.findOneAndUpdate(
-      { key: 'taskOverrides' },
-      { key: 'taskOverrides', value: taskOverrides },
-      { upsert: true, new: true }
-    );
+    delete taskBaselines[displayName];
+    await Promise.all([
+      Config.findOneAndUpdate(
+        { key: 'taskOverrides' },
+        { key: 'taskOverrides', value: taskOverrides },
+        { upsert: true, new: true }
+      ),
+      Config.findOneAndUpdate(
+        { key: 'taskBaselines' },
+        { key: 'taskBaselines', value: taskBaselines },
+        { upsert: true, new: true }
+      ),
+    ]);
     res.json({ success: true });
   } catch (err) {
     console.error('Task override delete error:', err);
