@@ -260,25 +260,29 @@
   }
 
   /* ── Manager Cell Modal (preview + edit) ── */
+  /* Entry panel: slides in from the right (replaces the centred popup) */
   .em-overlay {
     position: fixed; inset: 0; z-index: 900;
-    background: rgba(0,0,0,0.65);
-    display: flex; align-items: center; justify-content: center;
-    padding: 20px;
-    backdrop-filter: blur(4px);
+    background: rgba(0,0,0,0.35);
+    display: flex; align-items: stretch; justify-content: flex-end;
+    padding: 0;
+    backdrop-filter: blur(2px);
   }
   .em-overlay.hidden { display: none; }
 
   .em-modal {
     background: var(--surface);
-    border: 1px solid var(--border-2);
-    border-radius: var(--radius);
-    width: 100%; max-width: 460px;
-    max-height: 88vh;
+    border-left: 1px solid var(--border-2);
+    border-radius: var(--radius-card) 0 0 var(--radius-card);
+    width: 100%; max-width: 500px;
+    height: 100%; max-height: none;
     display: flex; flex-direction: column;
-    box-shadow: 0 24px 64px rgba(0,0,0,0.9), 0 0 0 1px color-mix(in srgb, var(--text) 4%, transparent);
-    animation: emPop 0.18s ease;
+    box-shadow: -16px 0 48px var(--ro-shadow-color);
+    animation: emSlide 0.22s ease;
   }
+  @keyframes emSlide { from { transform: translateX(100%); } to { transform: none; } }
+  .em-modal .em-body { flex: 1; }
+
   @keyframes emPop {
     from { transform: translateY(10px) scale(0.98); opacity: 0; }
     to   { transform: none; opacity: 1; }
@@ -776,6 +780,40 @@
     .team-filters select { flex: 1; min-width: 0; } .team-count { width: 100%; margin-left: 0; }
     .pf-panel { padding: 12px; }
   }
+  /* ── Work toolbar ── */
+  .ws-toolbar {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    margin: 0 20px 14px; padding: 12px 14px;
+    background: var(--ro-surface); border: 1px solid var(--ro-border); border-radius: var(--radius-card); box-shadow: var(--ro-shadow);
+  }
+  .ws-field { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; color: var(--ro-muted); }
+  .ws-field select { min-width: 190px; } .ws-field input[type=month] { width: 160px; }
+  .ws-search { position: relative; flex: 1; min-width: 180px; max-width: 280px; }
+  .ws-search svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); width: 15px; height: 15px; color: var(--ro-muted); }
+  .ws-search input {
+    width: 100%; height: 36px; padding: 0 12px 0 32px; border-radius: 999px; outline: none;
+    border: 1px solid var(--ro-border); background: var(--ro-surface-2); color: var(--ro-text); font-size: 13px;
+  }
+  .ws-search input:focus { border-color: var(--ro-accent); box-shadow: 0 0 0 3px var(--ro-accent-soft); }
+  .ws-toggle { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: var(--ro-text); cursor: pointer; white-space: nowrap; }
+  .ws-toggle input { width: 16px; height: 16px; accent-color: var(--ro-accent); }
+  .ws-actions { margin-left: auto; display: inline-flex; gap: 8px; }
+  #ptab-entries .ws-member { display: none; }          /* the profile already fixes the member */
+  #ptab-entries .ws-toolbar { margin: 0 0 14px; box-shadow: none; }
+  #ptab-entries .table-wrapper, #ptab-entries .legend { margin-left: 0; margin-right: 0; }
+  thead th.future-col { color: var(--ro-dim); }
+  tbody td.future-cell { background: transparent; }
+
+  /* ── Attendance toolbar ── */
+  .att-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 0 20px 4px; }
+  .att-view-hint { font-size: 12.5px; color: var(--ro-muted); }
+  .att-export { margin-left: auto; }
+  @media (max-width: 560px) {
+    .ws-toolbar { margin: 0 0 12px; } .ws-field, .ws-field select, .ws-field input[type=month], .ws-search { width: 100%; max-width: none; flex: 1 1 100%; }
+    .ws-actions { margin-left: 0; width: 100%; } .ws-actions .btn { flex: 1; }
+    .att-toolbar { padding: 0 0 4px; } .att-export { margin-left: 0; }
+    .em-modal { max-width: none; border-radius: 0; }
+  }
   @media (max-width: 900px) {
     .sidebar { transform: translateX(-100%); transition: transform .2s ease; box-shadow: var(--ro-shadow); }
     body.sidebar-open .sidebar { transform: none; }
@@ -955,10 +993,19 @@
     <section class="page" id="page-work" hidden>
       <div class="page-head">
         <div><h1 class="page-title">Work</h1><p class="page-sub">Daily entries per member — click a filled cell to view or edit.</p></div>
-        <label class="work-member-pick">Member <select class="inp" id="work-member" onchange="selectMember(parseInt(this.value, 10))"></select></label>
       </div>
 <!-- ── Spreadsheet panel ── -->
 <div id="panel-spreadsheet">
+  <div class="ws-toolbar">
+    <label class="ws-field ws-member">Member <select class="inp" id="work-member" onchange="selectMember(parseInt(this.value, 10))"></select></label>
+    <label class="ws-field">Month <input type="month" class="inp" id="work-month" onchange="renderSpreadsheet({ jump: true })"></label>
+    <label class="ws-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input type="search" id="work-search" placeholder="Search tasks" autocomplete="off" oninput="renderSpreadsheet()" aria-label="Search tasks"></label>
+    <label class="ws-toggle"><input type="checkbox" id="work-missing" onchange="renderSpreadsheet()"> Only missing entries</label>
+    <span class="ws-actions">
+      <button type="button" class="btn btn-ghost btn-sm" onclick="jumpToToday()">Jump to today</button>
+      <button type="button" class="btn btn-primary btn-sm" onclick="exportWorkCSV()">&#8659; Export CSV</button>
+    </span>
+  </div>
   <div class="section-header">
     <div class="m-avatar" id="m-avatar">–</div>
     <div class="m-name"   id="m-name">Select a member</div>
@@ -981,11 +1028,15 @@
       </div>
 <!-- ── Attendance panel ── -->
 <div id="panel-attendance">
-  <!-- Sub-tabs bar -->
-  <div style="background:var(--surface-2);border-bottom:1px solid var(--border);padding:0 20px;display:flex;align-items:flex-end;gap:4px">
-    <button class="att-sub-tab active" id="atab-daily"   onclick="switchAttTab('daily')">&#128197; Daily View</button>
-    <button class="att-sub-tab"        id="atab-monthly" onclick="switchAttTab('monthly')">&#128336; Monthly View</button>
-    <button class="att-sub-tab"        id="atab-matrix"  onclick="switchAttTab('matrix')">&#9783; Matrix Report</button>
+  <!-- View switch: Day | Month | Member -->
+  <div class="att-toolbar">
+    <div class="segmented" role="tablist" aria-label="Attendance view">
+      <button type="button" role="tab" class="active" id="atab-daily"   onclick="switchAttTab('daily')">Day</button>
+      <button type="button" role="tab"                id="atab-matrix"  onclick="switchAttTab('matrix')">Month</button>
+      <button type="button" role="tab"                id="atab-monthly" onclick="switchAttTab('monthly')">Member</button>
+    </div>
+    <span class="att-view-hint" id="att-view-hint">Everyone on one day</span>
+    <button type="button" class="btn btn-primary btn-sm att-export" onclick="exportAttendanceCSV()">&#8659; Export CSV</button>
   </div>
 
   <!-- Daily view -->
@@ -1022,7 +1073,6 @@
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
       <input type="month" id="att-matrix-month" class="inp" style="max-width:170px" onchange="loadMatrixAttendance()">
       <button class="btn btn-ghost btn-sm" onclick="loadMatrixAttendance()">&#8635; Refresh</button>
-      <button class="btn btn-primary btn-sm" onclick="exportAttendanceCSV()" style="margin-left:auto">&#8659; Export CSV</button>
     </div>
     <div id="att-matrix-wrap">
       <div class="state-overlay">Select a month to load the matrix.</div>
@@ -1883,8 +1933,11 @@
     else loadDailyAttendance();
   }
 
+  const ATT_HINT = { daily: 'Everyone on one day', matrix: 'Everyone × every day of a month (WFH / WFO)', monthly: 'One member, a whole month' };
+  let attDailyRecords = [], attMonthlyRecords = [];
   function switchAttTab(tab) {
     attTab = tab;
+    document.getElementById('att-view-hint').textContent = ATT_HINT[tab] || '';
     ['daily', 'monthly', 'matrix'].forEach(t => {
       document.getElementById('att-panel-' + t).style.display = t === tab ? 'block' : 'none';
       document.getElementById('atab-' + t).classList.toggle('active', t === tab);
@@ -1914,6 +1967,7 @@
     try {
       const res     = await fetch('/api/attendance/all/' + attDate, { credentials: 'same-origin' });
       const records = await res.json();
+      attDailyRecords = records;
       renderDailyAttendance(records);
     } catch {
       wrap.innerHTML = '<div class="state-overlay" style="color:var(--text-muted)">Failed to load.</div>';
@@ -2005,6 +2059,7 @@
     try {
       const res     = await fetch('/api/attendance/monthly/' + encodeURIComponent(username) + '/' + month, { credentials: 'same-origin' });
       const records = await res.json();
+      attMonthlyRecords = records;
       renderMonthlyAttendance(records, month);
     } catch {
       wrap.innerHTML = '<div class="state-overlay" style="color:var(--text-muted)">Failed to load.</div>';
@@ -2147,7 +2202,39 @@
       '</table></div>';
   }
 
+  /* One Export button for all three views */
   function exportAttendanceCSV() {
+    if (attTab === 'daily')   return exportDayCSV();
+    if (attTab === 'monthly') return exportMemberCSV();
+    return exportMatrixCSV();
+  }
+  const attStatus = r => !r ? 'Not recorded' : r.endTime ? 'Complete'
+    : (r.checkOuts || []).some(c => c.outTime && !c.inTime) ? 'On break' : r.startTime ? 'Working' : '';
+  function exportDayCSV() {
+    if (!attDate) { showToast('Pick a day first.', 'error'); return; }
+    const map = Object.fromEntries(attDailyRecords.map(r => [r.username, r]));
+    const rows = [['Member', 'Mode', 'Start', 'End', 'Break', 'Total working', 'Status', 'Note']];
+    members.forEach(m => { const r = map[m.username];
+      rows.push([m.display, r ? r.workMode || '' : '', r ? r.startTime || '' : '', r ? r.endTime || '' : '',
+        r && r.totalCheckOutMinutes ? formatMins(r.totalCheckOutMinutes) : '', r && r.totalWorkingMinutes ? formatMins(r.totalWorkingMinutes) : '',
+        attStatus(r), r ? r.note || '' : '']); });
+    downloadCSV('attendance-day-' + attDate + '.csv', rows);
+  }
+  function exportMemberCSV() {
+    const username = document.getElementById('att-monthly-member').value;
+    const month    = document.getElementById('att-month-picker').value;
+    if (!username || !month) { showToast('Choose a member and a month first.', 'error'); return; }
+    const m   = members.find(x => x.username === username);
+    const map = Object.fromEntries(attMonthlyRecords.map(r => [r.date, r]));
+    const rows = [['Date', 'Day', 'Mode', 'Start', 'End', 'Break', 'Total working', 'Status', 'Note']];
+    monthDays(month).forEach(d => { const r = map[d];
+      rows.push([d, new Date(d + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'short' }), r ? r.workMode || '' : '',
+        r ? r.startTime || '' : '', r ? r.endTime || '' : '', r && r.totalCheckOutMinutes ? formatMins(r.totalCheckOutMinutes) : '',
+        r && r.totalWorkingMinutes ? formatMins(r.totalWorkingMinutes) : '', r ? attStatus(r) : '', r ? r.note || '' : '']); });
+    downloadCSV('attendance-' + (m ? m.username : username) + '-' + month + '.csv', rows);
+  }
+
+  function exportMatrixCSV() {
     const mp    = document.getElementById('att-matrix-month');
     const month = mp ? mp.value : '';
     if (!month || !members.length) { showToast('Load the matrix first.', 'error'); return; }
@@ -2159,29 +2246,15 @@
     for (let d = 1; d <= daysInMonth; d++)
       days.push(y + '-' + String(mo).padStart(2, '0') + '-' + String(d).padStart(2, '0'));
 
-    const header  = ['Member', ...days].join(',');
-    const csvRows = members.map(m => {
-      const cells = days.map(date => {
-        const dt        = new Date(date + 'T12:00:00');
-        const isWeekend = dt.getDay() === 0 || dt.getDay() === 6;
-        if (isWeekend)    return 'Weekend';
-        if (date > today) return '';
-        const r = (matrixData[m.username] || {})[date];
-        if (!r) return 'Absent';
-        return r.workMode || 'Present';
-      });
-      return ['"' + m.display.replace(/"/g, '""') + '"', ...cells].join(',');
-    });
-
-    const csv  = [header, ...csvRows].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href     = url;
-    a.download = 'attendance-' + month + '.csv';
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast('CSV exported.', 'success');
+    const rows = [['Member', ...days]];
+    members.forEach(m => rows.push([m.display, ...days.map(date => {
+      const dt = new Date(date + 'T12:00:00');
+      if (dt.getDay() === 0 || dt.getDay() === 6) return 'Weekend';
+      if (date > today) return '';
+      const r = (matrixData[m.username] || {})[date];
+      return !r ? 'Absent' : (r.workMode || 'Present');
+    })]));
+    downloadCSV('attendance-month-' + month + '.csv', rows);
   }
 
   /* ── Attendance edit modal ── */
@@ -2438,7 +2511,7 @@
 
     if (page === 'overview')        renderOverview();
     else if (page === 'team')       renderTeam();
-    else if (page === 'work')       { renderMemberTabs(); renderSpreadsheet(); }
+    else if (page === 'work')       { renderMemberTabs(); renderSpreadsheet({ jump: true }); }
     else if (page === 'attendance') initAttendanceTab();
     else if (page === 'tasks')      renderEditTasks();
     else if (page === 'reports')    renderAnalytics();
@@ -2489,7 +2562,7 @@
     renderMemberTabs();
     if (currentPage === 'work') {
       history.replaceState({ page: 'work' }, '', pageUrl('work'));
-      renderSpreadsheet();
+      renderSpreadsheet({ jump: true });
     }
   }
 
@@ -2826,7 +2899,7 @@
     profileTab = tab;
     document.querySelectorAll('.pf-tab').forEach(b => { const on = b.dataset.ptab === tab; b.classList.toggle('active', on); b.setAttribute('aria-selected', on); });
     ['entries', 'attendance', 'tasks', 'notes'].forEach(t => { document.getElementById('ptab-' + t).hidden = t !== tab; });
-    if (tab === 'entries')    { mountSpreadsheet(document.getElementById('ptab-entries')); renderSpreadsheet(); }
+    if (tab === 'entries')    { mountSpreadsheet(document.getElementById('ptab-entries')); renderSpreadsheet({ jump: true }); }
     if (tab === 'attendance') loadProfileAttendance();
   }
 
@@ -2899,26 +2972,66 @@
   }
 
   /* ── Spreadsheet ── */
-  function renderSpreadsheet() {
-    if (!members.length) return;
+  /* ── Work spreadsheet: one month, tasks × days; first (task) column stays frozen ── */
+  function monthDays(month) {
+    const [y, mo] = month.split('-').map(Number);
+    const n = new Date(y, mo, 0).getDate();
+    return Array.from({ length: n }, (_, i) => month + '-' + String(i + 1).padStart(2, '0'));
+  }
+  function dayHasEntry(dayData) {
+    return !!dayData && Object.keys(dayData).some(k => !k.startsWith('_') && cellContentAny(dayData[k]));
+  }
+  // any task value with something in it (type-agnostic, for "missing day" checks)
+  function cellContentAny(v) {
+    if (!v || typeof v !== 'object') return false;
+    return (v.rows && v.rows.some(r => r.client || r.value || r.links)) || (v.value !== undefined && v.value !== '') ||
+           !!(v.text && String(v.text).trim()) || !!(v.links && String(v.links).trim());
+  }
+  function workMonth() {
+    const el = document.getElementById('work-month');
+    if (!el.value) el.value = todayISO().slice(0, 7);
+    return el.value;
+  }
+
+  // Which columns/rows the grid shows (also used by the CSV export)
+  function spreadsheetView() {
     const m      = members[activeMember];
-    const dates  = getLast31Days();
-    const today  = dates[0];
+    const month  = workMonth();
+    const today  = todayISO();
     const mData  = allData[m.username] || {};
-    const tasks  = m.tasks || [];
+    const q      = document.getElementById('work-search').value.trim().toLowerCase();
+    const onlyMissing = document.getElementById('work-missing').checked;
+    let dates = monthDays(month);
+    if (onlyMissing) dates = dates.filter(d => d <= today && !dayHasEntry(mData[d]));
+    const tasks = (m.tasks || []).filter(t => !q || t.name.toLowerCase().includes(q));
+    return { m, month, today, mData, dates, tasks, q, onlyMissing };
+  }
+
+  function renderSpreadsheet(opts = {}) {
+    if (!members.length) return;
+    const { m, month, today, mData, dates, tasks, q, onlyMissing } = spreadsheetView();
+    const allTasks = m.tasks || [];
+    const pastDays = monthDays(month).filter(d => d <= today);
 
     document.getElementById('m-avatar').textContent = initials(m.display);
     document.getElementById('m-name').textContent   = m.display;
+    const submitted = pastDays.filter(d => dayHasEntry(mData[d])).length;
+    document.getElementById('m-meta').textContent = allTasks.length + (allTasks.length === 1 ? ' task · ' : ' tasks · ') +
+      submitted + '/' + pastDays.length + ' days submitted';
 
-    let submitted = 0;
-    dates.forEach(d => { if (mData[d]) submitted++; });
-    document.getElementById('m-meta').textContent = tasks.length + (tasks.length === 1 ? ' task · ' : ' tasks · ') + submitted + '/31 days submitted';
+    const wrapper = document.getElementById('table-wrapper');
+    if (!dates.length || !tasks.length) {
+      wrapper.innerHTML = '<div class="state-overlay">' + (!tasks.length
+        ? (q ? 'No task matches “' + escHtml(q) + '”.' : 'No tasks assigned.')
+        : (onlyMissing ? 'No missing days in this month — every past day has an entry.' : 'No days to show.')) + '</div>';
+      return;
+    }
 
     let html = '<table><thead><tr><th>Task</th>';
     dates.forEach(d => {
       const isToday = d === today;
       const { dow, date } = formatHeader(d);
-      html += '<th class="' + (isToday ? 'today-col' : '') + '">' + dow + '<br>' + date + '</th>';
+      html += '<th data-date="' + d + '" class="' + (isToday ? 'today-col' : d > today ? 'future-col' : '') + '">' + dow + '<br>' + date + '</th>';
     });
     html += '</tr></thead><tbody>';
 
@@ -2935,7 +3048,7 @@
         if (cell) {
           const l2 = cell.line2 ? '<div class="cell-line2">' + escHtml(cell.line2) + '</div>' : '';
           const l3 = cell.line3 ? '<div class="cell-line3">' + escHtml(cell.line3) + '</div>' : '';
-          /* NOTE badge has its own click (stopProp keeps cell edit modal from also firing) */
+          /* NOTE badge has its own click (stopProp keeps the entry panel from also opening) */
           const noteTag = hasNote
             ? '<div><span class="cell-note-tag" style="cursor:pointer"' +
               ' data-note="'  + escHtml(noteContent)   + '"' +
@@ -2943,7 +3056,7 @@
               ' data-label="Note"' +
               ' onclick="event.stopPropagation();showCellNote(this)">NOTE</span></div>'
             : '';
-          /* All filled cells open the cell modal (preview first) */
+          /* All filled cells open the entry panel (preview first) */
           const editAttrs =
             ' data-username="' + escHtml(m.username)  + '"' +
             ' data-date="'     + escHtml(d)            + '"' +
@@ -2955,7 +3068,7 @@
             '<div class="cell-line1">' + escHtml(cell.line1) + '</div>' + l2 + l3 + noteTag +
             '</td>';
         } else {
-          html += '<td class="empty-cell' + todayCls + '"><span class="cell-empty">–</span></td>';
+          html += '<td class="' + (d > today ? 'future-cell' : 'empty-cell') + todayCls + '"><span class="cell-empty">' + (d > today ? '' : '–') + '</span></td>';
         }
       });
       html += '</tr>';
@@ -2986,7 +3099,67 @@
     }
 
     html += '</tbody></table>';
-    document.getElementById('table-wrapper').innerHTML = html;
+    wrapper.innerHTML = html;
+    if (opts.jump) scrollToToday();
+  }
+
+  /* Scroll the grid so today's column is in view (just right of the frozen task column) */
+  function scrollToToday() {
+    const wrap = document.getElementById('table-wrapper');
+    const th = wrap.querySelector('th[data-date="' + todayISO() + '"]');
+    const first = wrap.querySelector('thead th');
+    if (!th || !first) return;
+    // distance on screen from the frozen task column's right edge to today's column
+    const delta = th.getBoundingClientRect().left - first.getBoundingClientRect().right - 8;
+    wrap.scrollLeft = Math.max(0, wrap.scrollLeft + delta);
+  }
+  function jumpToToday() {
+    const el = document.getElementById('work-month');
+    const month = todayISO().slice(0, 7);
+    if (el.value !== month || document.getElementById('work-missing').checked) {
+      el.value = month;
+      document.getElementById('work-missing').checked = false;
+    }
+    renderSpreadsheet({ jump: true });
+  }
+
+  /* ── CSV helpers ── */
+  const csvCell = v => { const t = v === null || v === undefined ? '' : String(v); return /[",\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
+  function downloadCSV(filename, rows) {
+    const csv  = '\uFEFF' + rows.map(r => r.map(csvCell).join(',')).join('\n');  // BOM: Excel opens UTF-8 correctly
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    showToast('CSV exported.', 'success');
+  }
+  // Full text of one task value for the CSV (not truncated like the grid cells)
+  function entryText(v, type) {
+    if (!v) return '';
+    const parts = [];
+    if (type === 'links' || type === 'layers') {
+      (v.rows || []).filter(r => r.client || r.value || r.links).forEach(r => parts.push((r.client ? r.client + ': ' : '') + (r.value || r.links || '')));
+      if (parts.length || v.total) parts.push('Total ' + (v.total || 0));
+    } else {
+      if (v.value !== undefined && v.value !== '') parts.push(v.value);
+      if (v.links) parts.push(v.links);
+      if (v.text) parts.push(v.text);
+    }
+    if (v.sectionNote) parts.push('Note: ' + v.sectionNote);
+    return parts.join(' | ');
+  }
+
+  function exportWorkCSV() {
+    if (!members.length) return;
+    const { m, month, mData, dates, tasks } = spreadsheetView();
+    if (!dates.length || !tasks.length) { showToast('Nothing to export with these filters.', 'error'); return; }
+    const rows = [['Task', ...dates]];
+    tasks.forEach(t => rows.push([t.name, ...dates.map(d => entryText(mData[d] && mData[d][t.taskId], t.type))]));
+    if (dates.some(d => mData[d] && mData[d]._managerNote))
+      rows.push(['Note for Manager', ...dates.map(d => (mData[d] && mData[d]._managerNote) || '')]);
+    downloadCSV('work-' + m.username + '-' + month + '.csv', rows);
   }
 
   /* ── Analytics ── */

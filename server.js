@@ -552,7 +552,7 @@ if (!IS_PRODUCTION) {
     'background:#f59e0b;color:#111;font:700 12px/22px Inter,\'Segoe UI\',Roboto,sans-serif;text-align:center;' +
     'letter-spacing:.05em;pointer-events:none;opacity:.95">STAGING — test data only</div>' +
     // keep the page (and its sticky/fixed bars) below the 22px banner
-    '<style>body{padding-top:22px}.topbar,.app-topbar{top:22px!important}.sidebar{top:22px!important}</style>';
+    '<style>body{padding-top:22px}.topbar,.app-topbar{top:22px!important}.sidebar{top:22px!important}.em-overlay{top:22px!important}</style>';
   const withBanner = html => /<body[^>]*>/i.test(html)
     ? html.replace(/<body[^>]*>/i, m => m + BANNER)
     : BANNER + html;
