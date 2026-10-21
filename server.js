@@ -50,7 +50,7 @@ const {
   entryTasksV2, saveMemberTaskList, resetMemberTasks, setAssignees, migrateToTaskIds,
 } = require('./lib/tasks');
 const { buildOverview } = require('./lib/overview');
-const { buildTeam, buildProfile } = require('./lib/team');
+const { buildTeam, buildProfile, buildMySummary } = require('./lib/team');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -788,7 +788,8 @@ if (!IS_PRODUCTION) {
 app.use(requireAuth);
 
 // ── Protected page routes ──────────────────────────────────────────────────
-app.get('/member', (req, res) =>
+// Member portal: My Space (/member) and My History (/member/history), one page
+app.get(['/member', '/member/history'], (req, res) =>
   res.sendFile(path.join(__dirname, 'public', 'member.html')));
 
 // Manager shell: /dashboard is Overview; each sidebar page has its own URL and the
@@ -809,9 +810,22 @@ app.get('/api/me', async (req, res) => {
       tasksForUser(Task, req.session.username),
       tasksForUser(Task, req.session.username, { includeHistory: true }),
     ]);
-    res.json({ username: req.session.username, display: req.session.display, role: req.session.role, tasks, historyTasks });
+    const u = getUser(req.session.username) || {};
+    res.json({ username: req.session.username, display: u.display || req.session.display, role: req.session.role,
+               shift: u.shift || null, tasks, historyTasks });
   } catch (err) {
     console.error('Me error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// My Space: the member's own streak, today and "My Week" numbers (own data only)
+app.get('/api/my/summary', async (req, res) => {
+  try {
+    res.json(await buildMySummary({ Task, Entry, Attendance },
+      { username: req.session.username, date: req.query.date, time: req.query.time }));
+  } catch (err) {
+    console.error('My summary error:', err);
     res.status(500).json({ error: 'Database error' });
   }
 });
