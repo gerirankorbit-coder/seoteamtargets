@@ -97,6 +97,9 @@
   --shadow-sm:  0 2px 8px var(--ro-shadow-color);
 }
 
+/* The hidden attribute always wins over component display rules (e.g. .chip) */
+[hidden] { display: none !important; }
+
 /* ── Typography ────────────────────────────────────────────────────────────── */
 html, body, button, input, select, textarea { font-family: var(--font-body); }
 body { letter-spacing: -0.01em; }

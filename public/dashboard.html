@@ -650,6 +650,58 @@
   .settings-member-user { color: var(--ro-muted); font-weight: 400; margin-left: 6px; }
   .btn-remove-member { color: var(--ro-danger) !important; }
 
+  /* ── Overview ── */
+  .overview-updated { font-size: 12px; color: var(--ro-muted); font-variant-numeric: tabular-nums; }
+  .kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-bottom: 16px; }
+  .overview-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 16px; margin-bottom: 16px; }
+  .overview-panel { padding: 20px; }
+  .overview-panel .card-head-row { margin-bottom: 8px; }
+  .ov-hint, .ov-loading { font-size: 12px; color: var(--ro-muted); }
+  .ov-loading { padding: 12px 0; }
+  .ov-row {
+    display: flex; align-items: center; gap: 12px; padding: 10px 8px; margin: 0 -8px;
+    border-radius: var(--radius-inner); text-decoration: none; color: inherit; transition: background .15s;
+  }
+  .ov-row + .ov-row { border-top: 1px solid var(--ro-border); }
+  .ov-row:hover { background: var(--ro-surface-2); }
+  .ov-row-text { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; flex: 1; }
+  .ov-row-name { font-weight: 600; font-size: 14px; color: var(--ro-text); }
+  .ov-row-sub  { font-size: 12.5px; color: var(--ro-muted); }
+  .ov-reason-absent, .ov-reason-low_target { color: var(--ro-danger); }
+  .ov-reason-no_entry, .ov-reason-no_attendance { color: var(--ro-warning-text); }
+  .ov-row-go { color: var(--ro-muted); font-size: 18px; }
+  .ov-status { font-size: 11px; padding: 1px 8px; }
+  .ov-target { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; width: 92px; }
+  .ov-target .progress-bar { width: 100%; height: 6px; }
+  .ov-target-pct { font-weight: 700; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .ov-target-none { font-size: 12px; color: var(--ro-dim); }
+  .ov-streak { width: 64px; text-align: right; font-family: var(--font-display); font-weight: 800; font-size: 16px; font-variant-numeric: tabular-nums; }
+  .ov-streak small { font-family: var(--font-body); font-weight: 500; font-size: 11px; color: var(--ro-muted); }
+  .all-clear {
+    display: flex; align-items: center; gap: 12px; padding: 16px; border-radius: var(--radius-inner);
+    background: color-mix(in srgb, var(--ro-success) 10%, transparent); color: var(--ro-success);
+    border: 1px solid color-mix(in srgb, var(--ro-success) 28%, transparent); font-size: 13px;
+  }
+  .all-clear-icon { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--ro-success); color: var(--ro-surface); font-weight: 800; }
+  .overview-chart { padding: 20px; }
+  .overview-chart .card-head-row { flex-wrap: wrap; align-items: flex-start; }
+  .chart-filters { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .chart-filters select { min-width: 180px; }
+  .segmented { display: inline-flex; padding: 3px; gap: 2px; border-radius: 999px; background: var(--ro-surface-2); border: 1px solid var(--ro-border); }
+  .segmented button {
+    border: 0; background: none; padding: 6px 12px; border-radius: 999px; cursor: pointer; white-space: nowrap;
+    font-size: 12.5px; font-weight: 600; color: var(--ro-muted);
+  }
+  .segmented button.active { background: var(--ro-surface); color: var(--ro-text); box-shadow: 0 1px 3px var(--ro-shadow-color); }
+  .ov-chart-box { position: relative; height: 280px; }
+  @media (max-width: 1100px) { .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .overview-grid { grid-template-columns: 1fr; } }
+  @media (max-width: 560px)  {
+    .kpi-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .ov-target { width: 64px; } .ov-streak { width: 44px; }
+    .chart-filters { width: 100%; flex-direction: column; align-items: stretch; } .chart-filters select { width: 100%; }
+    .segmented { align-self: flex-start; }
+    .ov-chart-box { height: 240px; }
+  }
   @media (max-width: 900px) {
     .sidebar { transform: translateX(-100%); transition: transform .2s ease; box-shadow: var(--ro-shadow); }
     body.sidebar-open .sidebar { transform: none; }
@@ -710,9 +762,42 @@
     <main class="app-content">
     <section class="page" id="page-overview" hidden>
       <div class="page-head">
-        <div><h1 class="page-title">Overview</h1><p class="page-sub"></p></div>
+        <div><h1 class="page-title" id="overview-greeting">Welcome</h1><p class="page-sub" id="overview-date"></p></div>
+        <span class="overview-updated" id="overview-updated"></span>
       </div>
-      <div class="card overview-welcome"><h2 class="overview-greeting" id="overview-greeting">Welcome</h2><p class="page-sub" id="overview-date"></p><p class="overview-note">Your team overview is coming here — use the sidebar to open Team, Work, Attendance, Tasks &amp; Targets, Reports and Settings.</p></div>
+
+      <div class="kpi-grid">
+        <div class="kpi-card"><span class="kpi-label">Present Today</span><span class="kpi-value" id="kpi-present">–</span><span class="kpi-sub" id="kpi-present-sub">&nbsp;</span></div>
+        <div class="kpi-card"><span class="kpi-label">Entries Submitted</span><span class="kpi-value" id="kpi-submitted">–</span><span class="kpi-sub" id="kpi-submitted-sub">&nbsp;</span></div>
+        <div class="kpi-card"><span class="kpi-label">Avg Target Achieved</span><span class="kpi-value" id="kpi-target">–</span><span class="kpi-sub" id="kpi-target-sub">&nbsp;</span></div>
+        <div class="kpi-card"><span class="kpi-label">On Break Right Now</span><span class="kpi-value" id="kpi-break">–</span><span class="kpi-sub" id="kpi-break-sub">&nbsp;</span></div>
+      </div>
+
+      <div class="overview-grid">
+        <div class="card overview-panel">
+          <div class="card-head-row"><h2 class="card-heading">Needs Attention</h2><span class="chip" id="attention-count" hidden></span></div>
+          <div id="attention-list"><div class="ov-loading">Loading…</div></div>
+        </div>
+        <div class="card overview-panel">
+          <div class="card-head-row"><h2 class="card-heading">Team at a Glance</h2><span class="ov-hint">Target % · streak</span></div>
+          <div id="glance-list"><div class="ov-loading">Loading…</div></div>
+        </div>
+      </div>
+
+      <div class="card overview-chart">
+        <div class="card-head-row">
+          <div><h2 class="card-heading" id="ov-chart-title">Team submissions per day</h2><p class="page-sub" id="ov-chart-sub"></p></div>
+          <div class="chart-filters">
+            <select class="inp" id="ov-chart-member" aria-label="Member" onchange="renderOverviewChart()"></select>
+            <div class="segmented" role="group" aria-label="Date range">
+              <button type="button" data-days="7"  onclick="setOverviewDays(7)">7 days</button>
+              <button type="button" data-days="14" onclick="setOverviewDays(14)" class="active">14 days</button>
+              <button type="button" data-days="31" onclick="setOverviewDays(31)">31 days</button>
+            </div>
+          </div>
+        </div>
+        <div class="ov-chart-box"><canvas id="ov-chart" aria-label="Submissions per day"></canvas></div>
+      </div>
     </section>
     <section class="page" id="page-team" hidden>
       <div class="page-head">
@@ -2281,15 +2366,143 @@
   }
   document.addEventListener('click', e => { if (!e.target.closest('#global-search')) closeSearch(); });
 
-  /* ── Overview (placeholder until Step 6) ── */
+  /* ── Overview: one /api/overview call feeds every block on the page ── */
   let meInfo = { display: '', role: '' };
+  let overviewData = null, ovChart = null, ovDays = 14;
+  const STATUS_CHIP = {
+    working:     ['chip--working', 'Working'],
+    break:       ['chip--break',   'On break'],
+    offline:     ['chip--offline', 'Offline'],
+    not_started: ['chip--missing', 'Not started'],
+  };
+  const pad2 = n => String(n).padStart(2, '0');
+  const localDate = d => d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+
   function renderOverview() {
-    const h = new Date().getHours();
+    const now  = new Date();
+    const h    = now.getHours();
     const part = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
     document.getElementById('overview-greeting').textContent = 'Good ' + part + ', ' + (meInfo.display || 'there');
     document.getElementById('overview-date').textContent =
-      new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+      now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    if (overviewData) renderOverviewData();
+    loadOverview();
   }
+
+  async function loadOverview() {
+    const now = new Date();
+    try {
+      const res = await fetch('/api/overview?date=' + localDate(now) + '&time=' + pad2(now.getHours()) + ':' + pad2(now.getMinutes()),
+                              { credentials: 'same-origin' });
+      if (res.status === 401) { window.location.href = '/login'; return; }
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      overviewData = await res.json();
+      renderOverviewData();
+    } catch (e) {
+      if (!overviewData) document.getElementById('attention-list').innerHTML = '<div class="ov-loading">Could not load the overview — it will retry shortly.</div>';
+    }
+  }
+
+  function renderOverviewData() {
+    const d = overviewData, k = d.kpis, total = k.totalMembers;
+    const set = (id, v) => { document.getElementById(id).textContent = v; };
+    set('kpi-present',   k.present + '/' + total);
+    set('kpi-present-sub', total - k.present ? (total - k.present) + ' not started yet' : 'Everyone is in');
+    set('kpi-submitted', k.submitted + '/' + total);
+    set('kpi-submitted-sub', total - k.submitted ? (total - k.submitted) + ' still to submit' : 'Everyone submitted');
+    set('kpi-target',    k.avgTarget === null ? '—' : k.avgTarget + '%');
+    set('kpi-target-sub', k.avgTarget === null ? 'No daily targets set yet' : 'Across ' + k.targetedTasks + ' targeted task' + (k.targetedTasks === 1 ? '' : 's'));
+    set('kpi-break',     String(k.onBreak));
+    set('kpi-break-sub', k.onBreak ? 'Checked out at the moment' : 'Nobody on a break');
+    set('overview-updated', 'Updated ' + d.time);
+
+    // Needs attention
+    const cnt = document.getElementById('attention-count');
+    cnt.hidden = !d.attention.length;
+    cnt.className = 'chip chip--missing';
+    cnt.textContent = d.attention.length + (d.attention.length === 1 ? ' item' : ' items');
+    document.getElementById('attention-list').innerHTML = d.attention.length
+      ? d.attention.map(a =>
+          '<a class="ov-row" href="/dashboard/work?member=' + encodeURIComponent(a.username) + '" data-username="' + escHtml(a.username) + '"' +
+          ' onclick="if(!event.metaKey&&!event.ctrlKey){event.preventDefault();openMemberWork(this.dataset.username)}">' +
+          '<span class="avatar-sm">' + escHtml(initials(a.display)) + '</span>' +
+          '<span class="ov-row-text"><span class="ov-row-name">' + escHtml(a.display) + '</span>' +
+          '<span class="ov-row-sub ov-reason-' + escHtml(a.kind) + '">' + escHtml(a.reason) + '</span></span>' +
+          '<span class="ov-row-go" aria-hidden="true">&#8250;</span></a>').join('')
+      : '<div class="all-clear"><span class="all-clear-icon" aria-hidden="true">&#10003;</span><span><b>All clear</b><br>Nobody needs attention right now.</span></div>';
+
+    // Team at a glance
+    document.getElementById('glance-list').innerHTML = d.team.map(t => {
+      const [chipCls, chipText] = STATUS_CHIP[t.status] || STATUS_CHIP.offline;
+      const pct = t.targetPct;
+      return '<a class="ov-row" href="/dashboard/work?member=' + encodeURIComponent(t.username) + '" data-username="' + escHtml(t.username) + '"' +
+        ' onclick="if(!event.metaKey&&!event.ctrlKey){event.preventDefault();openMemberWork(this.dataset.username)}">' +
+        '<span class="avatar-sm">' + escHtml(initials(t.display)) + '</span>' +
+        '<span class="ov-row-text"><span class="ov-row-name">' + escHtml(t.display) + '</span>' +
+        '<span class="chip ' + chipCls + ' ov-status">' + chipText + '</span></span>' +
+        '<span class="ov-target">' +
+          (pct === null ? '<span class="ov-target-none">No target</span>'
+                        : '<span class="ov-target-pct">' + pct + '%</span><span class="progress-bar" style="--value:' + pct + '"><span></span></span>') +
+        '</span>' +
+        '<span class="ov-streak" title="Consecutive days with an entry">' + t.streak + '<small> day' + (t.streak === 1 ? '' : 's') + '</small></span></a>';
+    }).join('') || '<div class="ov-loading">No team members yet.</div>';
+
+    // Chart member filter (keep the current choice)
+    const sel = document.getElementById('ov-chart-member');
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">All members</option>' +
+      d.team.map(t => '<option value="' + escHtml(t.username) + '">' + escHtml(t.display) + '</option>').join('');
+    sel.value = d.team.some(t => t.username === prev) ? prev : '';
+    renderOverviewChart();
+  }
+
+  function setOverviewDays(n) {
+    ovDays = n;
+    document.querySelectorAll('.segmented [data-days]').forEach(b => b.classList.toggle('active', +b.dataset.days === n));
+    renderOverviewChart();
+  }
+
+  function renderOverviewChart() {
+    if (!overviewData || typeof Chart === 'undefined') return;
+    const h      = overviewData.history;
+    const member = document.getElementById('ov-chart-member').value;
+    const days   = h.days.slice(-ovDays);
+    const series = member
+      ? h.members[member].slice(-ovDays)                                                   // tasks that member submitted
+      : days.map((_, i) => Object.values(h.members).filter(v => v.slice(-ovDays)[i] > 0).length); // members who submitted
+    const name = member ? (overviewData.team.find(t => t.username === member) || {}).display : '';
+    document.getElementById('ov-chart-title').textContent = member ? name + ' — tasks submitted per day' : 'Team submissions per day';
+    document.getElementById('ov-chart-sub').textContent   = member
+      ? 'Number of tasks with an entry, last ' + ovDays + ' days'
+      : 'Members who submitted an entry, last ' + ovDays + ' days (out of ' + overviewData.kpis.totalMembers + ')';
+
+    const css = getComputedStyle(document.documentElement), tok = n => css.getPropertyValue(n).trim();
+    const accent = tok('--ro-accent'), muted = tok('--ro-muted'), border = tok('--ro-border');
+    const font = { family: tok('--font-body') || 'Inter', size: 11 };
+    const labels = days.map(d => { const x = new Date(d + 'T00:00:00'); return x.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }); });
+    if (ovChart) ovChart.destroy();
+    ovChart = new Chart(document.getElementById('ov-chart'), {
+      type: 'line',
+      data: { labels, datasets: [{
+        label: member ? 'Tasks submitted' : 'Members who submitted',
+        data: series, borderColor: accent, backgroundColor: accent + '22', pointBackgroundColor: accent,
+        borderWidth: 2, pointRadius: 3, tension: 0.3, cubicInterpolationMode: 'monotone', fill: true,
+      }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: true, labels: { color: muted, font, boxWidth: 12, usePointStyle: true } },
+          tooltip: { backgroundColor: tok('--ro-surface-2'), titleColor: tok('--ro-text'), bodyColor: muted, borderColor: border, borderWidth: 1, titleFont: font, bodyFont: font },
+        },
+        scales: {
+          x: { ticks: { color: muted, font, maxRotation: 0, autoSkip: true }, grid: { display: false } },
+          y: { beginAtZero: true, suggestedMax: member ? undefined : overviewData.kpis.totalMembers,
+               ticks: { color: muted, font, precision: 0 }, grid: { color: border } },
+        },
+      },
+    });
+  }
+  document.addEventListener('ro-theme-change', () => { if (currentPage === 'overview') renderOverviewChart(); });
 
   /* ── Team ── */
   function renderTeam() {
@@ -2741,6 +2954,7 @@
     setInterval(async function() {
       await loadAll();
       if (activeTab === 'spreadsheet') renderSpreadsheet();
+      if (currentPage === 'overview') loadOverview();
     }, 30000);
   }
 

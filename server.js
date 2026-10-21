@@ -49,6 +49,7 @@ const {
   TASK_TYPES, ENTRY_VERSION, publicTask, cleanTaskInput, newTaskId, tasksForUser, tasksByUser,
   entryTasksV2, saveMemberTaskList, resetMemberTasks, setAssignees, migrateToTaskIds,
 } = require('./lib/tasks');
+const { buildOverview } = require('./lib/overview');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -86,6 +87,7 @@ const UserSchema = new mongoose.Schema({
   role:            { type: String, required: true },
   display:         { type: String, required: true },
   passwordVersion: { type: Number, default: 1 },
+  shift:           { type: String }, // optional: 'day' | 'night' (used by Overview rules)
 });
 const User = mongoose.models.User || mongoose.model('User', UserSchema);
 
@@ -839,6 +841,18 @@ app.delete('/api/tasks/:displayName', requireManager, async (req, res) => {
     res.json({ success: true, tasks: await tasksForUser(Task, username) });
   } catch (err) {
     console.error('Task reset error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Manager Overview: KPIs, needs-attention list, team at a glance and chart history in
+// one call. date/time = the manager's local "now" (YYYY-MM-DD, HH:MM).
+app.get('/api/overview', requireManager, async (req, res) => {
+  try {
+    res.json(await buildOverview({ Task, Entry, Attendance, User },
+      { members: memberAccounts(), date: req.query.date, time: req.query.time }));
+  } catch (err) {
+    console.error('Overview error:', err);
     res.status(500).json({ error: 'Database error' });
   }
 });
