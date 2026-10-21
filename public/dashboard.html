@@ -684,10 +684,30 @@
   .add-existing { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
   .add-existing-row { display: flex; gap: 8px; } .add-existing-row .inp { flex: 1; min-width: 0; }
   .dirty-note { align-self: center; font-size: 12px; font-weight: 600; color: var(--ro-warning-text); }
-  .lib-assignees { display: flex; gap: 4px; flex-wrap: wrap; min-width: 200px; }
+  .lib-assignees { display: flex; gap: 4px; flex-wrap: wrap; }
+  .lib-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; padding: 16px 20px 20px; }
+  .lib-grid > .ov-loading { grid-column: 1 / -1; }
+  .lib-card { display: flex; flex-direction: column; gap: 10px; padding: 16px; border: 1px solid var(--ro-border); border-radius: var(--radius-card); background: var(--ro-surface); transition: border-color .15s, box-shadow .15s; }
+  .lib-card:hover { border-color: color-mix(in srgb, var(--ro-accent) 40%, var(--ro-border)); box-shadow: 0 4px 16px var(--ro-shadow-color); }
+  .lib-card.paused { background: var(--ro-surface-2); }
+  .lib-card.paused .lib-card-name, .lib-card.paused .lib-facts { opacity: .6; }
+  .lib-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  .lib-card-name { font-family: var(--font-display); font-size: 15px; font-weight: 700; margin: 0; line-height: 1.3; }
+  .lib-card .type-chip { align-self: flex-start; }
+  .lib-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0; }
+  .lib-facts dt { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--ro-muted); }
+  .lib-facts dd { margin: 2px 0 0; font-size: 13px; }
+  .lib-card-foot { display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-top: 10px; border-top: 1px solid var(--ro-border); }
+  .lib-state { font-size: 12px; font-weight: 600; color: var(--ro-muted); }
+  .switch { position: relative; display: inline-block; width: 38px; height: 22px; flex-shrink: 0; cursor: pointer; }
+  .switch input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+  .switch span { position: absolute; inset: 0; border-radius: 999px; background: var(--ro-border); transition: background .15s; pointer-events: none; }
+  .switch span::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: transform .15s; }
+  .switch input:checked + span { background: var(--ro-accent); }
+  .switch input:checked + span::after { transform: translateX(16px); }
+  .switch input:focus-visible + span { box-shadow: 0 0 0 3px var(--ro-accent-soft); }
   .name-pill { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--ro-surface-2); border: 1px solid var(--ro-border); white-space: nowrap; }
   .name-pill.more { color: var(--ro-muted); }
-  .lib-edit { text-align: right; }
   .link-btn { border: 0; background: none; padding: 0; color: var(--ro-accent); font-weight: 600; font-size: 12.5px; cursor: pointer; }
   .link-btn:hover { text-decoration: underline; }
   .td-body { gap: 16px !important; padding: 20px !important; }
@@ -1172,12 +1192,7 @@
       <span class="team-count" id="lib-count"></span>
       <button class="btn btn-primary btn-sm" onclick="openTaskDef()">&#43; New task</button>
     </div>
-    <div class="team-table-wrap">
-      <table class="team-table lib-table">
-        <thead><tr><th>Task</th><th>Type</th><th>Daily target</th><th>Assigned to</th><th>Status</th><th></th></tr></thead>
-        <tbody id="lib-tbody"><tr><td colspan="6" class="ov-loading">Loading…</td></tr></tbody>
-      </table>
-    </div>
+    <div class="lib-grid" id="lib-grid"><p class="ov-loading">Loading…</p></div>
   </div>
 </div>
     </section>
@@ -3732,8 +3747,8 @@
   function renderTaskLibrary() {
     const typeSel = document.getElementById('lib-type');
     if (typeSel.options.length === 1) typeSel.insertAdjacentHTML('beforeend', TYPE_ORDER.map(t => '<option value="' + t + '">' + typeName(t) + '</option>').join(''));
-    const tbody = document.getElementById('lib-tbody');
-    if (!taskDefs) { tbody.innerHTML = '<tr><td colspan="6" class="ov-loading">Loading…</td></tr>'; return; }
+    const grid = document.getElementById('lib-grid');
+    if (!taskDefs) { grid.innerHTML = '<p class="ov-loading">Loading…</p>'; return; }
     const q = document.getElementById('lib-search').value.trim().toLowerCase();
     const type = typeSel.value, status = document.getElementById('lib-status').value;
     const memberSet = new Set(members.map(m => m.username));
@@ -3743,18 +3758,38 @@
       (!q || t.name.toLowerCase().includes(q) || t.assignees.some(u => memberName(u).toLowerCase().includes(q) || u.includes(q))))
       .sort((a, b) => (b.assignees.length > 0) - (a.assignees.length > 0) || a.name.localeCompare(b.name));
     document.getElementById('lib-count').textContent = rows.length + ' of ' + taskDefs.length + ' tasks';
-    tbody.innerHTML = rows.map(t => {
+    grid.innerHTML = rows.map(t => {
       const names = t.assignees.map(memberName);
-      return '<tr class="team-row" tabindex="0" data-id="' + escHtml(t.taskId) + '" onclick="openTaskDef(this.dataset.id)" onkeydown="if(event.key===\'Enter\')openTaskDef(this.dataset.id)">' +
-        '<td><span class="team-member-name">' + escHtml(t.name) + '</span></td>' +
-        '<td><span class="type-chip type-' + t.type + '">' + typeName(t.type) + '</span></td>' +
-        '<td class="num">' + (t.type === 'note' ? '<span class="muted">—</span>' : t.dailyTarget === null ? '<span class="muted">No target</span>' : '<b>' + t.dailyTarget + '</b> <span class="muted">' + escHtml(t.label || '') + '</span>') + '</td>' +
-        '<td><span class="lib-assignees">' + (names.length
-          ? names.slice(0, 3).map(n => '<span class="name-pill">' + escHtml(n) + '</span>').join('') + (names.length > 3 ? '<span class="name-pill more" title="' + escHtml(names.slice(3).join(', ')) + '">+' + (names.length - 3) + '</span>' : '')
-          : '<span class="muted">Not assigned</span>') + '</span></td>' +
-        '<td>' + (t.active ? '<span class="chip chip--working">Active</span>' : '<span class="chip chip--offline">Paused</span>') + '</td>' +
-        '<td class="lib-edit"><span class="link-btn">Edit</span></td></tr>';
-    }).join('') || '<tr><td colspan="6" class="ov-loading">' + (taskDefs.length ? 'No task matches these filters.' : 'No tasks yet — create the first one.') + '</td></tr>';
+      return '<article class="lib-card' + (t.active ? '' : ' paused') + '" data-id="' + escHtml(t.taskId) + '">' +
+        '<div class="lib-card-head"><h3 class="lib-card-name">' + escHtml(t.name) + '</h3>' +
+          '<label class="switch" title="' + (t.active ? 'Active — click to pause' : 'Paused — click to activate') + '">' +
+          '<input type="checkbox" role="switch" aria-label="Active: ' + escHtml(t.name) + '"' + (t.active ? ' checked' : '') + ' onchange="toggleTaskActive(\'' + escHtml(t.taskId) + '\', this)"><span></span></label></div>' +
+        '<span class="type-chip type-' + t.type + '">' + typeName(t.type) + '</span>' +
+        '<dl class="lib-facts">' +
+          '<div><dt>Daily target</dt><dd>' + (t.type === 'note' ? '<span class="muted">No target (text)</span>' : t.dailyTarget === null ? '<span class="muted">Not set</span>' : '<b>' + t.dailyTarget + '</b> ' + escHtml(t.label || '')) + '</dd></div>' +
+          '<div><dt>Assigned to</dt><dd><b>' + names.length + '</b> member' + (names.length === 1 ? '' : 's') + '</dd></div>' +
+        '</dl>' +
+        '<div class="lib-assignees">' + (names.length
+          ? names.slice(0, 4).map(n => '<span class="name-pill">' + escHtml(n) + '</span>').join('') + (names.length > 4 ? '<span class="name-pill more" title="' + escHtml(names.slice(4).join(', ')) + '">+' + (names.length - 4) + '</span>' : '')
+          : '<span class="muted">Not assigned to anyone</span>') + '</div>' +
+        '<div class="lib-card-foot"><span class="lib-state">' + (t.active ? 'Active' : 'Paused') + '</span>' +
+          '<button type="button" class="btn btn-ghost btn-xs" data-id="' + escHtml(t.taskId) + '" onclick="openTaskDef(this.dataset.id)">Edit</button></div>' +
+        '</article>';
+    }).join('') || '<p class="ov-loading">' + (taskDefs.length ? 'No task matches these filters.' : 'No tasks yet — create the first one.') + '</p>';
+  }
+
+  async function toggleTaskActive(taskId, box) {
+    box.disabled = true;
+    try {
+      const res = await fetch('/api/task-defs/' + encodeURIComponent(taskId), { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active: box.checked }), credentials: 'same-origin' });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || 'Could not change the task.');
+      await refreshAfterTaskChange();
+      if (!editDirty) editTasks = JSON.parse(JSON.stringify((members[editMemberIdx] || {}).tasks || []));
+      showToast(body.name + (body.active ? ' is active again' : ' paused — hidden from daily forms, data kept'), body.active ? 'success' : 'info');
+    } catch (e) { box.checked = !box.checked; showToast(e.message || 'Network error.', 'error'); }
+    renderTaskLibrary();
   }
 
   let tdEditing = null;   // taskId being edited, null = new task
