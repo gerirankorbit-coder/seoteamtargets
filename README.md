@@ -17,33 +17,11 @@ Open `http://<your-ip>:3000` on any device on the same network.
 
 ---
 
-## Credentials
+## Accounts
 
-### Management Access
-| Username    | Password  | Role      | Access               |
-|-------------|-----------|-----------|----------------------|
-| `manager`   | `mgr2024` | Manager   | Full dashboard       |
-| `assistant` | `asst2024`| Assistant | Full dashboard       |
-
-### Team Members
-| Username         | Password    | Display Name      |
-|------------------|-------------|-------------------|
-| `ali.lodhi`      | `ali@123#RO`    | Ali Lodhi         |
-| `abida.khalid`   | `abida@123#RO`  | Abida Khalid      |
-| `syed.salman`    | `salman@123#RO` | Syed Salman Ali   |
-| `usman.tariq`    | `usman@123#RO`  | Usman Tariq       |
-| `abdullah.asif`  | `asif@123#RO`   | Abdullah Asif     |
-| `abdullah.gull`  | `gull@123#RO`   | Abdullah Gull     |
-| `rizwan.haider`  | `rizwan@123#RO` | Rizwan Haider     |
-| `haseeb.ahmed`   | `haseeb@123#RO` | Haseeb Ahmed      |
-| `sana.effat`     | `sana@123#RO`   | Sana Effat        |
-| `m.kashif`       | `kashif@123#RO` | Muhammad Kashif   |
-| `sajid.saleem`   | `sajid@123#RO`  | Sajid Saleem      |
-| `toseef.ahmed`   | `toseef@123#RO` | Toseef Ahmed      |
-| `ahmad.rehman`   | `ahmad@123#RO`  | Ahmad Rehman      |
-| `naveed.liaqat`  | `naveed@123#RO` | Naveed Liaqat     |
-| `abler.khan`     | `abler@123#RO`  | Abler Khan        |
-| `ali.raza`       | `raza@123#RO`   | Ali Raza          |
+Passwords are not stored in this repository. They live only in MongoDB, hashed with bcrypt.
+The manager changes passwords and adds members from the dashboard. A brand-new deployment can
+create its first accounts from the `SEED_USER_PASSWORDS` environment variable (see `.env.example`).
 
 ---
 
@@ -100,7 +78,7 @@ All submission data is stored in `data.json` (flat JSON, no database). The file 
 }
 ```
 
-To change passwords or add users, edit the `USERS` object at the top of `server.js`. Sessions last 8 hours.
+Sessions last 30 days. Changing a member's password logs them out everywhere.
 
 ---
 

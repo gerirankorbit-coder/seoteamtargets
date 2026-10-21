@@ -44,6 +44,7 @@ const path     = require('path');
 const fs       = require('fs');
 const cors     = require('cors');
 const os       = require('os');
+const { isHash, hashPassword, verifyPassword, migratePlainPasswords } = require('./lib/passwords');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -125,35 +126,38 @@ mongoose.connection.once('open', async () => {
     if (baseDoc) taskBaselines     = baseDoc.value || {};
     if (pwDoc)   passwordOverrides = pwDoc.value   || {};
 
-    // Upsert every USERS entry into MongoDB on every startup.
-    // $setOnInsert: only writes when the document is brand-new (upsert insert path),
-    // so manually-changed passwords (passwordVersion > 1) are never overwritten.
-    // For existing docs with passwordVersion === 1 (still at default), we also
-    // force-sync the password so a stale/empty DB is always corrected.
-    const upsertOps = Object.entries(USERS).map(([username, data]) => {
-      const ov = passwordOverrides[username] || {};
-      const pw = ov.password || data.password;
-      const pv = ov.passwordVersion || data.passwordVersion || 1;
-      return {
-        updateOne: {
-          filter: { username, passwordVersion: { $lte: 1 } }, // only touch default-password docs
-          update: {
-            $set: {
-              password:        pw,
-              role:            data.role,
-              display:         data.display,
-              passwordVersion: pv,
-            },
-            $setOnInsert: { username },
-          },
-          upsert: true,
-        },
-      };
-    });
-    if (upsertOps.length) {
-      const bulkResult = await User.bulkWrite(upsertOps, { ordered: false });
-      console.log(`✓ Users synced — upserted: ${bulkResult.upsertedCount}, modified: ${bulkResult.modifiedCount}`);
+    // Make sure every USERS entry exists in MongoDB. Existing accounts keep their
+    // password; only role/display are refreshed (for accounts still on their first
+    // password). A missing account is created only if an initial password is
+    // provided via SEED_USER_PASSWORDS (JSON: {"username":"password"}) or a legacy
+    // passwordOverrides entry; it is stored hashed.
+    let seedPasswords = {};
+    try { seedPasswords = JSON.parse(process.env.SEED_USER_PASSWORDS || '{}'); }
+    catch { console.error('✗ SEED_USER_PASSWORDS is not valid JSON — ignored'); }
+    const existing = new Set((await User.find({}, { username: 1 }).lean()).map(u => u.username));
+    let created = 0, refreshed = 0;
+    for (const [username, data] of Object.entries(USERS)) {
+      if (existing.has(username)) {
+        const r = await User.updateOne(
+          { username, passwordVersion: { $lte: 1 } },
+          { $set: { role: data.role, display: data.display } }
+        );
+        refreshed += r.modifiedCount || 0;
+        continue;
+      }
+      const initial = seedPasswords[username] || (passwordOverrides[username] || {}).password;
+      if (!initial) { console.warn(`⚠ User "${username}" is not in the database and has no initial password — not created`); continue; }
+      try {
+        await User.create({ username, role: data.role, display: data.display,
+                            password: await hashPassword(initial), passwordVersion: 1 });
+        created++;
+      } catch (e) { if (e.code !== 11000) throw e; }
     }
+    console.log(`✓ Users synced — created: ${created}, refreshed: ${refreshed}`);
+
+    // One-time, idempotent: hash any password still stored as plain text.
+    const migrated = await migratePlainPasswords(User);
+    if (migrated) console.log(`✓ Hashed ${migrated} plain-text password(s)`);
 
     // Load all users into in-memory cache
     const allUsers = await User.find(
@@ -167,6 +171,7 @@ mongoose.connection.once('open', async () => {
         role:            u.role,
         display:         u.display,
         passwordVersion: u.passwordVersion,
+        checkedAt:       Date.now(),
       };
     });
     console.log('✓ Loaded', Object.keys(usersCache).length, 'users into cache');
@@ -183,34 +188,35 @@ mongoose.connection.once('open', async () => {
   }
 });
 
-// ── Credentials ────────────────────────────────────────────────────────────
-// passwordVersion: 1 is the baseline. Incrementing it (via change-password API)
-// invalidates all existing sessions for that user immediately.
+// ── Team accounts ──────────────────────────────────────────────────────────
+// Usernames, roles and display names only — passwords live (bcrypt-hashed) in
+// MongoDB, never in code. A brand-new account needs an initial password from
+// SEED_USER_PASSWORDS, or can be added from the dashboard.
 const USERS = {
-  "manager":        { password: "mgr2024",       role: "manager",   display: "Abdullah Saleem",   passwordVersion: 1 },
-  "assistant":      { password: "asst2024",       role: "assistant", display: "Assistant",         passwordVersion: 1 },
-  "ali.lodhi":      { password: "ali@123#RO",     role: "member",    display: "Ali Lodhi",         passwordVersion: 1 },
-  "abida.khalid":   { password: "abida@123#RO",   role: "member",    display: "Abida Khalid",      passwordVersion: 1 },
-  "syed.salman":    { password: "salman@123#RO",  role: "member",    display: "Syed Salman Ali",   passwordVersion: 1 },
-  "usman.tariq":    { password: "usman@123#RO",   role: "member",    display: "Usman Tariq",       passwordVersion: 1 },
-  "abdullah.asif":  { password: "asif@123#RO",    role: "member",    display: "Abdullah Asif",     passwordVersion: 1 },
-  "abdullah.gull":  { password: "gull@123#RO",    role: "member",    display: "Abdullah Gull",     passwordVersion: 1 },
-  "rizwan.haider":  { password: "rizwan@123#RO",  role: "member",    display: "Rizwan Haider",     passwordVersion: 1 },
-  "haseeb.ahmed":   { password: "haseeb@123#RO",  role: "member",    display: "Haseeb Ahmed",      passwordVersion: 1 },
-  "sana.effat":     { password: "sana@123#RO",    role: "member",    display: "Sana Effat",        passwordVersion: 1 },
-  "m.kashif":       { password: "kashif@123#RO",  role: "member",    display: "Muhammad Kashif",   passwordVersion: 1 },
-  "sajid.saleem":   { password: "sajid@123#RO",   role: "member",    display: "Sajid Saleem",      passwordVersion: 1 },
-  "toseef.ahmed":   { password: "toseef@123#RO",  role: "member",    display: "Toseef Ahmed",      passwordVersion: 1 },
-  "ahmad.rehman":   { password: "ahmad@123#RO",   role: "member",    display: "Ahmad Rehman",      passwordVersion: 1 },
-  "naveed.liaqat":  { password: "naveed@123#RO",  role: "member",    display: "Naveed Liaqat",     passwordVersion: 1 },
-  "abler.khan":     { password: "abler@123#RO",   role: "member",    display: "Abler Khan",        passwordVersion: 1 },
-  "ali.raza":       { password: "raza@123#RO",    role: "member",    display: "Ali Raza",          passwordVersion: 1 },
-  "ali.miraj":      { password: "miraj@123#RO",   role: "member",    display: "Ali Miraj Din",     passwordVersion: 1 },
-  "muhammad.asim":  { password: "asim@123#RO",    role: "member",    display: "Muhammad Asim",     passwordVersion: 1 },
-  "anas.irfan":     { password: "irfan@123#RO",   role: "member",    display: "Anas Irfan",        passwordVersion: 1 },
-  "mazhar":         { password: "mazhar@123#RO",  role: "member",    display: "Mazhar",            passwordVersion: 1 },
-  "anas.raza":      { password: "anas@123#RO",    role: "member",    display: "Anas Raza",         passwordVersion: 1 },
-  "atif.ahmad":     { password: "atif@123#RO",    role: "member",    display: "Atif Ahmad",        passwordVersion: 1 },
+  "manager":        { role: "manager",  display: "Abdullah Saleem" },
+  "assistant":      { role: "assistant", display: "Assistant" },
+  "ali.lodhi":      { role: "member",   display: "Ali Lodhi" },
+  "abida.khalid":   { role: "member",   display: "Abida Khalid" },
+  "syed.salman":    { role: "member",   display: "Syed Salman Ali" },
+  "usman.tariq":    { role: "member",   display: "Usman Tariq" },
+  "abdullah.asif":  { role: "member",   display: "Abdullah Asif" },
+  "abdullah.gull":  { role: "member",   display: "Abdullah Gull" },
+  "rizwan.haider":  { role: "member",   display: "Rizwan Haider" },
+  "haseeb.ahmed":   { role: "member",   display: "Haseeb Ahmed" },
+  "sana.effat":     { role: "member",   display: "Sana Effat" },
+  "m.kashif":       { role: "member",   display: "Muhammad Kashif" },
+  "sajid.saleem":   { role: "member",   display: "Sajid Saleem" },
+  "toseef.ahmed":   { role: "member",   display: "Toseef Ahmed" },
+  "ahmad.rehman":   { role: "member",   display: "Ahmad Rehman" },
+  "naveed.liaqat":  { role: "member",   display: "Naveed Liaqat" },
+  "abler.khan":     { role: "member",   display: "Abler Khan" },
+  "ali.raza":       { role: "member",   display: "Ali Raza" },
+  "ali.miraj":      { role: "member",   display: "Ali Miraj Din" },
+  "muhammad.asim":  { role: "member",   display: "Muhammad Asim" },
+  "anas.irfan":     { role: "member",   display: "Anas Irfan" },
+  "mazhar":         { role: "member",   display: "Mazhar" },
+  "anas.raza":      { role: "member",   display: "Anas Raza" },
+  "atif.ahmad":     { role: "member",   display: "Atif Ahmad" },
 };
 // Staging never loads the real team: only the seeded test.* accounts exist there.
 if (!IS_PRODUCTION) for (const k of Object.keys(USERS)) delete USERS[k];
@@ -219,6 +225,24 @@ if (!IS_PRODUCTION) for (const k of Object.keys(USERS)) delete USERS[k];
 function getUser(username) {
   const u = usersCache[username];
   return u ? { ...u } : null;
+}
+
+// Re-read one user from MongoDB into the cache. Each server instance has its own
+// cache, so this is how a password change made on another instance is picked up.
+async function refreshUser(username) {
+  const u = await User.findOne(
+    { username },
+    { _id: 0, password: 1, role: 1, display: 1, passwordVersion: 1 }
+  ).lean();
+  if (!u) { delete usersCache[username]; return null; }
+  usersCache[username] = {
+    password:        u.password,
+    role:            u.role,
+    display:         u.display,
+    passwordVersion: u.passwordVersion || 1,
+    checkedAt:       Date.now(),
+  };
+  return getUser(username);
 }
 
 // ── Team task definitions ──────────────────────────────────────────────────
@@ -411,13 +435,21 @@ function getLocalIP() {
   return 'localhost';
 }
 
+// ── Session secret ─────────────────────────────────────────────────────────
+// From SESSION_SECRET. If it is not set, derive a stable secret from MONGODB_URI
+// (itself a secret that only lives in the environment) so every server instance
+// agrees on it — no secret is ever written in code.
+const SESSION_SECRET = process.env.SESSION_SECRET ||
+  require('crypto').createHash('sha256').update('rank-orbit-session:' + (MONGODB_URI || '')).digest('hex');
+if (!process.env.SESSION_SECRET) console.warn('⚠ SESSION_SECRET is not set — using a secret derived from MONGODB_URI');
+
 // ── Middleware ─────────────────────────────────────────────────────────────
 app.set('trust proxy', 1);
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'gmb-secret-key-2026',
+  secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
   store: new MongoStore({
@@ -484,46 +516,30 @@ app.post('/api/login', async (req, res) => {
   if (!username || !password) return res.status(400).json({ error: 'Missing credentials.' });
   const uname = username.toLowerCase().trim();
 
-  // Primary: read from in-memory cache (populated from MongoDB on startup)
-  let user = getUser(uname);
+  // Cache first; on a miss or a wrong password re-check MongoDB (the cache may be
+  // cold, or the password may have been changed on another server instance).
+  let user, valid = false;
+  try {
+    user  = getUser(uname);
+    valid = !!user && await verifyPassword(password, user.password);
+    if (!valid) {
+      user  = await refreshUser(uname);
+      valid = !!user && await verifyPassword(password, user.password);
+    }
+  } catch (err) {
+    console.error('Login error:', err);
+    return res.status(500).json({ error: 'Server error. Please try again.' });
+  }
+  if (!valid) return res.status(401).json({ error: 'Invalid username or password.' });
 
-  // Fallback 1: cache not yet ready (cold-start race) — query MongoDB directly
-  if (!user) {
+  // Legacy plain-text password (not yet migrated): store it hashed now.
+  if (!isHash(user.password)) {
     try {
-      const dbUser = await User.findOne(
-        { username: uname },
-        { _id: 0, username: 1, password: 1, role: 1, display: 1, passwordVersion: 1 }
-      );
-      if (dbUser) {
-        user = {
-          password:        dbUser.password,
-          role:            dbUser.role,
-          display:         dbUser.display,
-          passwordVersion: dbUser.passwordVersion || 1,
-        };
-      }
-    } catch (err) {
-      console.error('Login DB fallback error:', err);
-      return res.status(500).json({ error: 'Server error. Please try again.' });
-    }
+      const hashed = await hashPassword(password);
+      await User.updateOne({ username: uname, password: user.password }, { $set: { password: hashed } });
+      if (usersCache[uname]) usersCache[uname].password = hashed;
+    } catch (err) { console.error('Password upgrade error:', err); }
   }
-
-  // Fallback 2: hardcoded USERS object — canonical source of truth for default creds.
-  // Covers edge case where DB credentials drifted from the defaults.
-  if (!user || user.password !== password) {
-    const hardcoded = USERS[uname];
-    if (hardcoded && hardcoded.password === password) {
-      user = {
-        password:        hardcoded.password,
-        role:            hardcoded.role,
-        display:         hardcoded.display,
-        passwordVersion: hardcoded.passwordVersion || 1,
-      };
-    }
-  }
-
-  if (!user || user.password !== password)
-    return res.status(401).json({ error: 'Invalid username or password.' });
 
   req.session.username        = uname;
   req.session.role            = user.role;
@@ -549,24 +565,27 @@ app.post('/api/logout', (req, res) => {
 });
 
 // ── Auth middleware ────────────────────────────────────────────────────────
-function requireAuth(req, res, next) {
+// A member's sessions end as soon as their passwordVersion changes. Each server
+// instance re-reads the user from MongoDB at most every 30 s, so a password change
+// made on any instance logs the member out everywhere within that window.
+const VERSION_RECHECK_MS = 30 * 1000;
+async function requireAuth(req, res, next) {
   if (!req.session.role) {
     if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'Not authenticated' });
     return res.redirect('/login');
   }
-  // Only enforce version check when cache is loaded AND user is found in it.
-  // If cache is empty (cold-start) or user isn't in cache (edge case), skip
-  // the version check entirely — don't destroy a valid session over a cache miss.
-  if (Object.keys(usersCache).length > 0) {
-    const currentUser = getUser(req.session.username);
-    if (currentUser) {
-      const currentVer = currentUser.passwordVersion || 1;
-      const sessionVer = req.session.passwordVersion  || 1;
-      if (sessionVer !== currentVer) {
-        req.session.destroy(() => {});
-        if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'password_changed' });
-        return res.redirect('/login?reason=password_changed');
-      }
+  let currentUser = getUser(req.session.username);
+  if (!currentUser || !currentUser.checkedAt || Date.now() - currentUser.checkedAt > VERSION_RECHECK_MS) {
+    try { currentUser = await refreshUser(req.session.username); }
+    catch (err) { console.error('Session check error:', err); } // keep the session on a DB hiccup
+  }
+  if (currentUser) {
+    const currentVer = currentUser.passwordVersion || 1;
+    const sessionVer = req.session.passwordVersion  || 1;
+    if (sessionVer !== currentVer) {
+      req.session.destroy(() => {});
+      if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'password_changed' });
+      return res.redirect('/login?reason=password_changed');
     }
   }
   next();
@@ -644,11 +663,12 @@ app.post('/api/admin/change-password', requireManager, async (req, res) => {
   if (!username || !newPassword) return res.status(400).json({ error: 'Missing fields' });
   if (newPassword.length < 6)    return res.status(400).json({ error: 'Password too short (min 6 chars)' });
   const target = username.toLowerCase().trim();
-  if (!usersCache[target]) return res.status(404).json({ error: 'User not found' });
+  if (!usersCache[target] && !(await refreshUser(target))) return res.status(404).json({ error: 'User not found' });
   const newVersion = Date.now();
   try {
-    await User.findOneAndUpdate({ username: target }, { password: newPassword, passwordVersion: newVersion });
-    usersCache[target] = { ...usersCache[target], password: newPassword, passwordVersion: newVersion };
+    const hashed = await hashPassword(newPassword);
+    await User.findOneAndUpdate({ username: target }, { password: hashed, passwordVersion: newVersion });
+    usersCache[target] = { ...usersCache[target], password: hashed, passwordVersion: newVersion, checkedAt: Date.now() };
     res.json({ success: true });
   } catch (err) {
     console.error('Change password error:', err);
@@ -791,7 +811,7 @@ app.post('/api/admin/save', requireManager, async (req, res) => {
   const { username, date, tasks } = req.body;
   if (!username || !date || !tasks) return res.status(400).json({ error: 'Missing fields' });
   const target = username.toLowerCase().trim();
-  if (!usersCache[target]) return res.status(404).json({ error: 'User not found' });
+  if (!usersCache[target] && !(await refreshUser(target))) return res.status(404).json({ error: 'User not found' });
   try {
     await Entry.findOneAndUpdate(
       { username: target, date },
@@ -817,8 +837,9 @@ app.post('/api/admin/members', requireManagerOnly, async (req, res) => {
   const validRoles = ['member', 'assistant'];
   const userRole = validRoles.includes(role) ? role : 'member';
   try {
-    await User.create({ username: uname, password, role: userRole, display: dname, passwordVersion: 1 });
-    usersCache[uname] = { password, role: userRole, display: dname, passwordVersion: 1 };
+    const hashed = await hashPassword(password);
+    await User.create({ username: uname, password: hashed, role: userRole, display: dname, passwordVersion: 1 });
+    usersCache[uname] = { password: hashed, role: userRole, display: dname, passwordVersion: 1, checkedAt: Date.now() };
     res.json({ success: true, username: uname, display: dname, role: userRole });
   } catch (err) {
     if (err.code === 11000) return res.status(409).json({ error: 'Username already exists' });
@@ -830,7 +851,7 @@ app.post('/api/admin/members', requireManagerOnly, async (req, res) => {
 // Remove a member (manager only)
 app.delete('/api/admin/members/:username', requireManagerOnly, async (req, res) => {
   const target = req.params.username.toLowerCase().trim();
-  const user   = usersCache[target];
+  const user   = usersCache[target] || await refreshUser(target);
   if (!user)               return res.status(404).json({ error: 'User not found' });
   if (user.role === 'manager') return res.status(403).json({ error: 'Cannot remove manager accounts' });
   try {
@@ -1162,10 +1183,6 @@ if (require.main === module) {
     console.log(`  │  ${pad('Landing   : http://' + ip + ':' + PORT)}│`);
     console.log(`  │  ${pad('Dashboard : http://' + ip + ':' + PORT + '/dashboard')}│`);
     console.log(`  │  ${pad('Member    : http://' + ip + ':' + PORT + '/member')}│`);
-    console.log('  ├─────────────────────────────────────────────┤');
-    console.log(`  │  ${pad('manager  / mgr2024   → Dashboard')}│`);
-    console.log(`  │  ${pad('assistant/ asst2024  → Dashboard')}│`);
-    console.log(`  │  ${pad('ali.lodhi/ ali123    → Member Portal')}│`);
     console.log('  └─────────────────────────────────────────────┘');
     console.log('');
   });
