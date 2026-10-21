@@ -529,7 +529,9 @@ if (!IS_PRODUCTION) {
   const BANNER =
     '<div id="staging-banner" style="position:fixed;top:0;left:0;right:0;z-index:2147483647;' +
     'background:#f59e0b;color:#111;font:700 12px/22px Inter,\'Segoe UI\',Roboto,sans-serif;text-align:center;' +
-    'letter-spacing:.05em;pointer-events:none;opacity:.95">STAGING — test data only</div>';
+    'letter-spacing:.05em;pointer-events:none;opacity:.95">STAGING — test data only</div>' +
+    // keep the page (and its sticky/fixed bars) below the 22px banner
+    '<style>body{padding-top:22px}.topbar,.app-topbar{top:22px!important}.sidebar{top:22px!important}</style>';
   const withBanner = html => /<body[^>]*>/i.test(html)
     ? html.replace(/<body[^>]*>/i, m => m + BANNER)
     : BANNER + html;
@@ -669,10 +671,11 @@ app.use(requireAuth);
 app.get('/member', (req, res) =>
   res.sendFile(path.join(__dirname, 'public', 'member.html')));
 
-app.get('/dashboard', requireManager, (req, res) => {
-  if (req.session.role !== 'manager' && req.session.role !== 'assistant') {
-    return res.redirect('/member');
-  }
+// Manager shell: /dashboard is Overview; each sidebar page has its own URL and the
+// same page renders it client-side.
+const DASHBOARD_PAGES = ['team', 'work', 'attendance', 'tasks', 'reports', 'settings'];
+app.get(['/dashboard', '/dashboard/:page'], requireManager, (req, res, next) => {
+  if (req.params.page && !DASHBOARD_PAGES.includes(req.params.page)) return next();
   res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
 

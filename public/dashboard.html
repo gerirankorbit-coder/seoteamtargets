@@ -556,46 +556,175 @@
     margin: 10px 0 6px; border-top: 1px solid var(--border); padding-top: 10px;
   }
   .att-hist-section-title:first-child { margin-top: 0; border-top: none; padding-top: 0; }
+  /* ═══ V2 manager shell: sidebar + topbar + one page per section ═══ */
+  .app-shell { display: flex; min-height: 100vh; }
+  .sidebar {
+    position: fixed; inset: 0 auto 0 0; width: 248px; z-index: 150;
+    display: flex; flex-direction: column; padding: 20px 14px;
+    background: var(--ro-sidebar); border-right: 1px solid var(--ro-border);
+  }
+  .sidebar-brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px 22px; text-decoration: none; color: var(--ro-text); }
+  .brand-mark {
+    width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center;
+    background: var(--ro-accent); color: var(--ro-on-accent);
+    font-family: var(--font-display); font-weight: 800; font-size: 14px;
+  }
+  .brand-name { font-family: var(--font-display); font-weight: 800; font-size: 17px; letter-spacing: -0.02em; }
+  .sidebar-nav { display: flex; flex-direction: column; gap: 4px; flex: 1; overflow-y: auto; }
+  .sidebar-link svg { width: 18px; height: 18px; flex-shrink: 0; }
+  .sidebar-foot { border-top: 1px solid var(--ro-border); padding-top: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .profile-chip { display: flex; align-items: center; gap: 10px; padding: 4px 6px; }
+  .profile-avatar, .avatar-sm, .avatar-md {
+    border-radius: 50%; display: grid; place-items: center; flex-shrink: 0;
+    background: var(--ro-accent-soft); color: var(--ro-accent); font-weight: 700;
+  }
+  .profile-avatar { width: 36px; height: 36px; font-size: 13px; }
+  .avatar-sm      { width: 30px; height: 30px; font-size: 11px; }
+  .avatar-md      { width: 44px; height: 44px; font-size: 15px; }
+  .profile-text { display: flex; flex-direction: column; min-width: 0; }
+  .profile-name { font-weight: 600; font-size: 13px; color: var(--ro-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .profile-role { font-size: 12px; color: var(--ro-muted); }
+  .sidebar-logout { width: 100%; }
+  .sidebar-backdrop { display: none; }
+
+  .app-main { flex: 1; min-width: 0; margin-left: 248px; display: flex; flex-direction: column; }
+  .app-topbar {
+    position: sticky; top: 0; z-index: 100; height: 64px; padding: 0 24px;
+    display: flex; align-items: center; gap: 16px;
+    background: color-mix(in srgb, var(--ro-bg) 88%, transparent); backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--ro-border);
+  }
+  .menu-btn {
+    display: none; width: 38px; height: 38px; align-items: center; justify-content: center; padding: 0;
+    border-radius: 12px; border: 1px solid var(--ro-border); background: var(--ro-surface); color: var(--ro-text); cursor: pointer;
+  }
+  .menu-btn svg { width: 18px; height: 18px; }
+  .global-search { position: relative; flex: 1; max-width: 420px; }
+  .global-search input {
+    width: 100%; height: 40px; padding: 0 14px 0 38px; border-radius: 999px; outline: none;
+    border: 1px solid var(--ro-border); background: var(--ro-surface); color: var(--ro-text); font-size: 14px;
+  }
+  .global-search input:focus { border-color: var(--ro-accent); box-shadow: 0 0 0 3px var(--ro-accent-soft); }
+  .search-icon { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--ro-muted); pointer-events: none; }
+  .search-results {
+    position: absolute; top: 46px; left: 0; right: 0; z-index: 120; padding: 6px; max-height: 360px; overflow: auto;
+    background: var(--ro-surface); border: 1px solid var(--ro-border); border-radius: 12px; box-shadow: var(--ro-shadow);
+  }
+  .search-hit {
+    display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; text-align: left;
+    border: 0; border-radius: 10px; background: none; color: var(--ro-text); cursor: pointer;
+  }
+  .search-hit:hover, .search-hit:focus { background: var(--ro-surface-2); outline: none; }
+  .search-hit-name { display: block; font-weight: 600; font-size: 13px; }
+  .search-hit-sub  { display: block; font-size: 12px; color: var(--ro-muted); }
+  .search-empty    { padding: 10px; font-size: 13px; color: var(--ro-muted); }
+  .topbar-date { margin-left: auto; font-size: 13px; color: var(--ro-muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+  .app-content { padding: 24px; }
+  .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+  .page-title { font-size: 24px; font-weight: 800; color: var(--ro-text); }
+  .page-sub { font-size: 13px; color: var(--ro-muted); margin-top: 2px; }
+  .page-sub:empty { display: none; }
+  .work-member-pick { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--ro-muted); }
+  .work-member-pick select { min-width: 220px; }
+
+  .overview-greeting { font-size: 22px; font-weight: 800; }
+  .overview-note { margin-top: 12px; color: var(--ro-muted); font-size: 14px; }
+
+  .team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+  .team-card { display: flex; align-items: center; gap: 12px; padding: 16px; text-decoration: none; color: inherit; transition: border-color .15s, transform .15s; }
+  .team-card:hover { border-color: var(--ro-accent); transform: translateY(-1px); }
+  .team-card-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+  .team-card-name { font-weight: 700; font-size: 14px; }
+  .team-card-sub { font-size: 12px; color: var(--ro-muted); }
+  .team-card-stats { display: flex; flex-direction: column; align-items: flex-end; font-size: 12px; color: var(--ro-muted); font-variant-numeric: tabular-nums; }
+  .team-card-stats b { color: var(--ro-text); }
+
+  .settings-grid { display: grid; gap: 16px; max-width: 860px; }
+  .card-heading { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  .card-head-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .settings-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  .settings-row .inp { flex: 1; min-width: 200px; }
+  .settings-member-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--ro-border); }
+  .settings-member-name { flex: 1; font-weight: 600; font-size: 13px; }
+  .settings-member-user { color: var(--ro-muted); font-weight: 400; margin-left: 6px; }
+  .btn-remove-member { color: var(--ro-danger) !important; }
+
+  @media (max-width: 900px) {
+    .sidebar { transform: translateX(-100%); transition: transform .2s ease; box-shadow: var(--ro-shadow); }
+    body.sidebar-open .sidebar { transform: none; }
+    body.sidebar-open .sidebar-backdrop { display: block; position: fixed; inset: 0; z-index: 140; background: rgba(0,0,0,.35); }
+    .app-main { margin-left: 0; }
+    .menu-btn { display: inline-flex; }
+    .app-topbar { padding: 0 16px; gap: 10px; }
+    .topbar-date { display: none; }
+    .app-content { padding: 16px; }
+  }
 </style>
 </head>
 <body>
 
 <!-- Topbar -->
-<div class="topbar">
-  <div class="topbar-logo">RO</div>
-  <div class="topbar-title">Rank <span>Orbit</span></div>
-  <div class="topbar-right">
-    <span class="badge badge-muted" id="user-badge">…</span>
-    <span class="badge badge-pink" id="role-badge">Manager</span>
-    <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch theme">
+<div class="app-shell">
+  <!-- ── Sidebar ── -->
+  <aside class="sidebar" id="sidebar" aria-label="Main navigation">
+    <a class="sidebar-brand" href="/dashboard" data-page="overview">
+      <span class="brand-mark">RO</span><span class="brand-name">Rank Orbit</span>
+    </a>
+    <nav class="sidebar-nav">
+      <a class="sidebar-link" href="/dashboard" data-page="overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg><span>Overview</span></a>
+      <a class="sidebar-link" href="/dashboard/team" data-page="team"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>Team</span></a>
+      <a class="sidebar-link" href="/dashboard/work" data-page="work"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg><span>Work</span></a>
+      <a class="sidebar-link" href="/dashboard/attendance" data-page="attendance"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Attendance</span></a>
+      <a class="sidebar-link" href="/dashboard/tasks" data-page="tasks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg><span>Tasks &amp; Targets</span></a>
+      <a class="sidebar-link" href="/dashboard/reports" data-page="reports"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg><span>Reports</span></a>
+      <a class="sidebar-link" href="/dashboard/settings" data-page="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68 1.65 1.65 0 0 0 10 3.17V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Settings</span></a>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="profile-chip">
+        <span class="profile-avatar" id="profile-avatar">–</span>
+        <span class="profile-text"><span class="profile-name" id="user-badge">…</span><span class="profile-role" id="role-badge">Manager</span></span>
+      </div>
+      <button class="btn-ghost sidebar-logout" onclick="logout()">Logout</button>
+    </div>
+  </aside>
+  <div class="sidebar-backdrop" onclick="closeSidebar()"></div>
+
+  <div class="app-main">
+    <!-- ── Topbar ── -->
+    <header class="app-topbar">
+      <button class="menu-btn" type="button" onclick="openSidebar()" aria-label="Open menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
+      <div class="global-search" id="global-search">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input id="search-input" type="search" placeholder="Search members…" autocomplete="off" aria-label="Search members"
+               oninput="renderSearchResults()" onkeydown="onSearchKey(event)" onfocus="renderSearchResults()">
+        <div class="search-results" id="search-results" hidden></div>
+      </div>
+      <div class="topbar-date" id="topbar-date"></div>
+      <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch theme">
       <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
       <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
     </button>
-    <button class="btn-logout" onclick="logout()">Logout</button>
-  </div>
-</div>
+    </header>
 
-<!-- Member tabs -->
-<div class="tabs-outer">
-  <button class="tabs-scroll-btn" onclick="scrollTabs(-200)" title="Scroll left">&#9664;</button>
-  <div class="tabs-bar" id="tabs-bar">
-    <div class="state-overlay"><div class="spinner"></div></div>
-  </div>
-  <button class="tabs-scroll-btn" onclick="scrollTabs(200)" title="Scroll right">&#9654;</button>
-  <button class="add-member-btn" id="add-member-btn" onclick="openAddMemberModal()" style="display:none">&#43; Add Member</button>
-</div>
-
-<!-- Content tabs -->
-<div class="ctabs-bar">
-  <button class="ctab active" id="ctab-spreadsheet" onclick="switchTab('spreadsheet')">&#9783; Spreadsheet</button>
-  <button class="ctab"        id="ctab-analytics"   onclick="switchTab('analytics')">&#9642; Analytics</button>
-  <button class="ctab"        id="ctab-tasks"        onclick="switchTab('tasks')">&#9998; Edit Tasks</button>
-  <button class="ctab"        id="ctab-attendance"   onclick="switchTab('attendance')">&#128336; Attendance</button>
-</div>
-
-<!-- Toast -->
-<div class="toast-container" id="toast-container"></div>
-
+    <main class="app-content">
+    <section class="page" id="page-overview" hidden>
+      <div class="page-head">
+        <div><h1 class="page-title">Overview</h1><p class="page-sub"></p></div>
+      </div>
+      <div class="card overview-welcome"><h2 class="overview-greeting" id="overview-greeting">Welcome</h2><p class="page-sub" id="overview-date"></p><p class="overview-note">Your team overview is coming here — use the sidebar to open Team, Work, Attendance, Tasks &amp; Targets, Reports and Settings.</p></div>
+    </section>
+    <section class="page" id="page-team" hidden>
+      <div class="page-head">
+        <div><h1 class="page-title">Team</h1><p class="page-sub">Everyone on the team — open a member to see their work.</p></div>
+      </div>
+      <div class="team-grid" id="team-grid"></div>
+    </section>
+    <section class="page" id="page-work" hidden>
+      <div class="page-head">
+        <div><h1 class="page-title">Work</h1><p class="page-sub">Daily entries per member — click a filled cell to view or edit.</p></div>
+        <label class="work-member-pick">Member <select class="inp" id="work-member" onchange="selectMember(parseInt(this.value, 10))"></select></label>
+      </div>
 <!-- ── Spreadsheet panel ── -->
 <div id="panel-spreadsheet">
   <div class="section-header">
@@ -613,27 +742,13 @@
     <div class="legend-item"><span class="cell-note-tag">NOTE</span> Has note — click cell to view</div>
   </div>
 </div>
-
-<!-- ── Analytics panel ── -->
-<div id="panel-analytics" style="display:none">
-  <div class="analytics-wrap">
-    <div class="charts-grid">
-      <div class="chart-card">
-        <div class="chart-title">Daily Activity — Last 14 Days</div>
-        <div class="chart-subtitle">Number of members who submitted an entry each day</div>
-        <canvas id="chart-daily" height="200"></canvas>
+    </section>
+    <section class="page" id="page-attendance" hidden>
+      <div class="page-head">
+        <div><h1 class="page-title">Attendance</h1><p class="page-sub">Start, breaks and end of each working day.</p></div>
       </div>
-      <div class="chart-card">
-        <div class="chart-title">Submission Rate — Last 31 Days</div>
-        <div class="chart-subtitle">Percentage of days each member submitted an entry</div>
-        <canvas id="chart-members" height="200"></canvas>
-      </div>
-    </div>
-  </div>
-</div>
-
 <!-- ── Attendance panel ── -->
-<div id="panel-attendance" style="display:none">
+<div id="panel-attendance">
   <!-- Sub-tabs bar -->
   <div style="background:var(--surface-2);border-bottom:1px solid var(--border);padding:0 20px;display:flex;align-items:flex-end;gap:4px">
     <button class="att-sub-tab active" id="atab-daily"   onclick="switchAttTab('daily')">&#128197; Daily View</button>
@@ -682,9 +797,13 @@
     </div>
   </div>
 </div>
-
+    </section>
+    <section class="page" id="page-tasks" hidden>
+      <div class="page-head">
+        <div><h1 class="page-title">Tasks &amp; Targets</h1><p class="page-sub">Each member&#39;s task list.</p></div>
+      </div>
 <!-- ── Edit Tasks panel ── -->
-<div id="panel-tasks" style="display:none">
+<div id="panel-tasks">
   <div class="edit-wrap">
     <div class="member-picker">
       <div class="member-picker-header">Members</div>
@@ -695,6 +814,58 @@
     </div>
   </div>
 </div>
+    </section>
+    <section class="page" id="page-reports" hidden>
+      <div class="page-head">
+        <div><h1 class="page-title">Reports</h1><p class="page-sub">Submission activity across the team.</p></div>
+      </div>
+<!-- ── Analytics panel ── -->
+<div id="panel-analytics">
+  <div class="analytics-wrap">
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">Daily Activity — Last 14 Days</div>
+        <div class="chart-subtitle">Number of members who submitted an entry each day</div>
+        <canvas id="chart-daily" height="200"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Submission Rate — Last 31 Days</div>
+        <div class="chart-subtitle">Percentage of days each member submitted an entry</div>
+        <canvas id="chart-members" height="200"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+    </section>
+    <section class="page" id="page-settings" hidden>
+      <div class="page-head">
+        <div><h1 class="page-title">Settings</h1><p class="page-sub">Passwords and team members.</p></div>
+      </div>
+      <div class="settings-grid">
+        <div class="card">
+          <h2 class="card-heading">Reset a member&#39;s password</h2>
+          <p class="page-sub">The member is logged out on every device as soon as the password changes.</p>
+          <div class="settings-row">
+            <select class="inp" id="settings-member" aria-label="Member"></select>
+            <input class="inp" id="chpw-input" type="text" placeholder="New password (min 6 chars)" autocomplete="off">
+            <button class="btn btn-primary btn-sm" onclick="changePassword()">Update Password</button>
+          </div>
+        </div>
+        <div class="card" id="settings-members-card" hidden>
+          <div class="card-head-row">
+            <h2 class="card-heading">Team members</h2>
+            <button class="btn btn-primary btn-sm" onclick="openAddMemberModal()">&#43; Add New Member</button>
+          </div>
+          <div id="settings-member-list"></div>
+        </div>
+      </div>
+    </section>
+    </main>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast-container" id="toast-container"></div>
 
 <!-- ── Attendance edit modal ── -->
 <div id="att-edit-overlay" class="att-edit-overlay hidden" onclick="if(event.target===this)closeAttEditModal()">
@@ -1175,7 +1346,7 @@
         await loadAll();
         activeMember = members.length - 1; // jump to the newly added member
         renderMemberTabs();
-        renderSpreadsheet();
+        if (currentPage === 'settings') renderSettings(); else navigate(currentPage, { push: false });
         closeAddMemberModal();
         showToast(display + ' added successfully.', 'success');
       } else {
@@ -1208,7 +1379,7 @@
         await loadAll();
         activeMember = Math.min(activeMember, Math.max(0, members.length - 1));
         renderMemberTabs();
-        renderSpreadsheet();
+        navigate(currentPage, { push: false });
         showToast(display + ' removed from the team.', 'info');
       } else {
         showToast(data.error || 'Failed to remove member.', 'error');
@@ -1993,38 +2164,167 @@
   }
 
   /* ── Tab scroll ── */
-  function scrollTabs(delta) {
-    document.getElementById('tabs-bar').scrollBy({ left: delta, behavior: 'smooth' });
+  /* ── Shell navigation: every sidebar page has its own URL under /dashboard ── */
+  const PAGES     = ['overview', 'team', 'work', 'attendance', 'tasks', 'reports', 'settings'];
+  const PAGE_TAB  = { work: 'spreadsheet', reports: 'analytics', tasks: 'tasks', attendance: 'attendance' };
+  const TAB_PAGE  = { spreadsheet: 'work', analytics: 'reports', tasks: 'tasks', attendance: 'attendance' };
+  const PAGE_NAME = { overview: 'Overview', team: 'Team', work: 'Work', attendance: 'Attendance',
+                      tasks: 'Tasks & Targets', reports: 'Reports', settings: 'Settings' };
+  let currentPage = null;
+
+  function pageFromPath(pathname) {
+    const seg = pathname.replace(/^\/dashboard\/?/, '').split('/')[0];
+    return PAGES.includes(seg) ? seg : 'overview';
+  }
+  function pageUrl(page) {
+    const base = page === 'overview' ? '/dashboard' : '/dashboard/' + page;
+    const m = members[activeMember];
+    return page === 'work' && m ? base + '?member=' + encodeURIComponent(m.username) : base;
   }
 
-  /* ── Member tabs ── */
+  function navigate(page, { push = true } = {}) {
+    if (!PAGES.includes(page)) page = 'overview';
+    currentPage = page;
+    activeTab   = PAGE_TAB[page] || page;
+    document.querySelectorAll('.page').forEach(el => { el.hidden = el.id !== 'page-' + page; });
+    document.querySelectorAll('.sidebar-link').forEach(a => {
+      const on = a.dataset.page === page;
+      a.classList.toggle('active', on);
+      if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+    });
+    document.title = PAGE_NAME[page] + ' — Rank Orbit';
+    if (push) history.pushState({ page }, '', pageUrl(page));
+    closeSidebar();
+    window.scrollTo(0, 0);
+
+    if (page === 'overview')        renderOverview();
+    else if (page === 'team')       renderTeam();
+    else if (page === 'work')       { renderMemberTabs(); renderSpreadsheet(); }
+    else if (page === 'attendance') initAttendanceTab();
+    else if (page === 'tasks')      renderEditTasks();
+    else if (page === 'reports')    renderAnalytics();
+    else if (page === 'settings')   renderSettings();
+  }
+
+  /* Old tab API, kept for existing callers */
+  function switchTab(tab) { navigate(TAB_PAGE[tab] || tab); }
+
+  /* Sidebar links: normal links (so open-in-new-tab works), routed in place on plain click */
+  document.addEventListener('click', e => {
+    const a = e.target.closest('a[data-page]');
+    if (!a || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+    e.preventDefault();
+    navigate(a.dataset.page);
+  });
+  window.addEventListener('popstate', () => {
+    const q = new URLSearchParams(location.search).get('member');
+    const idx = members.findIndex(m => m.username === q);
+    if (idx >= 0) activeMember = idx;
+    navigate(pageFromPath(location.pathname), { push: false });
+  });
+
+  /* Small screens: the sidebar slides in over the page */
+  function openSidebar()  { document.body.classList.add('sidebar-open'); }
+  function closeSidebar() { document.body.classList.remove('sidebar-open'); }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeSidebar(); closeSearch(); } });
+
+  /* ── Member picker on the Work page (replaces the old member tabs) ── */
   function renderMemberTabs() {
-    document.getElementById('tabs-bar').innerHTML = members.map((m, i) =>
-      '<div class="tab ' + (i === activeMember ? 'active' : '') + '" onclick="selectMember(' + i + ')">' +
-      escHtml(m.display) +
-      '</div>'
-    ).join('');
+    const sel = document.getElementById('work-member');
+    if (!sel) return;
+    sel.innerHTML = members.map((m, i) =>
+      '<option value="' + i + '"' + (i === activeMember ? ' selected' : '') + '>' + escHtml(m.display) + '</option>').join('');
   }
 
   function selectMember(idx) {
+    if (!members[idx]) return;
     activeMember = idx;
     renderMemberTabs();
-    if (activeTab === 'spreadsheet') renderSpreadsheet();
+    if (currentPage === 'work') {
+      history.replaceState({ page: 'work' }, '', pageUrl('work'));
+      renderSpreadsheet();
+    }
   }
 
-  /* ── Content tab switch ── */
-  function switchTab(tab) {
-    activeTab = tab;
-    ['spreadsheet', 'analytics', 'tasks', 'attendance'].forEach(t => {
-      document.getElementById('panel-' + t).style.display = t === tab ? 'block' : 'none';
-      document.getElementById('ctab-' + t).classList.toggle('active', t === tab);
-    });
-    if (tab === 'analytics')  renderAnalytics();
-    else if (tab === 'tasks') renderEditTasks();
-    else if (tab === 'attendance') {
-      initAttendanceTab();
-    }
-    else renderSpreadsheet();
+  function openMemberWork(username) {
+    const idx = members.findIndex(m => m.username === username);
+    if (idx < 0) return;
+    activeMember = idx;
+    closeSearch();
+    navigate('work');
+  }
+
+  /* ── Global search (members by name or username) ── */
+  function searchMatches() {
+    const q = document.getElementById('search-input').value.trim().toLowerCase();
+    if (!q) return [];
+    return members.filter(m => m.display.toLowerCase().includes(q) || m.username.toLowerCase().includes(q)).slice(0, 8);
+  }
+  function renderSearchResults() {
+    const box = document.getElementById('search-results');
+    const q   = document.getElementById('search-input').value.trim();
+    if (!q) { box.hidden = true; return; }
+    const hits = searchMatches();
+    box.innerHTML = hits.length
+      ? hits.map(m => '<button type="button" class="search-hit" data-username="' + escHtml(m.username) + '" onclick="openMemberWork(this.dataset.username)">' +
+          '<span class="avatar-sm">' + escHtml(initials(m.display)) + '</span>' +
+          '<span><span class="search-hit-name">' + escHtml(m.display) + '</span><span class="search-hit-sub">' + escHtml(m.username) + '</span></span></button>').join('')
+      : '<div class="search-empty">No member matches “' + escHtml(q) + '”</div>';
+    box.hidden = false;
+  }
+  function onSearchKey(e) {
+    if (e.key === 'Enter') { const hit = searchMatches()[0]; if (hit) openMemberWork(hit.username); }
+  }
+  function closeSearch() {
+    const box = document.getElementById('search-results');
+    if (box) box.hidden = true;
+  }
+  document.addEventListener('click', e => { if (!e.target.closest('#global-search')) closeSearch(); });
+
+  /* ── Overview (placeholder until Step 6) ── */
+  let meInfo = { display: '', role: '' };
+  function renderOverview() {
+    const h = new Date().getHours();
+    const part = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
+    document.getElementById('overview-greeting').textContent = 'Good ' + part + ', ' + (meInfo.display || 'there');
+    document.getElementById('overview-date').textContent =
+      new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  }
+
+  /* ── Team ── */
+  function renderTeam() {
+    const days  = getLast31Days();
+    const grid  = document.getElementById('team-grid');
+    if (!members.length) { grid.innerHTML = '<div class="state-overlay">No team members yet.</div>'; return; }
+    grid.innerHTML = members.map(m => {
+      const mData = allData[m.username] || {};
+      const submitted = days.filter(d => mData[d] && Object.keys(mData[d]).some(k => !k.startsWith('_'))).length;
+      return '<a class="card team-card" href="/dashboard/work?member=' + encodeURIComponent(m.username) + '" data-username="' + escHtml(m.username) + '"' +
+        ' onclick="if(!event.metaKey&&!event.ctrlKey){event.preventDefault();openMemberWork(this.dataset.username)}">' +
+        '<span class="avatar-md">' + escHtml(initials(m.display)) + '</span>' +
+        '<span class="team-card-text"><span class="team-card-name">' + escHtml(m.display) + '</span>' +
+        '<span class="team-card-sub">' + escHtml(m.username) + '</span></span>' +
+        '<span class="team-card-stats"><span><b>' + (m.tasks || []).length + '</b> tasks</span>' +
+        '<span><b>' + submitted + '</b>/31 days</span></span></a>';
+    }).join('');
+  }
+
+  /* ── Settings ── */
+  function renderSettings() {
+    const sel = document.getElementById('settings-member');
+    const prev = sel.value;
+    sel.innerHTML = members.map(m => '<option value="' + escHtml(m.username) + '">' + escHtml(m.display) + ' (' + escHtml(m.username) + ')</option>').join('');
+    if (prev && members.some(m => m.username === prev)) sel.value = prev;
+    const card = document.getElementById('settings-members-card');
+    card.hidden = !isManager; // only the manager adds / removes members
+    if (!isManager) return;
+    document.getElementById('settings-member-list').innerHTML = members.map(m =>
+      '<div class="settings-member-row">' +
+      '  <span class="avatar-sm">' + escHtml(initials(m.display)) + '</span>' +
+      '  <span class="settings-member-name">' + escHtml(m.display) + ' <span class="settings-member-user">' + escHtml(m.username) + '</span></span>' +
+      '  <button class="btn btn-ghost btn-sm btn-remove-member" data-username="' + escHtml(m.username) + '" data-display="' + escHtml(m.display) + '"' +
+      '    onclick="confirmRemoveMember(this.dataset.username,this.dataset.display)">Remove</button>' +
+      '</div>').join('') || '<p class="page-sub">No team members yet.</p>';
   }
 
   /* ── Spreadsheet ── */
@@ -2285,26 +2585,7 @@
       '  <button class="btn btn-primary btn-sm" onclick="saveTaskEdits()">Save Changes</button>' +
       '  <button class="btn btn-ghost btn-sm"   onclick="resetTaskEdits()">Reset to Default</button>' +
       '</div>' +
-      '<div style="margin-top:24px;padding-top:18px;border-top:1px solid var(--border)">' +
-      '  <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">&#128273; Change Password</div>' +
-      '  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
-      '    <input class="inp" id="chpw-input" type="text" placeholder="New password (min 6 chars)" style="flex:1;min-width:180px;">' +
-      '    <button class="btn btn-ghost btn-sm" style="flex-shrink:0" onclick="changePassword()">Update Password</button>' +
-      '  </div>' +
-      '  <p style="font-size:10px;color:var(--text-dim);margin:6px 0 0">Changing the password will immediately log out this member from all devices.</p>' +
-      '</div>' +
-      (isManager
-        ? '<div style="margin-top:24px;padding-top:18px;border-top:1px solid var(--border)">' +
-          '  <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">&#128101; Member Management</div>' +
-          '  <div style="display:flex;gap:8px;flex-wrap:wrap">' +
-          '    <button class="btn btn-ghost btn-sm" onclick="openAddMemberModal()" style="color:var(--blue)">&#43; Add New Member</button>' +
-          '    <button class="btn btn-ghost btn-sm" style="color:var(--danger);border-color:color-mix(in srgb, var(--danger) 30%, transparent)"' +
-          '      data-username="' + escHtml(m.username) + '"' +
-          '      data-display="'  + escHtml(m.display)  + '"' +
-          '      onclick="confirmRemoveMember(this.dataset.username,this.dataset.display)">&#9888; Remove ' + escHtml(m.display) + ' from Team</button>' +
-          '  </div>' +
-          '</div>'
-        : '');
+      '';
   }
 
   function addEditTask() {
@@ -2373,7 +2654,8 @@
 
   /* ── Change Password ── */
   async function changePassword() {
-    const m    = members[editMemberIdx];
+    const m    = members.find(x => x.username === document.getElementById('settings-member').value);
+    if (!m) { showToast('Choose a member first.', 'error'); return; }
     const inp  = document.getElementById('chpw-input');
     const newPw = inp ? inp.value.trim() : '';
     if (!newPw)          { showToast('Enter a new password first.', 'error');              return; }
@@ -2437,18 +2719,23 @@
       if (res.status === 401) { window.location.href = '/login'; return; }
       const me = await res.json();
       if (window.roTheme) roTheme.setUser(me.username); // per-user theme
-      document.getElementById('user-badge').textContent  = me.display;
-      document.getElementById('role-badge').textContent  = me.role.charAt(0).toUpperCase() + me.role.slice(1);
-      document.getElementById('role-badge').className    = 'badge ' + (me.role === 'assistant' ? 'badge-blue' : 'badge-pink');
+      meInfo = me;
+      document.getElementById('user-badge').textContent     = me.display;
+      document.getElementById('role-badge').textContent     = me.role.charAt(0).toUpperCase() + me.role.slice(1);
+      document.getElementById('profile-avatar').textContent = initials(me.display);
       isManager = (me.role === 'manager');
-      document.getElementById('add-member-btn').style.display = 'none'; // moved to Edit Tasks panel
     } catch { window.location.href = '/login'; return; }
 
+    document.getElementById('topbar-date').textContent =
+      new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+
     await loadAll();
-    renderMemberTabs();
-    selectMember(0);
+    const wanted = new URLSearchParams(location.search).get('member');
+    activeMember  = Math.max(0, members.findIndex(m => m.username === wanted));
     editMemberIdx = 0;
     editTasks     = [];
+    navigate(pageFromPath(location.pathname), { push: false });
+    history.replaceState({ page: currentPage }, '', pageUrl(currentPage) + (currentPage === 'work' ? '' : location.search));
 
     /* Auto-refresh every 30 s */
     setInterval(async function() {
