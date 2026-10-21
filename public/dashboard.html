@@ -556,13 +556,11 @@
 
 <!-- Topbar -->
 <div class="topbar">
-  <!-- TODO: add logo.png to public folder for the Rank Orbit logo -->
-  <img src="/logo.png" alt="RO" class="topbar-logo" style="width:36px;height:36px;object-fit:contain;border-radius:10px" onerror="this.outerHTML='<div class=&quot;topbar-logo&quot;>RO</div>'">
+  <div class="topbar-logo">RO</div>
   <div class="topbar-title">Rank <span>Orbit</span></div>
   <div class="topbar-right">
     <span class="badge badge-muted" id="user-badge">…</span>
     <span class="badge badge-pink" id="role-badge">Manager</span>
-    <a href="/dashboard/monitor" style="font-size:12px;font-weight:700;color:var(--pink);text-decoration:none;padding:6px 12px;border:1px solid rgba(233,30,140,0.35);border-radius:8px;background:rgba(233,30,140,0.08);transition:all 0.15s" onmouseover="this.style.background='rgba(233,30,140,0.18)'" onmouseout="this.style.background='rgba(233,30,140,0.08)'">📺 Screen Monitor</a>
     <button class="btn-logout" onclick="logout()">Logout</button>
   </div>
 </div>

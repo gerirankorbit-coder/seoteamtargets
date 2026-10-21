@@ -541,59 +541,17 @@
     padding: 10px 14px; border-top: 1px solid var(--border);
     background: var(--surface-2);
   }
-  /* ── Screen monitoring ── */
-  .monitor-badge {
-    display: none; align-items: center; gap: 5px;
-    font-size: 11px; font-weight: 700; color: #f87171;
-    padding: 4px 10px; border-radius: 8px;
-    background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3);
-    animation: monPulse 2s ease-in-out infinite;
-  }
-  .monitor-badge.active { display: flex; }
-  @keyframes monPulse { 0%,100% { opacity:1; } 50% { opacity:0.6; } }
-  .mon-consent-overlay {
-    position: fixed; inset: 0; z-index: 1000;
-    background: rgba(0,0,0,0.7); display: flex;
-    align-items: center; justify-content: center;
-    padding: 20px; backdrop-filter: blur(4px);
-  }
-  .mon-consent-overlay.hidden { display: none; }
-  .mon-consent-popup {
-    background: var(--surface); border: 1px solid var(--border-2);
-    border-radius: var(--radius); padding: 28px 24px;
-    width: 100%; max-width: 380px; text-align: center;
-  }
-  .mon-consent-icon { font-size: 36px; margin-bottom: 12px; }
-  .mon-consent-title { font-size: 16px; font-weight: 800; margin-bottom: 8px; }
-  .mon-consent-body  { font-size: 13px; color: var(--text-muted); line-height: 1.6; margin-bottom: 20px; }
-  .mon-consent-footer { display: flex; gap: 10px; justify-content: center; }
 </style>
-<script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
 </head>
 <body>
 
 <div class="topbar">
-  <!-- TODO: add logo.png to public folder for the Rank Orbit logo -->
-  <img src="/logo.png" alt="RO" class="topbar-logo" style="width:36px;height:36px;object-fit:contain;border-radius:10px" onerror="this.outerHTML='<div class=&quot;topbar-logo&quot;>RO</div>'">
+  <div class="topbar-logo">RO</div>
   <div class="topbar-title">Rank <span>Orbit</span></div>
   <div class="topbar-right">
-    <div class="monitor-badge" id="monitor-badge">🔴 Monitored</div>
     <span class="badge badge-muted" id="member-name-badge">…</span>
     <span class="badge badge-blue">Member</span>
     <button class="btn-logout" onclick="logout()">Logout</button>
-  </div>
-</div>
-
-<!-- Screen monitoring consent popup -->
-<div id="mon-consent-overlay" class="mon-consent-overlay hidden">
-  <div class="mon-consent-popup">
-    <div class="mon-consent-icon">🖥️</div>
-    <div class="mon-consent-title">Screen Monitoring Notice</div>
-    <div class="mon-consent-body">Your screen may be monitored by the manager during working hours. By continuing, you acknowledge this policy.</div>
-    <div class="mon-consent-footer">
-      <button class="today-btn" style="color:var(--text-muted);background:var(--surface-2);border-color:var(--border)" onclick="monConsentDecline()">Cancel</button>
-      <button class="btn-save" style="padding:10px 24px" onclick="monConsentAccept()">OK, Continue</button>
-    </div>
   </div>
 </div>
 
@@ -1468,46 +1426,9 @@
   }
 
   /* ── Attendance action handlers ── */
-  let _pendingWorkMode = null;
   async function startWorking(workMode) {
-    // Show monitoring consent popup before proceeding
-    _pendingWorkMode = workMode;
     closeWorkModeModal();
-    document.getElementById('mon-consent-overlay').classList.remove('hidden');
-  }
-  function monConsentDecline() {
-    _pendingWorkMode = null;
-    document.getElementById('mon-consent-overlay').classList.add('hidden');
-  }
-  async function monConsentAccept() {
-    document.getElementById('mon-consent-overlay').classList.add('hidden');
-    const workMode = _pendingWorkMode;
-    _pendingWorkMode = null;
-    if (!workMode) return;
     await _doStartWorking(workMode);
-    // Start screen share — silently via Electron IPC when available, else browser picker
-    if (window.portalAPI) {
-      window.portalAPI.startSharing();
-      showSharingToast();
-    } else {
-      await monStartSharing();
-    }
-  }
-
-  // Brief in-page toast shown when Electron screen sharing begins
-  function showSharingToast() {
-    const t = document.createElement('div');
-    t.style.cssText = [
-      'position:fixed', 'bottom:24px', 'left:50%', 'transform:translateX(-50%)',
-      'background:#13161e', 'border:1px solid rgba(34,197,94,0.45)',
-      'color:#22c55e', 'padding:10px 22px', 'border-radius:10px',
-      'font-size:13px', 'font-weight:600', 'z-index:99999',
-      'box-shadow:0 4px 24px rgba(0,0,0,0.5)', 'white-space:nowrap',
-      'transition:opacity 0.3s',
-    ].join(';');
-    t.textContent = '🖥️  Screen sharing started — your manager can now see your screen';
-    document.body.appendChild(t);
-    setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 3000);
   }
   async function _doStartWorking(workMode) {
     const date = document.getElementById('wm-date-input').value || todayISO();
@@ -1533,9 +1454,6 @@
 
   async function endWorking() {
     if (!confirm('End your working session?')) return;
-    // Stop screen share — always clean up the browser stream, plus Electron IPC path
-    monStopSharing();                                             // stops monStream tracks + peer + badge
-    if (window.portalAPI) { await window.portalAPI.stopSharing(); } // await IPC round-trip to screenshare.js
     const time = nowTimeStr();
     const date = attRecord ? attRecord.date : todayISO();
     try {
@@ -1937,12 +1855,6 @@
       memberUsername = me.username;
       document.getElementById('member-name-badge').textContent = me.display;
       document.title = me.display + ' — Rank Orbit';
-      // Notify the Electron main process of the logged-in user's identity so
-      // it uses the correct Pusher channel (private-screenshare-{username}).
-      // This fixes the "wrong employee" bug when multiple employees share a PC.
-      if (window.portalAPI) {
-        window.portalAPI.notifyUser(me.username, me.display).catch(() => {});
-      }
     } catch {
       window.location.href = '/login';
       return;
@@ -1955,176 +1867,6 @@
 
   init();
 
-  // ── Screen monitoring (member side) ──────────────────────────────────────
-  const MON_PUSHER_KEY     = 'fb8240c1bcccb2cde5d0';
-  const MON_PUSHER_CLUSTER = 'ap2';
-  const MON_RTC_CONFIG = {
-    iceServers: [
-      { urls: 'stun:stun.l.google.com:19302'  },
-      { urls: 'stun:stun1.l.google.com:19302' },
-      { urls: 'stun:stun2.l.google.com:19302' },
-      { urls: 'stun:stun3.l.google.com:19302' },
-      { urls: 'stun:stun4.l.google.com:19302' },
-      { urls: 'turn:openrelay.metered.ca:80',                username: 'openrelayproject', credential: 'openrelayproject' },
-      { urls: 'turn:openrelay.metered.ca:443',               username: 'openrelayproject', credential: 'openrelayproject' },
-      { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
-    ],
-    iceCandidatePoolSize: 10,
-    bundlePolicy:        'max-bundle',
-    rtcpMuxPolicy:       'require',
-  };
-
-  let monPusher     = null;
-  let monChannel    = null;
-  let monPeerConn   = null;
-  let monStream     = null;
-  let monPermitted  = false;
-  let monPollingInt = null;
-
-  function monInit() {
-    Pusher.logToConsole = false;
-    monPusher  = new Pusher(MON_PUSHER_KEY, { cluster: MON_PUSHER_CLUSTER });
-    monChannel = monPusher.subscribe('monitor-channel');
-    monChannel.bind('signal', async (payload) => {
-      const { type, data, targetUsername } = payload;
-      if (targetUsername !== memberUsername) return;
-      if (type === 'answer' && monPeerConn) {
-        // data is a complete SDP (localDescription) with all ICE candidates embedded
-        try { await monPeerConn.setRemoteDescription(new RTCSessionDescription(data)); } catch(e) {}
-      }
-      // ice-candidate signals removed — vanilla ICE embeds candidates in offer/answer SDP
-    });
-    monChannel.bind('permission', (payload) => {
-      if (payload.targetUsername !== memberUsername) return;
-      monPermitted = payload.allowed;
-      if (monPermitted) { monCheckAndStart(); }
-      else              { monStopSharing(); }
-    });
-  }
-
-  async function monCheckAndStart() {
-    // Poll permission; if stream already exists but peer died, reconnect without new capture
-    try {
-      const res  = await fetch('/api/monitor/permission', { credentials: 'same-origin' });
-      const data = await res.json();
-      monPermitted = data.allowed;
-      if (!monPermitted) return;
-      if (!monStream) {
-        await monStartSharing(); // no stream yet — capture + connect
-      } else {
-        // Stream exists; check if peer connection is alive
-        const state = monPeerConn ? monPeerConn.iceConnectionState : 'closed';
-        if (!monPeerConn || state === 'failed' || state === 'closed' || state === 'disconnected') {
-          await monReconnectPeer(); // reuse existing stream, just re-establish peer
-        }
-      }
-    } catch(e) {}
-  }
-
-  async function monStartSharing() {
-    // Capture the screen (user sees picker dialog once per session)
-    try {
-      monStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
-      monStream.getVideoTracks()[0].onended = () => {
-        // Track ended — try to reconnect peer after 3s instead of stopping entirely.
-        // If the user intentionally stopped sharing the reconnect attempt will be a no-op
-        // (no live tracks); the 30s polling interval will keep trying.
-        setTimeout(() => monReconnectPeer(), 3000);
-      };
-      await monReconnectPeer();
-      document.getElementById('monitor-badge').classList.add('active');
-      monPollingInt = setInterval(monCheckAndStart, 30000);
-    } catch(e) { monStream = null; }
-  }
-
-  async function monReconnectPeer() {
-    // Tear down any existing peer (but keep the MediaStream alive)
-    if (monPeerConn) {
-      try { monPeerConn.close(); } catch(e) {}
-      monPeerConn = null;
-    }
-    if (!monStream) return;
-
-    monPeerConn = new RTCPeerConnection(MON_RTC_CONFIG);
-    monStream.getTracks().forEach(track => monPeerConn.addTrack(track, monStream));
-
-    // Vanilla ICE: no onicecandidate — candidates are gathered before sending the offer.
-    // This eliminates the race condition where the manager receives a candidate before
-    // its RTCPeerConnection is created, causing silent drops and a black/dead stream.
-
-    // When the manager navigates away or connection drops, re-send a fresh offer.
-    // 'disconnected' is often transient but we retry anyway after 5s.
-    // 'failed' is terminal — always reconnect.
-    // 'closed' is intentionally excluded: it fires when WE call pc.close() inside
-    // monReconnectPeer, which would create an infinite reconnect loop.
-    monPeerConn.oniceconnectionstatechange = () => {
-      const s = monPeerConn ? monPeerConn.iceConnectionState : '';
-      if (s === 'disconnected' || s === 'failed') {
-        setTimeout(() => { if (monStream) monReconnectPeer(); }, 5000);
-      }
-    };
-
-    try {
-      const offer = await monPeerConn.createOffer();
-      await monPeerConn.setLocalDescription(offer);
-
-      // Wait for ICE gathering to complete before sending offer.
-      // monPeerConn.localDescription will then contain all ICE candidates embedded in the SDP.
-      await new Promise(resolve => {
-        if (monPeerConn.iceGatheringState === 'complete') { resolve(); return; }
-        monPeerConn.onicegatheringstatechange = () => {
-          if (monPeerConn && monPeerConn.iceGatheringState === 'complete') resolve();
-        };
-        setTimeout(resolve, 3000); // max 3s — proceed with whatever was gathered
-      });
-
-      // Send the complete SDP (candidates embedded) — no separate ice-candidate signals needed
-      monSendSignal({ type: 'offer', data: monPeerConn.localDescription, targetUsername: 'manager' });
-    } catch(e) {}
-  }
-
-  function monStopSharing() {
-    clearInterval(monPollingInt);
-    if (monStream) { monStream.getTracks().forEach(t => t.stop()); monStream = null; }
-    if (monPeerConn) {
-      monSendSignal({ type: 'disconnect', data: {}, targetUsername: 'manager' });
-      monPeerConn.close(); monPeerConn = null;
-    }
-    document.getElementById('monitor-badge').classList.remove('active');
-  }
-
-  async function monSendSignal(payload) {
-    try {
-      await fetch('/api/monitor/signal', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin', body: JSON.stringify(payload),
-      });
-    } catch(e) {}
-  }
-
-  window.addEventListener('load', () => {
-    // monInit uses getDisplayMedia (browser screen picker) and auto-starts sharing
-    // when the server has a stored permission — must NOT run in Electron where
-    // screen capture is driven exclusively by portalAPI / the hidden share window.
-    if (!window.portalAPI) {
-      try { monInit(); } catch(e) { console.warn('monInit failed:', e); }
-    }
-
-    // When running inside the Electron portal, sync the monitor-badge to Electron
-    // sharing status (IPC events forwarded from the main process via preload-portal.js)
-    if (window.portalAPI) {
-      window.portalAPI.onSharingStatus(({ state }) => {
-        const badge = document.getElementById('monitor-badge');
-        if (!badge) return;
-        if (state === 'live' || state === 'connecting') {
-          badge.classList.add('active');
-        } else if (state === 'offline') {
-          badge.classList.remove('active');
-        }
-      });
-    }
-  });
 </script>
-<script src="/activity-member.js"></script>
 </body>
 </html>

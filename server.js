@@ -8,9 +8,7 @@ require('dotenv').config();
 //      on the same cluster); other staging runs use MONGODB_DB_NAME. Either way
 //      the server refuses to start unless the name contains "staging", so test
 //      writes can never reach live data.
-//   2. Realtime/media keys are taken ONLY from STAGING_-prefixed variables, so a
-//      staging dashboard can never message or view the live team's screens.
-//   3. The real employee list is not loaded; only test.* accounts exist, seeded
+//   2. The real employee list is not loaded; only test.* accounts exist, seeded
 //      automatically on first start, and every page shows a STAGING banner.
 // In production none of this changes behaviour.
 const PROD_BRANCH   = 'main';
@@ -35,16 +33,7 @@ if (!IS_PRODUCTION) {
       `Set MONGODB_DB_NAME to a staging database (e.g. ${STAGING_DB_NAME}).`
     );
   }
-  const ISOLATED_KEYS = [
-    'PUSHER_APP_ID', 'PUSHER_KEY', 'PUSHER_SECRET', 'PUSHER_CLUSTER',
-    'LIVEKIT_URL', 'LIVEKIT_API_KEY', 'LIVEKIT_API_SECRET',
-    'CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET',
-  ];
-  for (const k of ISOLATED_KEYS) {
-    if (process.env['STAGING_' + k]) process.env[k] = process.env['STAGING_' + k];
-    else delete process.env[k];
-  }
-  console.log(`⚠ STAGING mode — database "${EFFECTIVE_DB}", realtime keys from STAGING_* only`);
+  console.log(`⚠ STAGING mode — database "${EFFECTIVE_DB}"`);
 }
 
 const mongoose = require('mongoose');
@@ -55,15 +44,6 @@ const path     = require('path');
 const fs       = require('fs');
 const cors     = require('cors');
 const os       = require('os');
-
-const Pusher = require('pusher');
-const pusher = new Pusher({
-  appId:   process.env.PUSHER_APP_ID,
-  key:     process.env.PUSHER_KEY,
-  secret:  process.env.PUSHER_SECRET,
-  cluster: process.env.PUSHER_CLUSTER,
-  useTLS:  true,
-});
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -433,15 +413,9 @@ function getLocalIP() {
 
 // ── Middleware ─────────────────────────────────────────────────────────────
 app.set('trust proxy', 1);
-// /api/screenshare/* has its own per-route CORS (wildcard, no credentials).
-// The global cors() must NOT run on those routes: reflecting Origin: null from
-// Electron's file:// with credentials:true causes Chromium to block the response.
-app.use((req, res, next) => {
-  if (req.path.startsWith('/api/screenshare')) return next();
-  cors({ origin: true, credentials: true })(req, res, next);
-});
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
-app.use(express.urlencoded({ extended: false })); // needed for Pusher auth (sends form-encoded body)
+app.use(express.urlencoded({ extended: false }));
 app.use(session({
   secret: process.env.SESSION_SECRET || 'gmb-secret-key-2026',
   resave: false,
@@ -573,11 +547,6 @@ app.post('/api/logout', (req, res) => {
   req.session.destroy(() => {});
   res.json({ success: true });
 });
-
-// ── Public API routes (no auth required) ──────────────────────────────────
-// Must be mounted BEFORE app.use(requireAuth) so Electron clients (no session)
-// can reach /api/screenshare/config and /api/screenshare/pusher-auth freely.
-app.use('/api/screenshare', require('./api/screenshare'));
 
 // ── Auth middleware ────────────────────────────────────────────────────────
 function requireAuth(req, res, next) {
@@ -1180,90 +1149,6 @@ app.put('/api/attendance/edit/:id', async (req, res) => {
     res.status(500).json({ error: 'Database error' });
   }
 });
-
-// ── Screen Monitoring ─────────────────────────────────────────────────────
-
-// In-memory monitoring state (resets on server restart — acceptable for live monitoring)
-const screenPermissions = {}; // { username: true/false }
-const activeScreens     = {}; // { username: { sharedAt: Date } }
-
-// GET /monitor — redirect to new screen-share monitor (old page removed)
-app.get('/monitor', requireAuth, requireManager, (req, res) => {
-  res.redirect('/dashboard/monitor');
-});
-
-// POST /api/monitor/signal — WebRTC signaling relay via Pusher
-app.post('/api/monitor/signal', requireAuth, async (req, res) => {
-  const { type, data, targetUsername, fromUsername } = req.body;
-  if (!type || !data) return res.status(400).json({ error: 'type and data are required' });
-  try {
-    // Track active screens when member sends an offer
-    if (type === 'offer' && req.session.role === 'member') {
-      activeScreens[req.session.username] = { sharedAt: new Date().toISOString() };
-    }
-    // Remove from active screens on disconnect
-    if (type === 'disconnect') {
-      delete activeScreens[req.session.username];
-    }
-    await pusher.trigger('monitor-channel', 'signal', {
-      type,
-      data,
-      targetUsername: targetUsername || null,
-      fromUsername:   fromUsername   || req.session.username,
-      fromRole:       req.session.role,
-    });
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Pusher signal error:', err);
-    res.status(500).json({ error: 'Signal failed' });
-  }
-});
-
-// GET /api/monitor/active-screens — which members are currently sharing (manager only)
-app.get('/api/monitor/active-screens', requireManager, (req, res) => {
-  const list = Object.entries(activeScreens).map(([username, info]) => ({
-    username,
-    display: (usersCache[username] || USERS[username] || {}).display || username,
-    sharedAt: info.sharedAt,
-  }));
-  res.json(list);
-});
-
-// POST /api/monitor/allow — manager grants/revokes screen permission for a member
-app.post('/api/monitor/allow', requireManager, async (req, res) => {
-  const { username, allowed } = req.body;
-  if (!username || allowed === undefined)
-    return res.status(400).json({ error: 'username and allowed are required' });
-  const target = username.toLowerCase().trim();
-  screenPermissions[target] = !!allowed;
-  // Notify member of permission change via Pusher
-  try {
-    await pusher.trigger('monitor-channel', 'permission', {
-      targetUsername: target,
-      allowed:        !!allowed,
-    });
-  } catch (err) {
-    console.error('Pusher permission notify error:', err);
-  }
-  res.json({ success: true, username: target, allowed: !!allowed });
-});
-
-// GET /api/monitor/permission — member checks if they are currently permitted to share
-// Default is true (auto-allowed); only false if manager has explicitly revoked
-app.get('/api/monitor/permission', requireAuth, (req, res) => {
-  const allowed = screenPermissions[req.session.username] !== false;
-  res.json({ allowed });
-});
-
-// ── Activity Monitoring ───────────────────────────────────────────────────────
-// /activity-dashboard redirects to the new screen-share monitor
-app.get('/activity-dashboard', requireManager, (req, res) =>
-  res.redirect('/dashboard/monitor'));
-app.use('/api/activity', require('./api/activity'));
-
-// ── Screen Share Monitor (WebRTC + Pusher private channels) ──────────────────
-app.get('/dashboard/monitor', requireManager, (req, res) =>
-  res.sendFile(path.join(__dirname, 'public', 'dashboard-monitor.html')));
 
 // ── Start ──────────────────────────────────────────────────────────────────
 if (require.main === module) {

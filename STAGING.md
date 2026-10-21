@@ -15,8 +15,6 @@ of that branch automatically. No dashboard setup is needed. The code detects the
 - **Test accounts only.** The real employee list is not loaded. On first start the app seeds only
   the test accounts and their TEST entries and attendance. Seeding uses upserts, so restarts never
   duplicate anything.
-- **Screen sharing and screenshots are off.** The Pusher, LiveKit and Cloudinary keys (including
-  the production ones in `vercel.json`) are ignored in staging.
 - **Banner.** Every page shows a fixed "STAGING — test data only" bar.
 
 **Where to find the URL:** on GitHub, open the latest commit on `staging-v2` and click the Vercel
@@ -29,7 +27,7 @@ Password for all three: `staging-test-123`
 
 | Username | Opens |
 |---|---|
-| `test.manager` | Dashboard (all tabs; the monitor page opens but has no live screens) |
+| `test.manager` | Dashboard (all tabs) |
 | `test.member1` | Member portal, with 3 days of TEST entries and attendance |
 | `test.member2` | Member portal, with 3 days of TEST entries and attendance |
 
@@ -78,5 +76,3 @@ It never touches any database or Vercel setting. Staging data is not copied to p
 ## Optional, later — not required
 
 - A separate Vercel project for staging, or a MongoDB Atlas user limited to `rankorbit_staging`.
-- Separate Pusher, LiveKit and Cloudinary accounts (`STAGING_*` variables, see
-  `.env.staging.example`) for testing live screen sharing in staging.
