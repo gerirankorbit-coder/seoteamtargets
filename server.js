@@ -56,7 +56,12 @@ const PORT = process.env.PORT || 3000;
 
 // ── MongoDB connection ─────────────────────────────────────────────────────
 let dbError = null, startupError = null; // last failures, shown by /api/staging/health
-mongoose.connect(MONGODB_URI, MONGODB_DB_NAME ? { dbName: MONGODB_DB_NAME } : {})
+// Staging gives up after 8 s so a connection problem is reported within one
+// serverless request; production keeps the driver defaults.
+mongoose.connect(MONGODB_URI, {
+  ...(MONGODB_DB_NAME ? { dbName: MONGODB_DB_NAME } : {}),
+  ...(IS_PRODUCTION ? {} : { serverSelectionTimeoutMS: 8000 }),
+})
   .then(() => console.log('✓ MongoDB connected'))
   .catch(err => { dbError = err; console.error('✗ MongoDB error:', err); });
 mongoose.connection.on('error', err => { dbError = err; });
@@ -671,6 +676,34 @@ function requireManagerOnly(req, res, next) {
 }
 
 // Staging only: why can't the app reach its database? (no secrets in the output)
+// networkCheck: DNS lookup of the cluster, then a plain TCP connect to one host on
+// port 27017 — "timeout" there almost always means the Atlas IP access list.
+async function networkCheck(uri) {
+  const dns = require('dns').promises, net = require('net');
+  const host = (uri.match(/^mongodb(?:\+srv)?:\/\/(?:[^@/]*@)?([^/?,]+)/) || [])[1];
+  const mask = h => h ? h.replace(/^([^.]+)\.([^.]+)\./, '$1.***.') : h;
+  const out = { cluster: mask(host) };
+  let target = host && host.split(':')[0], port = 27017;
+  if (uri.startsWith('mongodb+srv://')) {
+    try {
+      const srv = await dns.resolveSrv('_mongodb._tcp.' + host);
+      out.dns = `ok (${srv.length} servers)`;
+      target = srv[0] && srv[0].name; port = (srv[0] && srv[0].port) || 27017;
+    } catch (e) { out.dns = 'failed: ' + e.code; return out; }
+  }
+  out.tcp = await new Promise(resolve => {
+    const sock = net.connect({ host: target, port, timeout: 3500 });
+    sock.on('connect', () => { sock.destroy(); resolve('ok — the database host is reachable'); });
+    sock.on('timeout', () => { sock.destroy(); resolve('timeout — blocked (check the Atlas Network Access IP list)'); });
+    sock.on('error', e => resolve('failed: ' + e.code));
+  });
+  try {
+    const r = await fetch('https://api.ipify.org?format=json', { signal: AbortSignal.timeout(1500) });
+    out.thisServerIp = (await r.json()).ip;
+  } catch { /* optional */ }
+  return out;
+}
+
 if (!IS_PRODUCTION) {
   app.get('/api/staging/health', async (req, res) => {
     const redact = v => v ? String(v).replace(/(mongodb(?:\+srv)?:\/\/)[^@\s/]*@/gi, '$1***@') : null;
@@ -688,7 +721,21 @@ if (!IS_PRODUCTION) {
       connectError: redact(dbError && dbError.message),
       startupError: redact(startupError && startupError.message),
     };
-    if (state === 'connected') {
+    // Not connected yet: wait a little for the outcome while checking the network path
+    // (everything finishes in ~6 s, inside Vercel's function time limit)
+    if (state !== 'connected' && MONGODB_URI) {
+      const [, network] = await Promise.all([
+        state === 'connecting'
+          ? Promise.race([mongoose.connection.asPromise().catch(() => {}), new Promise(r => setTimeout(r, 6000))])
+          : null,
+        networkCheck(MONGODB_URI),
+      ]);
+      await new Promise(r => setImmediate(r)); // let the connect() error handler record its error
+      out.connection = ['disconnected', 'connected', 'connecting', 'disconnecting'][mongoose.connection.readyState] || 'unknown';
+      out.connectError = redact(dbError && dbError.message);
+      if (out.connection !== 'connected') out.network = network;
+    }
+    if (out.connection === 'connected') {
       try {
         out.testUsers = await User.countDocuments({ username: /^test\./ });
         out.tasks = await Task.countDocuments({});
