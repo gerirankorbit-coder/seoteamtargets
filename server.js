@@ -186,6 +186,9 @@ mongoose.connection.once('open', async () => {
     try { seedPasswords = JSON.parse(process.env.SEED_USER_PASSWORDS || '{}'); }
     catch { console.error('✗ SEED_USER_PASSWORDS is not valid JSON — ignored'); }
     const existing = new Set((await User.find({}, { username: 1 }).lean()).map(u => u.username));
+    // Accounts removed in Settings are never re-created from the code list
+    const removedDoc = await Config.findOne({ key: 'removedUsers' }).lean();
+    for (const u of (removedDoc && removedDoc.value) || []) existing.add(u);
     let created = 0, refreshed = 0;
     for (const [username, data] of Object.entries(USERS)) {
       if (existing.has(username)) {
@@ -213,18 +216,10 @@ mongoose.connection.once('open', async () => {
     // Load all users into in-memory cache
     const allUsers = await User.find(
       {},
-      { _id: 0, username: 1, password: 1, role: 1, display: 1, passwordVersion: 1 }
-    );
+      { _id: 0, username: 1, password: 1, role: 1, display: 1, passwordVersion: 1, shift: 1, active: 1 }
+    ).lean();
     usersCache = {};
-    allUsers.forEach(u => {
-      usersCache[u.username] = {
-        password:        u.password,
-        role:            u.role,
-        display:         u.display,
-        passwordVersion: u.passwordVersion,
-        checkedAt:       Date.now(),
-      };
-    });
+    allUsers.forEach(u => { usersCache[u.username] = cacheEntry(u); });
     console.log('✓ Loaded', Object.keys(usersCache).length, 'users into cache');
 
     // Feature 6: Ensure manager display name is "Abdullah Saleem" (migration for existing DBs)
@@ -289,19 +284,24 @@ function getUser(username) {
 
 // Re-read one user from MongoDB into the cache. Each server instance has its own
 // cache, so this is how a password change made on another instance is picked up.
-async function refreshUser(username) {
-  const u = await User.findOne(
-    { username },
-    { _id: 0, password: 1, role: 1, display: 1, passwordVersion: 1 }
-  ).lean();
-  if (!u) { delete usersCache[username]; return null; }
-  usersCache[username] = {
+function cacheEntry(u) {
+  return {
     password:        u.password,
     role:            u.role,
     display:         u.display,
     passwordVersion: u.passwordVersion || 1,
+    shift:           u.shift || null,
+    active:          u.active !== false,
     checkedAt:       Date.now(),
   };
+}
+async function refreshUser(username) {
+  const u = await User.findOne(
+    { username },
+    { _id: 0, password: 1, role: 1, display: 1, passwordVersion: 1, shift: 1, active: 1 }
+  ).lean();
+  if (!u) { delete usersCache[username]; return null; }
+  usersCache[username] = cacheEntry(u);
   return getUser(username);
 }
 
@@ -486,16 +486,28 @@ function legacyMemberTasks(displayName) {
 }
 
 // Every member account: the team list in code plus members added from the dashboard.
-function memberAccounts() {
+// Only accounts that exist in the database count (a member removed in Settings is gone
+// even if the code still lists them). active: false = deactivated (kept for history).
+function memberAccounts({ activeOnly = false } = {}) {
   const out = new Map();
-  for (const [username, u] of Object.entries(USERS)) {
-    if (u.role !== 'member') continue;
-    out.set(username, { username, display: (usersCache[username] || {}).display || u.display });
-  }
-  for (const [username, u] of Object.entries(usersCache)) {
-    if (u.role === 'member' && !out.has(username)) out.set(username, { username, display: u.display });
-  }
+  const add = (username, u) => {
+    const c = usersCache[username];
+    if (!c || c.role !== 'member' || out.has(username)) return;
+    if (activeOnly && c.active === false) return;
+    out.set(username, { username, display: c.display || u.display, active: c.active !== false });
+  };
+  for (const [username, u] of Object.entries(USERS)) add(username, u);
+  for (const [username, u] of Object.entries(usersCache)) add(username, u);
   return [...out.values()];
+}
+
+// Default task list for "Reset to Default": the list in code (TEAM); in staging the
+// seeded test lists. null = this member has no default list.
+function defaultTasksFor(username, display) {
+  const codeName = (USERS[username] || {}).display; // TEAM is keyed by the original name
+  if (TEAM[display] || TEAM[codeName]) return TEAM[display] || TEAM[codeName];
+  if (!IS_PRODUCTION) return require('./lib/staging-seed').TEST_TASKS[username] || null;
+  return null;
 }
 
 // Dashboard routes address members by display name.
@@ -607,6 +619,7 @@ app.post('/api/login', async (req, res) => {
     return res.status(500).json({ error: 'Server error. Please try again.' });
   }
   if (!valid) return res.status(401).json({ error: 'Invalid username or password.' });
+  if (user.active === false) return res.status(403).json({ error: 'This account is deactivated. Please contact your manager.' });
 
   // Legacy plain-text password (not yet migrated): store it hashed now.
   if (!isHash(user.password)) {
@@ -661,12 +674,18 @@ async function requireAuth(req, res, next) {
     if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'Not authenticated' });
     return res.redirect('/login');
   }
-  let currentUser = getUser(req.session.username);
+  let currentUser = getUser(req.session.username), removed = false;
   if (!currentUser || !currentUser.checkedAt || Date.now() - currentUser.checkedAt > VERSION_RECHECK_MS) {
-    try { currentUser = await refreshUser(req.session.username); }
+    try { currentUser = await refreshUser(req.session.username); removed = !currentUser; }
     catch (err) { console.error('Session check error:', err); } // keep the session on a DB hiccup
   }
   touchLastActive(req.session);
+  // Removed or deactivated from Settings: the session ends (on every instance within 30 s)
+  if (removed || (currentUser && currentUser.active === false)) {
+    req.session.destroy(() => {});
+    if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'account_deactivated' });
+    return res.redirect('/login?reason=deactivated');
+  }
   if (currentUser) {
     const currentVer = currentUser.passwordVersion || 1;
     const sessionVer = req.session.passwordVersion  || 1;
@@ -845,7 +864,10 @@ app.post('/api/admin/change-password', requireManager, async (req, res) => {
   if (!username || !newPassword) return res.status(400).json({ error: 'Missing fields' });
   if (newPassword.length < 6)    return res.status(400).json({ error: 'Password too short (min 6 chars)' });
   const target = username.toLowerCase().trim();
-  if (!usersCache[target] && !(await refreshUser(target))) return res.status(404).json({ error: 'User not found' });
+  const user = await refreshUser(target);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  if (user.role === 'manager' && target !== req.session.username)
+    return res.status(403).json({ error: 'Manager passwords cannot be reset here' });
   const newVersion = Date.now();
   try {
     const hashed = await hashPassword(newPassword);
@@ -907,7 +929,7 @@ app.get('/api/members', requireManager, async (req, res) => {
   try {
     const accounts = memberAccounts();
     const byUser   = await tasksByUser(Task, accounts.map(a => a.username));
-    res.json(accounts.map(a => ({ ...a, tasks: byUser[a.username] })));
+    res.json(accounts.map(a => ({ ...a, tasks: byUser[a.username], hasDefault: !!defaultTasksFor(a.username, a.display) })));
   } catch (err) {
     console.error('Members error:', err);
     res.status(500).json({ error: 'Database error' });
@@ -936,7 +958,9 @@ app.delete('/api/tasks/:displayName', requireManager, async (req, res) => {
   const username = usernameForDisplay(displayName);
   if (!username) return res.status(404).json({ error: 'Member not found' });
   try {
-    await resetMemberTasks(Task, username, TEAM[displayName] || []);
+    const defaults = defaultTasksFor(username, displayName);
+    if (!defaults) return res.status(400).json({ error: 'This member has no default task list' });
+    await resetMemberTasks(Task, username, defaults);
     res.json({ success: true, tasks: await tasksForUser(Task, username) });
   } catch (err) {
     console.error('Task reset error:', err);
@@ -950,7 +974,7 @@ app.delete('/api/tasks/:displayName', requireManager, async (req, res) => {
 app.get('/api/overview', requireManager, async (req, res) => {
   try {
     res.json(await buildOverview({ Task, Entry, Attendance, User },
-      { members: memberAccounts(), date: req.query.date, time: req.query.time }));
+      { members: memberAccounts({ activeOnly: true }), date: req.query.date, time: req.query.time }));
   } catch (err) {
     console.error('Overview error:', err);
     res.status(500).json({ error: 'Database error' });
@@ -1069,22 +1093,61 @@ app.post('/api/admin/save', requireManager, async (req, res) => {
   }
 });
 
-// Add a new member (manager only)
+// Every account for Settings (managers are listed but cannot be changed here)
+app.get('/api/admin/accounts', requireManager, async (req, res) => {
+  try {
+    const users = await User.find({}, { _id: 0, username: 1, role: 1, display: 1, shift: 1, active: 1, lastActiveAt: 1 }).lean();
+    const order = { manager: 0, assistant: 1, member: 2 };
+    res.json(users
+      .map(u => ({ username: u.username, display: u.display, role: u.role, shift: u.shift || null,
+                   active: u.active !== false, lastActiveAt: u.lastActiveAt || null }))
+      .sort((a, b) => (order[a.role] ?? 3) - (order[b.role] ?? 3) || a.display.localeCompare(b.display)));
+  } catch (err) {
+    console.error('Accounts error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+const SHIFTS = ['day', 'night'];
+const USERNAME_RE = /^[a-z0-9._-]+$/;
+
+// A member or assistant account that the manager may change (never a manager, never yourself)
+async function editableAccount(req, res) {
+  const target = String(req.params.username || '').toLowerCase().trim();
+  const user = await refreshUser(target);
+  if (!user) { res.status(404).json({ error: 'User not found' }); return null; }
+  if (user.role === 'manager') { res.status(403).json({ error: 'Manager accounts cannot be changed here' }); return null; }
+  if (target === req.session.username) { res.status(403).json({ error: 'You cannot change your own account here' }); return null; }
+  return { target, user };
+}
+
+// Names must be unique (dashboard routes address members by name). Checked in the database.
+async function displayTaken(display, exceptUsername = null) {
+  const users = await User.find({}, { _id: 0, username: 1, display: 1 }).lean();
+  return users.some(u => u.username !== exceptUsername && String(u.display).toLowerCase() === display.toLowerCase());
+}
+
+// Add a new member (manager only). body: { display, username, password, role, shift }
 app.post('/api/admin/members', requireManagerOnly, async (req, res) => {
-  let { username, password, role, display } = req.body;
+  let { username, password, role, display, shift } = req.body;
   if (!username || !password || !display) return res.status(400).json({ error: 'Missing required fields' });
   if (password.length < 6) return res.status(400).json({ error: 'Password too short (min 6 chars)' });
   const uname = username.toLowerCase().trim();
   const dname = display.trim();
-  if (!uname) return res.status(400).json({ error: 'Invalid username' });
-  if (usersCache[uname]) return res.status(409).json({ error: 'Username already exists' });
-  const validRoles = ['member', 'assistant'];
-  const userRole = validRoles.includes(role) ? role : 'member';
+  if (!uname || !USERNAME_RE.test(uname)) return res.status(400).json({ error: 'Username may only contain letters, numbers, dots, underscores, hyphens' });
+  if (!dname) return res.status(400).json({ error: 'Full name is required' });
+  // the database decides (this instance's cache may be stale)
+  if (await refreshUser(uname)) return res.status(409).json({ error: 'Username already exists' });
+  if (await displayTaken(dname)) return res.status(409).json({ error: 'A member with this name already exists' });
+  const userRole  = ['member', 'assistant'].includes(role) ? role : 'member';
+  const userShift = SHIFTS.includes(shift) ? shift : null;
   try {
     const hashed = await hashPassword(password);
-    await User.create({ username: uname, password: hashed, role: userRole, display: dname, passwordVersion: 1 });
-    usersCache[uname] = { password: hashed, role: userRole, display: dname, passwordVersion: 1, checkedAt: Date.now() };
-    res.json({ success: true, username: uname, display: dname, role: userRole });
+    await User.create({ username: uname, password: hashed, role: userRole, display: dname, passwordVersion: 1,
+                        shift: userShift || undefined, active: true });
+    await Config.updateOne({ key: 'removedUsers' }, { $pull: { value: uname } });
+    await refreshUser(uname);
+    res.json({ success: true, username: uname, display: dname, role: userRole, shift: userShift });
   } catch (err) {
     if (err.code === 11000) return res.status(409).json({ error: 'Username already exists' });
     console.error('Add member error:', err);
@@ -1092,15 +1155,50 @@ app.post('/api/admin/members', requireManagerOnly, async (req, res) => {
   }
 });
 
-// Remove a member (manager only)
-app.delete('/api/admin/members/:username', requireManagerOnly, async (req, res) => {
-  const target = req.params.username.toLowerCase().trim();
-  const user   = usersCache[target] || await refreshUser(target);
-  if (!user)               return res.status(404).json({ error: 'User not found' });
-  if (user.role === 'manager') return res.status(403).json({ error: 'Cannot remove manager accounts' });
+// Change name, shift or active state (manager only). body: any of { display, shift, active }
+app.patch('/api/admin/members/:username', requireManagerOnly, async (req, res) => {
+  const acc = await editableAccount(req, res);
+  if (!acc) return;
+  const set = {}, unset = {};
+  if (req.body.display !== undefined) {
+    const dname = String(req.body.display).trim();
+    if (!dname) return res.status(400).json({ error: 'Full name is required' });
+    if (await displayTaken(dname, acc.target)) return res.status(409).json({ error: 'A member with this name already exists' });
+    set.display = dname;
+  }
+  if (req.body.shift !== undefined) {
+    if (SHIFTS.includes(req.body.shift)) set.shift = req.body.shift;
+    else if (!req.body.shift) unset.shift = 1;
+    else return res.status(400).json({ error: 'Shift must be day or night' });
+  }
+  if (req.body.active !== undefined) set.active = req.body.active !== false;
+  if (!Object.keys(set).length && !Object.keys(unset).length) return res.status(400).json({ error: 'Nothing to change' });
   try {
-    await User.deleteOne({ username: target });
-    delete usersCache[target];
+    const update = {};
+    if (Object.keys(set).length)   update.$set   = set;
+    if (Object.keys(unset).length) update.$unset = unset;
+    await User.updateOne({ username: acc.target }, update);
+    const u = await refreshUser(acc.target);
+    res.json({ success: true, username: acc.target, display: u.display, shift: u.shift, active: u.active });
+  } catch (err) {
+    console.error('Update member error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Remove a member (manager only). body: { confirm: "<username>" } — typed by the manager.
+// The account is deleted; entries and attendance stay, their tasks move to "former".
+app.delete('/api/admin/members/:username', requireManagerOnly, async (req, res) => {
+  const acc = await editableAccount(req, res);
+  if (!acc) return;
+  if (!req.body || String(req.body.confirm || '').trim().toLowerCase() !== acc.target)
+    return res.status(400).json({ error: 'Type the username to confirm' });
+  try {
+    await User.deleteOne({ username: acc.target });
+    await Config.updateOne({ key: 'removedUsers' }, { $addToSet: { value: acc.target } }, { upsert: true });
+    await Task.updateMany({ assignees: acc.target },
+      { $pull: { assignees: acc.target }, $addToSet: { formerAssignees: acc.target } });
+    delete usersCache[acc.target];
     res.json({ success: true });
   } catch (err) {
     console.error('Remove member error:', err);

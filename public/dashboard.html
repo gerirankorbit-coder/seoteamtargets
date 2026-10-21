@@ -641,10 +641,71 @@
   .card-head-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
   .settings-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
   .settings-row .inp { flex: 1; min-width: 200px; }
-  .settings-member-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--ro-border); }
-  .settings-member-name { flex: 1; font-weight: 600; font-size: 13px; }
-  .settings-member-user { color: var(--ro-muted); font-weight: 400; margin-left: 6px; }
   .btn-remove-member { color: var(--ro-danger) !important; }
+  .btn-xs { padding: 4px 9px; font-size: 12px; border-radius: 8px; }
+  .acc-actions { display: flex; gap: 4px; justify-content: flex-end; }
+  .acc-actions-th { text-align: right; }
+  .acc-table tr.acc-inactive .team-member-name, .acc-table tr.acc-inactive .avatar-sm { opacity: .55; }
+  .settings-foot { margin-top: 12px; max-width: 760px; }
+  .pw-row { display: flex; gap: 8px; } .pw-row .inp { flex: 1; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; text-transform: none; letter-spacing: 0; }
+  #dlg-body p { font-size: 13px; line-height: 1.5; color: var(--ro-text); }
+  #dlg-body p.muted { color: var(--ro-muted); font-size: 12.5px; }
+
+  /* ── Tasks & Targets ── */
+  #page-tasks .edit-wrap { margin: 0; border-radius: var(--radius-card); border-color: var(--ro-border); background: var(--ro-surface); }
+  #page-tasks .member-picker { background: var(--ro-surface-2); border-color: var(--ro-border); }
+  #page-tasks .member-pick-btn { display: flex; align-items: center; gap: 6px; font-size: 13px; padding: 10px 14px; border-color: var(--ro-border); }
+  #page-tasks .member-pick-btn.active { background: var(--ro-accent-soft); color: var(--ro-accent); }
+  .pick-count { margin-left: auto; font-size: 11px; color: var(--ro-muted); font-variant-numeric: tabular-nums; }
+  #page-tasks .task-edit-row { gap: 10px; padding: 10px 12px; background: var(--ro-surface); border-color: var(--ro-border); border-radius: var(--radius-inner); }
+  .tr-order { display: flex; flex-direction: column; gap: 2px; }
+  .tr-move { border: 0; background: none; color: var(--ro-muted); font-size: 9px; line-height: 1; padding: 2px 4px; cursor: pointer; border-radius: 4px; }
+  .tr-move:hover:not(:disabled) { background: var(--ro-surface-2); color: var(--ro-text); }
+  .tr-move:disabled { opacity: .3; cursor: default; }
+  .tr-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+  .tr-name { font-weight: 600; font-size: 13.5px; padding: 6px 10px; }
+  .tr-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .tr-type { width: auto; padding: 3px 8px; font-size: 12px; }
+  .tr-target { display: flex; align-items: center; gap: 6px; flex-shrink: 0; font-size: 12px; }
+  .tr-target .inp { width: 72px; padding: 6px 8px; text-align: right; font-variant-numeric: tabular-nums; }
+  .tr-unit { color: var(--ro-muted); white-space: nowrap; min-width: 70px; }
+  .type-chip { display: inline-flex; align-items: center; font-size: 11.5px; font-weight: 600; padding: 2px 9px; border-radius: 999px; white-space: nowrap;
+               background: var(--ro-surface-2); color: var(--ro-text); border: 1px solid var(--ro-border); }
+  .type-count, .type-count_note { color: var(--ro-accent); background: var(--ro-accent-soft); border-color: transparent; }
+  .type-links, .type-links_note { color: #2563eb; background: color-mix(in srgb, #2563eb 12%, transparent); border-color: transparent; }
+  .type-layers { color: #7c3aed; background: color-mix(in srgb, #7c3aed 12%, transparent); border-color: transparent; }
+  [data-theme="dark"] .type-links, [data-theme="dark"] .type-links_note { color: #93b4ff; }
+  [data-theme="dark"] .type-layers { color: #c4a6ff; }
+  .shared-badge, .new-badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; color: var(--ro-warning-text); background: var(--ro-warning-bg); }
+  .new-badge { color: var(--ro-success); background: color-mix(in srgb, var(--ro-success) 12%, transparent); }
+  .type-hint { font-size: 12px; color: var(--ro-muted); }
+  #page-tasks .add-task-form { background: var(--ro-surface-2); border-color: var(--ro-border); border-radius: var(--radius-inner); }
+  .add-existing { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+  .add-existing-row { display: flex; gap: 8px; } .add-existing-row .inp { flex: 1; min-width: 0; }
+  .dirty-note { align-self: center; font-size: 12px; font-weight: 600; color: var(--ro-warning-text); }
+  .lib-assignees { display: flex; gap: 4px; flex-wrap: wrap; min-width: 200px; }
+  .name-pill { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--ro-surface-2); border: 1px solid var(--ro-border); white-space: nowrap; }
+  .name-pill.more { color: var(--ro-muted); }
+  .lib-edit { text-align: right; }
+  .link-btn { border: 0; background: none; padding: 0; color: var(--ro-accent); font-weight: 600; font-size: 12.5px; cursor: pointer; }
+  .link-btn:hover { text-decoration: underline; }
+  .td-body { gap: 16px !important; padding: 20px !important; }
+  .td-two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .td-assign-head { display: flex; justify-content: space-between; align-items: center; }
+  .td-assign { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; max-height: 320px; overflow-y: auto; padding: 2px; }
+  .td-member { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border: 1px solid var(--ro-border); border-radius: var(--radius-inner); cursor: pointer; font-size: 13px; }
+  .td-member:has(input:checked) { border-color: var(--ro-accent); background: var(--ro-accent-soft); }
+  .td-member .avatar-sm { width: 24px; height: 24px; font-size: 10px; }
+  @media (max-width: 760px) {
+    #page-tasks .edit-wrap { grid-template-columns: 1fr; }
+    #page-tasks .member-picker { border-right: 0; border-bottom: 1px solid var(--ro-border); max-height: 180px; }
+    #page-tasks .task-edit-row { flex-wrap: wrap; }
+    #page-tasks .task-editor-header { flex-wrap: wrap; } #page-tasks .task-editor-name { flex-basis: calc(100% - 50px); }
+    .tr-main { flex-basis: calc(100% - 80px); }
+    .tr-target { margin-left: 28px; }
+    .td-assign, .td-two { grid-template-columns: 1fr; }
+  }
 
   /* ── Overview ── */
   .overview-updated { font-size: 12px; color: var(--ro-muted); font-variant-numeric: tabular-nums; }
@@ -1082,17 +1143,40 @@
     </section>
     <section class="page" id="page-tasks" hidden>
       <div class="page-head">
-        <div><h1 class="page-title">Tasks &amp; Targets</h1><p class="page-sub">Each member&#39;s task list.</p></div>
+        <div><h1 class="page-title">Tasks &amp; Targets</h1><p class="page-sub">What each member fills in every day, and the daily target for it.</p></div>
+        <div class="segmented" role="tablist" aria-label="Tasks view">
+          <button type="button" id="tview-member" class="active" onclick="switchTasksView('member')">By member</button>
+          <button type="button" id="tview-library" onclick="switchTasksView('library')">All tasks</button>
+        </div>
       </div>
-<!-- ── Edit Tasks panel ── -->
+<!-- ── Tasks & Targets ── -->
 <div id="panel-tasks">
-  <div class="edit-wrap">
-    <div class="member-picker">
-      <div class="member-picker-header">Members</div>
-      <div id="member-pick-list"></div>
+  <div id="tasks-by-member">
+    <div class="edit-wrap">
+      <div class="member-picker">
+        <div class="member-picker-header">Members</div>
+        <div id="member-pick-list"></div>
+      </div>
+      <div class="task-editor" id="task-editor">
+        <div class="state-overlay">Select a member to edit their tasks</div>
+      </div>
     </div>
-    <div class="task-editor" id="task-editor">
-      <div class="state-overlay">Select a member to edit their tasks</div>
+  </div>
+  <div id="tasks-library" class="card team-table-card" hidden>
+    <div class="team-filters">
+      <label class="team-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input id="lib-search" type="search" placeholder="Search tasks or members" autocomplete="off" oninput="renderTaskLibrary()" aria-label="Search tasks"></label>
+      <select class="inp" id="lib-type" onchange="renderTaskLibrary()" aria-label="Type"><option value="">All types</option></select>
+      <select class="inp" id="lib-status" onchange="renderTaskLibrary()" aria-label="Status">
+        <option value="">Active and paused</option><option value="active">Active only</option><option value="paused">Paused only</option><option value="unassigned">Not assigned</option>
+      </select>
+      <span class="team-count" id="lib-count"></span>
+      <button class="btn btn-primary btn-sm" onclick="openTaskDef()">&#43; New task</button>
+    </div>
+    <div class="team-table-wrap">
+      <table class="team-table lib-table">
+        <thead><tr><th>Task</th><th>Type</th><th>Daily target</th><th>Assigned to</th><th>Status</th><th></th></tr></thead>
+        <tbody id="lib-tbody"><tr><td colspan="6" class="ov-loading">Loading…</td></tr></tbody>
+      </table>
     </div>
   </div>
 </div>
@@ -1121,26 +1205,25 @@
     </section>
     <section class="page" id="page-settings" hidden>
       <div class="page-head">
-        <div><h1 class="page-title">Settings</h1><p class="page-sub">Passwords and team members.</p></div>
+        <div><h1 class="page-title">Settings</h1><p class="page-sub">Team accounts: add members, reset passwords, deactivate or remove.</p></div>
       </div>
-      <div class="settings-grid">
-        <div class="card">
-          <h2 class="card-heading">Reset a member&#39;s password</h2>
-          <p class="page-sub">The member is logged out on every device as soon as the password changes.</p>
-          <div class="settings-row">
-            <select class="inp" id="settings-member" aria-label="Member"></select>
-            <input class="inp" id="chpw-input" type="text" placeholder="New password (min 6 chars)" autocomplete="off">
-            <button class="btn btn-primary btn-sm" onclick="changePassword()">Update Password</button>
-          </div>
+      <div class="card team-table-card">
+        <div class="team-filters">
+          <label class="team-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input id="acc-search" type="search" placeholder="Search by name or username" autocomplete="off" oninput="renderSettings()" aria-label="Search accounts"></label>
+          <select class="inp" id="acc-status" onchange="renderSettings()" aria-label="Status">
+            <option value="">All accounts</option><option value="active">Active</option><option value="inactive">Deactivated</option>
+          </select>
+          <span class="team-count" id="acc-count"></span>
+          <button class="btn btn-primary btn-sm" id="acc-add-btn" onclick="openAddMemberModal()" hidden>&#43; Add member</button>
         </div>
-        <div class="card" id="settings-members-card" hidden>
-          <div class="card-head-row">
-            <h2 class="card-heading">Team members</h2>
-            <button class="btn btn-primary btn-sm" onclick="openAddMemberModal()">&#43; Add New Member</button>
-          </div>
-          <div id="settings-member-list"></div>
+        <div class="team-table-wrap">
+          <table class="team-table acc-table">
+            <thead><tr><th>Member</th><th>Role</th><th>Shift</th><th>Status</th><th>Last active</th><th class="acc-actions-th">Actions</th></tr></thead>
+            <tbody id="acc-tbody"><tr><td colspan="6" class="ov-loading">Loading…</td></tr></tbody>
+          </table>
         </div>
       </div>
+      <p class="page-sub settings-foot" id="settings-foot"></p>
     </section>
     </main>
   </div>
@@ -1220,7 +1303,7 @@
   <div class="am-modal">
     <div class="em-header">
       <div class="em-header-text">
-        <div class="em-title">Add New Member</div>
+        <div class="em-title">Add member</div>
         <div class="em-sub">Create a login account for a new team member</div>
       </div>
       <div class="em-header-actions">
@@ -1247,11 +1330,70 @@
           <option value="assistant">Assistant</option>
         </select>
       </div>
+      <div class="form-group">
+        <label class="form-label">Shift</label>
+        <select class="inp" id="am-shift">
+          <option value="">Not set</option>
+          <option value="day">Day</option>
+          <option value="night">Night</option>
+        </select>
+      </div>
       <div class="am-error" id="am-error"></div>
     </div>
     <div class="em-footer" style="display:flex">
       <button class="btn btn-ghost btn-sm" onclick="closeAddMemberModal()">Cancel</button>
       <button class="btn btn-primary btn-sm" id="am-submit-btn" onclick="submitAddMember()">Add Member</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Generic dialog (edit member, reset password, confirmations) ── -->
+<div id="dlg-overlay" class="am-overlay hidden" onclick="if(event.target===this)closeDialog()">
+  <div class="am-modal" role="dialog" aria-modal="true" aria-labelledby="dlg-title">
+    <div class="em-header">
+      <div class="em-header-text">
+        <div class="em-title" id="dlg-title"></div>
+        <div class="em-sub" id="dlg-sub"></div>
+      </div>
+      <div class="em-header-actions"><button class="em-close" onclick="closeDialog()" aria-label="Close">&#10005;</button></div>
+    </div>
+    <div class="em-body" id="dlg-body" style="gap:14px"></div>
+    <div class="am-error" id="dlg-error" style="margin:0 20px 12px"></div>
+    <div class="em-footer" style="display:flex">
+      <button class="btn btn-ghost btn-sm" onclick="closeDialog()">Cancel</button>
+      <button class="btn btn-primary btn-sm" id="dlg-ok" onclick="confirmDialog()">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Task definition slide-over (All tasks → New / Edit) ── -->
+<div id="td-overlay" class="em-overlay hidden" onclick="if(event.target===this)closeTaskDef()">
+  <div class="em-modal" role="dialog" aria-modal="true" aria-labelledby="td-title">
+    <div class="em-header">
+      <div class="em-header-text">
+        <div class="em-title" id="td-title">New task</div>
+        <div class="em-sub" id="td-sub">One task can be assigned to many members</div>
+      </div>
+      <div class="em-header-actions"><button class="em-close" onclick="closeTaskDef()" aria-label="Close">&#10005;</button></div>
+    </div>
+    <div class="em-body td-body">
+      <div class="form-group"><label class="form-label" for="td-name">Task name</label><input class="inp" id="td-name" placeholder="e.g. Guest Posting" maxlength="80"></div>
+      <div class="form-group"><label class="form-label" for="td-type">What the member fills in</label><select class="inp" id="td-type" onchange="syncTypeHint('td')"></select><span class="type-hint" id="td-type-hint"></span></div>
+      <div class="td-two">
+        <div class="form-group"><label class="form-label" for="td-label">Unit name</label><input class="inp" id="td-label" placeholder="e.g. Links" maxlength="30"></div>
+        <div class="form-group"><label class="form-label" for="td-target">Daily target</label><input class="inp" id="td-target" type="number" min="0" step="1" placeholder="No target"></div>
+      </div>
+      <label class="ws-toggle"><input type="checkbox" id="td-active" checked> Active (paused tasks are hidden from the daily form; old data stays)</label>
+      <div class="form-group">
+        <div class="td-assign-head"><span class="form-label">Assigned to <span id="td-assign-count"></span></span>
+          <span><button type="button" class="link-btn" onclick="tdSelectAll(true)">All</button> · <button type="button" class="link-btn" onclick="tdSelectAll(false)">None</button></span></div>
+        <div class="td-assign" id="td-assign"></div>
+      </div>
+      <div class="am-error" id="td-error"></div>
+    </div>
+    <div class="em-footer" style="display:flex">
+      <button class="btn btn-ghost btn-sm" onclick="closeTaskDef()">Cancel</button>
+      <button class="btn btn-primary btn-sm" id="td-save" onclick="saveTaskDef()">Save task</button>
     </div>
   </div>
 </div>
@@ -1583,6 +1725,7 @@
     });
     const roleEl = document.getElementById('am-role');
     if (roleEl) roleEl.value = 'member';
+    document.getElementById('am-shift').value = '';
     const errEl = document.getElementById('am-error');
     if (errEl) { errEl.textContent = ''; errEl.classList.remove('show'); errEl.style.display = ''; }
     document.getElementById('am-overlay').classList.remove('hidden');
@@ -1598,6 +1741,7 @@
     const username = (document.getElementById('am-username').value || '').trim().toLowerCase();
     const password = (document.getElementById('am-password').value || '').trim();
     const role     = (document.getElementById('am-role').value     || 'member');
+    const shift    = document.getElementById('am-shift').value;
 
     const errEl = document.getElementById('am-error');
     function showAmError(msg) {
@@ -1620,16 +1764,15 @@
       const res  = await fetch('/api/admin/members', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ username, password, display, role }),
+        body:    JSON.stringify({ username, password, display, role, shift }),
         credentials: 'same-origin',
       });
       const data = await res.json();
       if (res.ok) {
-        await loadAll();
-        activeMember = members.length - 1; // jump to the newly added member
-        renderMemberTabs();
-        if (currentPage === 'settings') renderSettings(); else navigate(currentPage, { push: false });
         closeAddMemberModal();
+        await refreshAfterAccountChange();
+        const idx = members.findIndex(x => x.username === data.username);
+        if (idx >= 0) activeMember = idx; // Work opens on the new member
         showToast(display + ' added successfully.', 'success');
       } else {
         showAmError(data.error || 'Failed to add member.');
@@ -1639,35 +1782,6 @@
     } finally {
       btn.disabled    = false;
       btn.textContent = 'Add Member';
-    }
-  }
-
-  function confirmRemoveMember(username, display) {
-    if (!confirm(
-      'Remove ' + display + ' from the team?\n\n' +
-      'Their account will be deleted. Submission data already in the database will remain.'
-    )) return;
-    removeMember(username, display);
-  }
-
-  async function removeMember(username, display) {
-    try {
-      const res  = await fetch('/api/admin/members/' + encodeURIComponent(username), {
-        method:      'DELETE',
-        credentials: 'same-origin',
-      });
-      const data = await res.json();
-      if (res.ok) {
-        await loadAll();
-        activeMember = Math.min(activeMember, Math.max(0, members.length - 1));
-        renderMemberTabs();
-        navigate(currentPage, { push: false });
-        showToast(display + ' removed from the team.', 'info');
-      } else {
-        showToast(data.error || 'Failed to remove member.', 'error');
-      }
-    } catch {
-      showToast('Network error.', 'error');
     }
   }
 
@@ -2513,7 +2627,7 @@
     else if (page === 'team')       renderTeam();
     else if (page === 'work')       { renderMemberTabs(); renderSpreadsheet({ jump: true }); }
     else if (page === 'attendance') initAttendanceTab();
-    else if (page === 'tasks')      renderEditTasks();
+    else if (page === 'tasks')      renderTasksPage();
     else if (page === 'reports')    renderAnalytics();
     else if (page === 'settings')   renderSettings();
     else if (page === 'profile')    loadProfile();
@@ -2553,7 +2667,7 @@
     const sel = document.getElementById('work-member');
     if (!sel) return;
     sel.innerHTML = members.map((m, i) =>
-      '<option value="' + i + '"' + (i === activeMember ? ' selected' : '') + '>' + escHtml(m.display) + '</option>').join('');
+      '<option value="' + i + '"' + (i === activeMember ? ' selected' : '') + '>' + escHtml(m.display) + (m.active === false ? ' (inactive)' : '') + '</option>').join('');
   }
 
   function selectMember(idx) {
@@ -2954,21 +3068,130 @@
   }
 
   /* ── Settings ── */
-  function renderSettings() {
-    const sel = document.getElementById('settings-member');
-    const prev = sel.value;
-    sel.innerHTML = members.map(m => '<option value="' + escHtml(m.username) + '">' + escHtml(m.display) + ' (' + escHtml(m.username) + ')</option>').join('');
-    if (prev && members.some(m => m.username === prev)) sel.value = prev;
-    const card = document.getElementById('settings-members-card');
-    card.hidden = !isManager; // only the manager adds / removes members
-    if (!isManager) return;
-    document.getElementById('settings-member-list').innerHTML = members.map(m =>
-      '<div class="settings-member-row">' +
-      '  <span class="avatar-sm">' + escHtml(initials(m.display)) + '</span>' +
-      '  <span class="settings-member-name">' + escHtml(m.display) + ' <span class="settings-member-user">' + escHtml(m.username) + '</span></span>' +
-      '  <button class="btn btn-ghost btn-sm btn-remove-member" data-username="' + escHtml(m.username) + '" data-display="' + escHtml(m.display) + '"' +
-      '    onclick="confirmRemoveMember(this.dataset.username,this.dataset.display)">Remove</button>' +
-      '</div>').join('') || '<p class="page-sub">No team members yet.</p>';
+  /* ── Settings: team accounts ── */
+  let accData = null;
+  const ROLE_LABEL = { manager: 'Manager', assistant: 'Assistant', member: 'Member' };
+  async function loadAccounts() {
+    try {
+      const res = await fetch('/api/admin/accounts', { credentials: 'same-origin' });
+      if (res.status === 401) { window.location.href = '/login'; return; }
+      accData = res.ok ? await res.json() : [];
+    } catch { accData = null; }
+  }
+
+  async function renderSettings({ reload = false } = {}) {
+    document.getElementById('acc-add-btn').hidden = !isManager;
+    document.getElementById('settings-foot').textContent = isManager
+      ? 'Deactivated members cannot log in and are left out of Overview; their history stays. Removing deletes the login only — entries and attendance are kept.'
+      : 'Assistants can reset member passwords. Only the manager can add, deactivate or remove accounts.';
+    const tbody = document.getElementById('acc-tbody');
+    if (!accData || reload) { await loadAccounts(); }
+    if (!accData) { tbody.innerHTML = '<tr><td colspan="6" class="ov-loading">Could not load accounts.</td></tr>'; return; }
+    const q = document.getElementById('acc-search').value.trim().toLowerCase();
+    const st = document.getElementById('acc-status').value;
+    const rows = accData.filter(a =>
+      (!q || a.display.toLowerCase().includes(q) || a.username.includes(q)) &&
+      (!st || (st === 'active' ? a.active : !a.active)));
+    document.getElementById('acc-count').textContent = rows.length + ' of ' + accData.length;
+    const me = meInfo.username;
+    tbody.innerHTML = rows.map(a => {
+      const locked = a.role === 'manager' || a.username === me;
+      const btn = (act, label, cls = '') => '<button type="button" class="btn btn-ghost btn-xs ' + cls + '" data-act="' + act + '" data-username="' + escHtml(a.username) + '" onclick="accountAction(this.dataset.act,this.dataset.username)">' + label + '</button>';
+      const actions = locked ? '<span class="muted">' + (a.username === me ? 'You' : 'Manager') + '</span>'
+        : [isManager ? btn('edit', 'Edit') : '', btn('password', 'Reset password'),
+           isManager ? (a.active ? btn('deactivate', 'Deactivate') : btn('activate', 'Activate')) : '',
+           isManager ? btn('remove', 'Remove', 'btn-remove-member') : ''].join('');
+      return '<tr class="' + (a.active ? '' : 'acc-inactive') + '">' +
+        '<td><span class="team-member"><span class="avatar-sm">' + escHtml(initials(a.display)) + '</span><span>' +
+        '<span class="team-member-name">' + escHtml(a.display) + '</span><span class="team-member-user">' + escHtml(a.username) + '</span></span></span></td>' +
+        '<td>' + (ROLE_LABEL[a.role] || escHtml(a.role)) + '</td>' +
+        '<td>' + (a.shift ? SHIFT_NAME[a.shift] || escHtml(a.shift) : '<span class="muted">—</span>') + '</td>' +
+        '<td>' + (a.active ? '<span class="chip chip--working">Active</span>' : '<span class="chip chip--offline">Deactivated</span>') + '</td>' +
+        '<td class="muted">' + (a.role === 'member' ? timeAgo(a.lastActiveAt) : '—') + '</td>' +
+        '<td><span class="acc-actions">' + actions + '</span></td></tr>';
+    }).join('') || '<tr><td colspan="6" class="ov-loading">No account matches these filters.</td></tr>';
+  }
+
+  // Refresh everything that lists members after an account change
+  async function refreshAfterAccountChange() {
+    await Promise.all([loadAll(), loadAccounts()]);
+    teamData = null; taskDefs = null;
+    activeMember  = Math.min(activeMember, Math.max(0, members.length - 1));
+    editMemberIdx = Math.min(editMemberIdx, Math.max(0, members.length - 1));
+    editTasks = []; editDirty = false;
+    renderMemberTabs();
+    renderSettings();
+  }
+
+  const accJson = async (url, method, body) => {
+    const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}), credentials: 'same-origin' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Request failed.');
+    return data;
+  };
+  function randomPassword() {
+    const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const buf = new Uint32Array(10); crypto.getRandomValues(buf);
+    return Array.from(buf, n => chars[n % chars.length]).join('');
+  }
+
+  async function accountAction(act, username) {
+    const a = (accData || []).find(x => x.username === username);
+    if (!a) return;
+    const who = '<b>' + escHtml(a.display) + '</b> (' + escHtml(a.username) + ')';
+    const url = '/api/admin/members/' + encodeURIComponent(username);
+    let done = false, msg = '';
+    if (act === 'edit') {
+      done = await openDialog({
+        title: 'Edit ' + a.display, okText: 'Save',
+        body: '<div class="form-group"><label class="form-label" for="dlg-name">Full name</label><input class="inp" id="dlg-name" value="' + escHtml(a.display) + '" maxlength="60"></div>' +
+              '<div class="form-group"><label class="form-label" for="dlg-shift">Shift</label><select class="inp" id="dlg-shift">' +
+              [['', 'Not set'], ['day', 'Day'], ['night', 'Night']].map(([v, l]) => '<option value="' + v + '"' + ((a.shift || '') === v ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></div>' +
+              '<p class="muted">The username and role cannot change.</p>',
+        onOpen: () => setTimeout(() => document.getElementById('dlg-name').focus(), 30),
+        onOk: () => accJson(url, 'PATCH', { display: document.getElementById('dlg-name').value, shift: document.getElementById('dlg-shift').value }),
+      });
+      msg = 'Saved ' + a.display;
+    } else if (act === 'password') {
+      done = await openDialog({
+        title: 'Reset password', okText: 'Update password',
+        body: '<p>New password for ' + who + '. They are signed out on every device right away.</p>' +
+              '<div class="form-group"><label class="form-label" for="dlg-pw">New password</label>' +
+              '<span class="pw-row"><input class="inp" id="dlg-pw" type="text" autocomplete="off" placeholder="Min 6 characters" spellcheck="false">' +
+              '<button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById(\'dlg-pw\').value=randomPassword()">Generate</button></span></div>' +
+              '<p class="muted">Copy the password before saving and share it with the member privately.</p>',
+        onOpen: () => setTimeout(() => document.getElementById('dlg-pw').focus(), 30),
+        onOk: () => {
+          const pw = document.getElementById('dlg-pw').value.trim();
+          if (pw.length < 6) throw new Error('Password must be at least 6 characters.');
+          return accJson('/api/admin/change-password', 'POST', { username, newPassword: pw });
+        },
+      });
+      msg = 'Password updated for ' + a.display + ' — signed out everywhere';
+    } else if (act === 'deactivate' || act === 'activate') {
+      const on = act === 'activate';
+      done = await openDialog({
+        title: (on ? 'Activate ' : 'Deactivate ') + a.display + '?', okText: on ? 'Activate' : 'Deactivate', danger: !on,
+        body: on ? '<p>' + who + ' can log in again and shows up on Overview.</p>'
+                 : '<p>' + who + ' is signed out and cannot log in. They are left out of Overview and Needs Attention.</p><p class="muted">Their entries, attendance and tasks stay. You can activate them again any time.</p>',
+        onOk: () => accJson(url, 'PATCH', { active: on }),
+      });
+      msg = a.display + (on ? ' activated' : ' deactivated');
+    } else if (act === 'remove') {
+      done = await openDialog({
+        title: 'Remove ' + a.display + '?', okText: 'Remove member', danger: true,
+        body: '<p>This deletes the login for ' + who + '. Their entries and attendance stay in the database; their tasks are unassigned.</p>' +
+              '<p class="muted">If you only want to stop access for now, use Deactivate instead.</p>' +
+              '<div class="form-group"><label class="form-label" for="dlg-confirm">Type <b class="mono">' + escHtml(a.username) + '</b> to confirm</label>' +
+              '<input class="inp" id="dlg-confirm" autocomplete="off" autocapitalize="none" spellcheck="false" oninput="document.getElementById(\'dlg-ok\').disabled=this.value.trim().toLowerCase()!==' + escHtml(JSON.stringify(a.username)) + '"></div>',
+        onOpen: () => { document.getElementById('dlg-ok').disabled = true; setTimeout(() => document.getElementById('dlg-confirm').focus(), 30); },
+        onOk: () => accJson(url, 'DELETE', { confirm: document.getElementById('dlg-confirm').value.trim() }),
+      });
+      msg = a.display + ' removed';
+    }
+    if (!done) return;
+    showToast(msg, act === 'remove' || act === 'deactivate' ? 'info' : 'success');
+    await refreshAfterAccountChange();
   }
 
   /* ── Spreadsheet ── */
@@ -3265,90 +3488,205 @@
   }
 
   /* ── Edit Tasks tab ── */
+  /* ── Tasks & Targets ── */
+  const TYPE_HINT = {
+    links:      'Rows of client + number of links; the links are counted for the target.',
+    layers:     'Rows of client + number of layers; the layers are counted for the target.',
+    count:      'One number per day.',
+    note:       'Free text only — no number, so no target.',
+    count_note: 'A number plus a short note.',
+    links_note: 'Pasted links plus a note; each link counts for the target.',
+  };
+  const TYPE_UNIT = { links: 'Links', layers: 'Layers', count: 'Count', note: 'Notes', count_note: 'Count', links_note: 'Links' };
+  const TYPE_ORDER = ['count', 'links', 'layers', 'count_note', 'links_note', 'note'];
+  const typeName = t => TYPE_NAME[t] || t;
+  const typeOptionsHtml = sel => TYPE_ORDER.map(t => '<option value="' + t + '"' + (t === sel ? ' selected' : '') + '>' + typeName(t) + '</option>').join('');
+  const memberName = u => { const m = members.find(x => x.username === u); return m ? m.display : u; };
+  let tasksView = 'member', taskDefs = null, editDirty = false;
+
+  async function loadTaskDefs() {
+    try {
+      const res = await fetch('/api/task-defs', { credentials: 'same-origin' });
+      if (res.ok) taskDefs = await res.json();
+    } catch { /* the library shows "could not load" */ }
+  }
+
+  function switchTasksView(view) {
+    tasksView = view;
+    document.getElementById('tview-member').classList.toggle('active', view === 'member');
+    document.getElementById('tview-library').classList.toggle('active', view === 'library');
+    document.getElementById('tasks-by-member').hidden = view !== 'member';
+    document.getElementById('tasks-library').hidden   = view !== 'library';
+    if (view === 'library') renderTaskLibrary(); else renderEditTasks();
+  }
+
+  async function renderTasksPage() {
+    switchTasksView(tasksView);
+    await loadTaskDefs();
+    if (tasksView === 'library') renderTaskLibrary(); else renderTaskEditor();
+  }
+
   function renderEditTasks() {
     const list = document.getElementById('member-pick-list');
     list.innerHTML = members.map((m, i) =>
-      '<button class="member-pick-btn ' + (i === editMemberIdx ? 'active' : '') + '" onclick="selectEditMember(' + i + ')">' + escHtml(m.display) + '</button>'
-    ).join('');
+      '<button class="member-pick-btn ' + (i === editMemberIdx ? 'active' : '') + '" onclick="selectEditMember(' + i + ')">' +
+      escHtml(m.display) + (m.active === false ? ' <span class="muted">(inactive)</span>' : '') +
+      '<span class="pick-count">' + (m.tasks || []).length + '</span></button>'
+    ).join('') || '<p class="page-sub" style="padding:12px 14px">No members yet.</p>';
     renderTaskEditor();
   }
 
-  function selectEditMember(idx) {
+  async function selectEditMember(idx) {
+    if (idx === editMemberIdx) return;
+    if (editDirty && !(await openDialog({ title: 'Discard unsaved changes?', body: '<p>Your changes to ' + escHtml(members[editMemberIdx].display) + '&#39;s tasks are not saved yet.</p>', okText: 'Discard', danger: true }))) return;
     editMemberIdx = idx;
     editTasks = JSON.parse(JSON.stringify(members[idx].tasks || []));
-    document.querySelectorAll('.member-pick-btn').forEach((btn, i) => {
-      btn.classList.toggle('active', i === idx);
-    });
+    editDirty = false;
+    document.querySelectorAll('.member-pick-btn').forEach((btn, i) => btn.classList.toggle('active', i === idx));
     renderTaskEditor();
+  }
+
+  function markTasksDirty() {
+    editDirty = true;
+    const bar = document.getElementById('task-dirty');
+    if (bar) bar.hidden = false;
   }
 
   function renderTaskEditor() {
     const m = members[editMemberIdx];
-    if (!m) return;
-    editTasks = editTasks.length ? editTasks : JSON.parse(JSON.stringify(m.tasks || []));
+    const box = document.getElementById('task-editor');
+    if (!m) { box.innerHTML = '<div class="state-overlay">Select a member to edit their tasks</div>'; return; }
+    if (!editDirty && !editTasks.length) editTasks = JSON.parse(JSON.stringify(m.tasks || []));
+    const defsById = Object.fromEntries((taskDefs || []).map(t => [t.taskId, t]));
 
-    const typeColors = {
-      links:'color:var(--pink);background:var(--pink-dim)',
-      layers:'color:var(--blue);background:var(--blue-dim)',
-      count:'color:var(--gold);background:var(--gold-dim)',
-      note:'color:#c084fc;background:rgba(168,85,247,0.15)',
-      count_note:'color:var(--success);background:color-mix(in srgb, var(--success) 12%, transparent)',
-      links_note:'color:var(--warning);background:color-mix(in srgb, var(--warning) 12%, transparent)',
-    };
+    const rows = editTasks.map((t, i) => {
+      const def = t.taskId && defsById[t.taskId];
+      const others = def ? (def.assignees || []).filter(u => u !== m.username) : [];
+      const isNote = t.type === 'note';
+      return '<div class="task-edit-row" data-i="' + i + '">' +
+        '<span class="tr-order">' +
+          '<button type="button" class="tr-move" title="Move up" aria-label="Move up" onclick="moveEditTask(' + i + ',-1)"' + (i === 0 ? ' disabled' : '') + '>&#9650;</button>' +
+          '<button type="button" class="tr-move" title="Move down" aria-label="Move down" onclick="moveEditTask(' + i + ',1)"' + (i === editTasks.length - 1 ? ' disabled' : '') + '>&#9660;</button>' +
+        '</span>' +
+        '<span class="tr-main">' +
+          '<input class="inp tr-name" value="' + escHtml(t.name) + '" aria-label="Task name" maxlength="80" oninput="editTasks[' + i + '].name=this.value;markTasksDirty()">' +
+          '<span class="tr-meta">' +
+            (t.taskId
+              ? '<span class="type-chip type-' + t.type + '" title="' + escHtml(TYPE_HINT[t.type] || '') + '">' + typeName(t.type) + '</span>'
+              : '<select class="inp tr-type" aria-label="Type" onchange="setEditTaskType(' + i + ',this.value)">' + typeOptionsHtml(t.type) + '</select>') +
+            (others.length ? '<span class="shared-badge" title="Also assigned to: ' + escHtml(others.map(memberName).join(', ')) + '">Shared with ' + others.length + '</span>' : '') +
+            (!t.taskId ? '<span class="new-badge">New</span>' : '') +
+          '</span>' +
+        '</span>' +
+        '<label class="tr-target">' +
+          (isNote ? '<span class="muted">No target</span>'
+            : '<input class="inp" type="number" min="0" step="1" placeholder="—" aria-label="Daily target" value="' + (t.dailyTarget ?? '') + '"' +
+              ' oninput="editTasks[' + i + '].dailyTarget=this.value===\'\'?null:Number(this.value);markTasksDirty()">' +
+              '<span class="tr-unit">' + escHtml(t.label || TYPE_UNIT[t.type] || '') + ' / day</span>') +
+        '</label>' +
+        '<button class="task-edit-rm" onclick="removeEditTask(' + i + ')" title="Remove from this member" aria-label="Remove ' + escHtml(t.name) + '">&#10005;</button>' +
+      '</div>';
+    }).join('') || '<p class="page-sub" style="padding:8px 0">No tasks assigned yet. Add the first one below.</p>';
 
-    const taskListHtml = editTasks.map((t, i) =>
-      '<div class="task-edit-row">' +
-      '  <span class="task-edit-name">' + escHtml(t.name) + '</span>' +
-      '  <span class="task-edit-type" style="' + (typeColors[t.type] || '') + '">' + escHtml(t.type) + '</span>' +
-      '  <button class="task-edit-rm" onclick="removeEditTask(' + i + ')" title="Remove">&#10005;</button>' +
-      '</div>'
-    ).join('') || '<p style="color:var(--text-muted);font-size:12px;padding:8px 0">No tasks assigned.</p>';
-
-    const typeOptions = ['links','layers','count','note','count_note','links_note']
-      .map(t => '<option value="' + t + '">' + t + '</option>').join('');
-
-    document.getElementById('task-editor').innerHTML =
+    box.innerHTML =
       '<div class="task-editor-header">' +
-      '  <div class="task-editor-name">' + escHtml(m.display) + '</div>' +
-      '  <span class="badge badge-muted">' + editTasks.length + ' tasks</span>' +
+      '  <span class="avatar-sm">' + escHtml(initials(m.display)) + '</span>' +
+      '  <div class="task-editor-name">' + escHtml(m.display) + ' <span class="muted" style="font-weight:500;font-size:12px">' + escHtml(m.username) + '</span></div>' +
+      '  <span class="badge badge-muted">' + editTasks.length + ' task' + (editTasks.length === 1 ? '' : 's') + '</span>' +
+      '  <button class="btn btn-ghost btn-sm" id="reset-default-btn" onclick="resetTaskEdits()"' +
+           (m.hasDefault ? '' : ' disabled title="No default list for this member (added from the dashboard)"') + '>Reset to Default</button>' +
       '</div>' +
-      '<p class="task-editor-note">Add or remove tasks for this member. Changes are saved separately from submission data.</p>' +
-      '<div class="task-list-edit" id="task-list-edit">' + taskListHtml + '</div>' +
+      '<p class="task-editor-note">Daily target = how many the member should do per day; it drives the target % on Overview and Team. ' +
+      'Shared tasks are one task for several members — renaming or changing its target applies to all of them. Removing a task here only removes it from this member; their old data stays.</p>' +
+      '<div class="task-list-edit" id="task-list-edit">' + rows + '</div>' +
       '<div class="add-task-form">' +
-      '  <div class="form-group">' +
-      '    <label class="form-label">Task Name</label>' +
-      '    <input class="inp" id="new-task-name" placeholder="e.g. Guest Posting">' +
-      '  </div>' +
-      '  <div class="form-group" style="max-width:160px">' +
-      '    <label class="form-label">Type</label>' +
-      '    <select class="inp" id="new-task-type">' + typeOptions + '</select>' +
-      '  </div>' +
-      '  <button class="btn btn-primary btn-sm" style="align-self:flex-end;margin-bottom:0" onclick="addEditTask()">Add Task</button>' +
+      '  <div class="form-group"><label class="form-label" for="new-task-name">New task</label><input class="inp" id="new-task-name" placeholder="e.g. Guest Posting" maxlength="80" onkeydown="if(event.key===\'Enter\')addEditTask()"></div>' +
+      '  <div class="form-group" style="max-width:190px"><label class="form-label" for="new-task-type">Type</label><select class="inp" id="new-task-type" onchange="syncTypeHint(\'new-task\')">' + typeOptionsHtml('count') + '</select></div>' +
+      '  <div class="form-group" style="max-width:110px"><label class="form-label" for="new-task-target">Daily target</label><input class="inp" id="new-task-target" type="number" min="0" step="1" placeholder="—"></div>' +
+      '  <button class="btn btn-primary btn-sm" style="align-self:flex-end" onclick="addEditTask()">Add task</button>' +
+      '  <span class="type-hint" id="new-task-type-hint" style="flex-basis:100%"></span>' +
       '</div>' +
+      (others => others.length ? '<div class="add-existing"><label class="form-label" for="add-existing">Or add an existing task</label>' +
+        '<span class="add-existing-row"><select class="inp" id="add-existing">' + others.map(t =>
+          '<option value="' + escHtml(t.taskId) + '">' + escHtml(t.name) + ' — ' + typeName(t.type) + ((t.assignees || []).length ? ' (' + t.assignees.length + ' member' + (t.assignees.length === 1 ? '' : 's') + ')' : '') + '</option>').join('') +
+        '</select><button class="btn btn-ghost btn-sm" onclick="addExistingTask()">Add</button></span></div>' : '')(
+        (taskDefs || []).filter(t => t.active !== false && !editTasks.some(e => e.taskId === t.taskId)).sort((a, b) => a.name.localeCompare(b.name))) +
       '<div class="edit-actions">' +
-      '  <button class="btn btn-primary btn-sm" onclick="saveTaskEdits()">Save Changes</button>' +
-      '  <button class="btn btn-ghost btn-sm"   onclick="resetTaskEdits()">Reset to Default</button>' +
-      '</div>' +
-      '';
+      '  <button class="btn btn-primary btn-sm" id="save-tasks-btn" onclick="saveTaskEdits()">Save changes</button>' +
+      '  <button class="btn btn-ghost btn-sm" onclick="discardTaskEdits()">Discard</button>' +
+      '  <span class="dirty-note" id="task-dirty"' + (editDirty ? '' : ' hidden') + '>Unsaved changes</span>' +
+      '</div>';
+    syncTypeHint('new-task');
+  }
+
+  function syncTypeHint(prefix) {
+    const sel = document.getElementById(prefix + '-type'), hint = document.getElementById(prefix + '-type-hint');
+    if (sel && hint) hint.textContent = TYPE_HINT[sel.value] || '';
+  }
+
+  function setEditTaskType(i, type) {
+    editTasks[i].type = type;
+    editTasks[i].label = TYPE_UNIT[type];
+    if (type === 'note') editTasks[i].dailyTarget = null;
+    markTasksDirty();
+    renderTaskEditor();
+  }
+
+  function moveEditTask(i, d) {
+    const j = i + d;
+    if (j < 0 || j >= editTasks.length) return;
+    [editTasks[i], editTasks[j]] = [editTasks[j], editTasks[i]];
+    markTasksDirty();
+    renderTaskEditor();
   }
 
   function addEditTask() {
     const nameEl = document.getElementById('new-task-name');
-    const typeEl = document.getElementById('new-task-type');
+    const type   = document.getElementById('new-task-type').value;
+    const target = document.getElementById('new-task-target').value;
     const name   = nameEl.value.trim();
     if (!name) { nameEl.focus(); return; }
-    editTasks.push({ name, type: typeEl.value, label: typeEl.value });
-    nameEl.value = '';
+    if (editTasks.some(t => t.name.trim().toLowerCase() === name.toLowerCase())) { showToast('This member already has a task called "' + name + '".', 'error'); return; }
+    editTasks.push({ name, type, label: TYPE_UNIT[type], dailyTarget: type === 'note' || target === '' ? null : Number(target) });
+    markTasksDirty();
+    renderTaskEditor();
+    document.getElementById('new-task-name').focus();
+  }
+
+  function addExistingTask() {
+    const id = document.getElementById('add-existing').value;
+    const t = (taskDefs || []).find(x => x.taskId === id);
+    if (!t) return;
+    editTasks.push({ taskId: t.taskId, name: t.name, type: t.type, label: t.label, dailyTarget: t.dailyTarget, active: t.active });
+    markTasksDirty();
     renderTaskEditor();
   }
 
   function removeEditTask(idx) {
     editTasks.splice(idx, 1);
+    markTasksDirty();
     renderTaskEditor();
+  }
+
+  function discardTaskEdits() {
+    const m = members[editMemberIdx];
+    editTasks = JSON.parse(JSON.stringify((m && m.tasks) || []));
+    editDirty = false;
+    renderTaskEditor();
+  }
+
+  // After any task change: fresh members (task lists) + task library, other pages re-render on visit
+  async function refreshAfterTaskChange() {
+    await Promise.all([loadAll(), loadTaskDefs()]);
+    teamData = null;
   }
 
   async function saveTaskEdits() {
     const m = members[editMemberIdx];
+    const bad = editTasks.findIndex(t => !String(t.name || '').trim());
+    if (bad >= 0) { showToast('Task ' + (bad + 1) + ' needs a name.', 'error'); return; }
+    const btn = document.getElementById('save-tasks-btn');
+    btn.disabled = true;
     try {
       const res = await fetch('/api/tasks/' + encodeURIComponent(m.display), {
         method: 'POST',
@@ -3356,72 +3694,178 @@
         body: JSON.stringify({ tasks: editTasks }),
         credentials: 'same-origin',
       });
-      if (res.ok) {
-        const saved = await res.json().catch(() => ({}));
-        /* Server returns the list with permanent taskIds (new tasks get one on save) */
-        members[editMemberIdx].tasks = saved.tasks || JSON.parse(JSON.stringify(editTasks));
-        editTasks = JSON.parse(JSON.stringify(members[editMemberIdx].tasks));
-        showToast('Tasks saved for ' + m.display, 'success');
-        /* Immediately refresh spreadsheet if this member is active */
-        if (editMemberIdx === activeMember) renderSpreadsheet();
-      } else {
-        const body = await res.json().catch(() => ({}));
-        showToast(body.error || 'Save failed.', 'error');
-      }
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) { showToast(body.error || 'Save failed.', 'error'); return; }
+      await refreshAfterTaskChange();
+      editTasks = JSON.parse(JSON.stringify((members[editMemberIdx] || {}).tasks || body.tasks || []));
+      editDirty = false;
+      showToast('Tasks saved for ' + m.display, 'success');
+      renderEditTasks();
     } catch {
       showToast('Network error.', 'error');
-    }
+    } finally { if (btn.isConnected) btn.disabled = false; }
   }
 
   async function resetTaskEdits() {
     const m = members[editMemberIdx];
-    try {
-      const res = await fetch('/api/tasks/' + encodeURIComponent(m.display), {
-        method: 'DELETE',
-        credentials: 'same-origin',
-      });
-      if (res.ok) {
-        const freshMembers = await fetch('/api/members', { credentials: 'same-origin' }).then(r => r.json());
-        const fm = freshMembers.find(x => x.username === m.username);
-        if (fm) {
-          members[editMemberIdx] = fm;
-          editTasks = JSON.parse(JSON.stringify(fm.tasks || []));
-          if (editMemberIdx === activeMember) renderSpreadsheet();
-        }
-        showToast('Reset to default tasks for ' + m.display, 'info');
-        renderTaskEditor();
-      }
-    } catch {
-      showToast('Network error.', 'error');
-    }
+    if (!m || !m.hasDefault) return;
+    const ok = await openDialog({
+      title: 'Reset ' + m.display + ' to the default list?',
+      body: '<p>Their task list becomes the default list from setup again (same tasks, so old data stays linked).</p>' +
+            '<p class="muted">Tasks that are not in the default list are removed from this member only — nothing is deleted.' + (editDirty ? ' Your unsaved changes are discarded.' : '') + '</p>',
+      okText: 'Reset to Default', danger: true,
+      onOk: async () => {
+        const res = await fetch('/api/tasks/' + encodeURIComponent(m.display), { method: 'DELETE', credentials: 'same-origin' });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.error || 'Reset failed.');
+      },
+    });
+    if (!ok) return;
+    await refreshAfterTaskChange();
+    editTasks = JSON.parse(JSON.stringify((members[editMemberIdx] || {}).tasks || []));
+    editDirty = false;
+    showToast('Reset to default tasks for ' + m.display, 'info');
+    renderEditTasks();
   }
 
-  /* ── Change Password ── */
-  async function changePassword() {
-    const m    = members.find(x => x.username === document.getElementById('settings-member').value);
-    if (!m) { showToast('Choose a member first.', 'error'); return; }
-    const inp  = document.getElementById('chpw-input');
-    const newPw = inp ? inp.value.trim() : '';
-    if (!newPw)          { showToast('Enter a new password first.', 'error');              return; }
-    if (newPw.length < 6){ showToast('Password must be at least 6 characters.', 'error'); return; }
-    try {
-      const res  = await fetch('/api/admin/change-password', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ username: m.username, newPassword: newPw }),
-        credentials: 'same-origin',
-      });
-      const data = await res.json();
-      if (res.ok) {
-        showToast('Password updated for ' + m.display + '. Their session is now invalidated.', 'success');
-        if (inp) inp.value = '';
-      } else {
-        showToast(data.error || 'Failed to update password.', 'error');
-      }
-    } catch {
-      showToast('Network error.', 'error');
-    }
+  /* All tasks (library): one row per task, many members per task */
+  function renderTaskLibrary() {
+    const typeSel = document.getElementById('lib-type');
+    if (typeSel.options.length === 1) typeSel.insertAdjacentHTML('beforeend', TYPE_ORDER.map(t => '<option value="' + t + '">' + typeName(t) + '</option>').join(''));
+    const tbody = document.getElementById('lib-tbody');
+    if (!taskDefs) { tbody.innerHTML = '<tr><td colspan="6" class="ov-loading">Loading…</td></tr>'; return; }
+    const q = document.getElementById('lib-search').value.trim().toLowerCase();
+    const type = typeSel.value, status = document.getElementById('lib-status').value;
+    const memberSet = new Set(members.map(m => m.username));
+    const rows = taskDefs.map(t => ({ ...t, assignees: (t.assignees || []).filter(u => memberSet.has(u)) })).filter(t =>
+      (!type || t.type === type) &&
+      (!status || (status === 'active' ? t.active : status === 'paused' ? !t.active : !t.assignees.length)) &&
+      (!q || t.name.toLowerCase().includes(q) || t.assignees.some(u => memberName(u).toLowerCase().includes(q) || u.includes(q))))
+      .sort((a, b) => (b.assignees.length > 0) - (a.assignees.length > 0) || a.name.localeCompare(b.name));
+    document.getElementById('lib-count').textContent = rows.length + ' of ' + taskDefs.length + ' tasks';
+    tbody.innerHTML = rows.map(t => {
+      const names = t.assignees.map(memberName);
+      return '<tr class="team-row" tabindex="0" data-id="' + escHtml(t.taskId) + '" onclick="openTaskDef(this.dataset.id)" onkeydown="if(event.key===\'Enter\')openTaskDef(this.dataset.id)">' +
+        '<td><span class="team-member-name">' + escHtml(t.name) + '</span></td>' +
+        '<td><span class="type-chip type-' + t.type + '">' + typeName(t.type) + '</span></td>' +
+        '<td class="num">' + (t.type === 'note' ? '<span class="muted">—</span>' : t.dailyTarget === null ? '<span class="muted">No target</span>' : '<b>' + t.dailyTarget + '</b> <span class="muted">' + escHtml(t.label || '') + '</span>') + '</td>' +
+        '<td><span class="lib-assignees">' + (names.length
+          ? names.slice(0, 3).map(n => '<span class="name-pill">' + escHtml(n) + '</span>').join('') + (names.length > 3 ? '<span class="name-pill more" title="' + escHtml(names.slice(3).join(', ')) + '">+' + (names.length - 3) + '</span>' : '')
+          : '<span class="muted">Not assigned</span>') + '</span></td>' +
+        '<td>' + (t.active ? '<span class="chip chip--working">Active</span>' : '<span class="chip chip--offline">Paused</span>') + '</td>' +
+        '<td class="lib-edit"><span class="link-btn">Edit</span></td></tr>';
+    }).join('') || '<tr><td colspan="6" class="ov-loading">' + (taskDefs.length ? 'No task matches these filters.' : 'No tasks yet — create the first one.') + '</td></tr>';
   }
+
+  let tdEditing = null;   // taskId being edited, null = new task
+  function openTaskDef(taskId) {
+    const t = taskId ? (taskDefs || []).find(x => x.taskId === taskId) : null;
+    tdEditing = t ? t.taskId : null;
+    document.getElementById('td-title').textContent = t ? 'Edit task' : 'New task';
+    document.getElementById('td-sub').textContent = t ? 'Changes apply to every member it is assigned to' : 'One task can be assigned to many members';
+    document.getElementById('td-name').value = t ? t.name : '';
+    document.getElementById('td-type').innerHTML = typeOptionsHtml(t ? t.type : 'count');
+    document.getElementById('td-type').dataset.orig = t ? t.type : '';
+    document.getElementById('td-label').value = t ? (t.label || '') : '';
+    document.getElementById('td-target').value = t && t.dailyTarget !== null ? t.dailyTarget : '';
+    document.getElementById('td-active').checked = t ? t.active : true;
+    const assigned = new Set(t ? t.assignees || [] : []);
+    document.getElementById('td-assign').innerHTML = members.map(m =>
+      '<label class="td-member"><input type="checkbox" value="' + escHtml(m.username) + '"' + (assigned.has(m.username) ? ' checked' : '') + ' onchange="tdCount()">' +
+      '<span class="avatar-sm">' + escHtml(initials(m.display)) + '</span><span>' + escHtml(m.display) +
+      (m.active === false ? ' <span class="muted">(inactive)</span>' : '') + '</span></label>').join('') || '<p class="page-sub">No members yet.</p>';
+    const err = document.getElementById('td-error'); err.textContent = ''; err.classList.remove('show');
+    syncTypeHint('td');
+    tdCount();
+    document.getElementById('td-overlay').classList.remove('hidden');
+    setTimeout(() => document.getElementById('td-name').focus(), 50);
+  }
+  function closeTaskDef() { document.getElementById('td-overlay').classList.add('hidden'); }
+  function tdSelectAll(on) { document.querySelectorAll('#td-assign input').forEach(c => { c.checked = on; }); tdCount(); }
+  function tdCount() {
+    const n = document.querySelectorAll('#td-assign input:checked').length;
+    document.getElementById('td-assign-count').textContent = '(' + n + ' selected)';
+  }
+
+  async function saveTaskDef() {
+    const err = document.getElementById('td-error');
+    const fail = msg => { err.textContent = msg; err.classList.add('show'); };
+    err.classList.remove('show');
+    const type = document.getElementById('td-type').value;
+    const target = document.getElementById('td-target').value;
+    const payload = {
+      name: document.getElementById('td-name').value.trim(),
+      type,
+      label: document.getElementById('td-label').value.trim() || TYPE_UNIT[type],
+      dailyTarget: type === 'note' || target === '' ? null : Number(target),
+      active: document.getElementById('td-active').checked,
+      assignees: [...document.querySelectorAll('#td-assign input:checked')].map(c => c.value),
+    };
+    if (!payload.name) { fail('Task name is required.'); return; }
+    if (payload.dailyTarget !== null && !(payload.dailyTarget >= 0)) { fail('Daily target must be 0 or more.'); return; }
+    const orig = document.getElementById('td-type').dataset.orig;
+    if (tdEditing && orig && orig !== type && !(await openDialog({ title: 'Change the type?', body: '<p>Values already saved as <b>' + typeName(orig) + '</b> may not show correctly as <b>' + typeName(type) + '</b>.</p>', okText: 'Change type', danger: true }))) return;
+    const btn = document.getElementById('td-save');
+    btn.disabled = true;
+    try {
+      const res = await fetch(tdEditing ? '/api/task-defs/' + encodeURIComponent(tdEditing) : '/api/task-defs', {
+        method: tdEditing ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload), credentials: 'same-origin',
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) { fail(body.error || 'Save failed.'); return; }
+      await refreshAfterTaskChange();
+      if (!editDirty) editTasks = JSON.parse(JSON.stringify((members[editMemberIdx] || {}).tasks || []));
+      closeTaskDef();
+      renderTaskLibrary();
+      showToast((tdEditing ? 'Saved ' : 'Created ') + payload.name + ' · ' + payload.assignees.length + ' member' + (payload.assignees.length === 1 ? '' : 's'), 'success');
+    } catch { fail('Network error. Please try again.'); }
+    finally { btn.disabled = false; }
+  }
+
+  /* ── Generic dialog: resolves true on OK, false on cancel. onOk may throw to show an error. ── */
+  let dlgState = null;
+  function openDialog({ title, sub = '', body = '', okText = 'OK', danger = false, onOk = null, onOpen = null }) {
+    if (dlgState) dlgState.resolve(false);
+    document.getElementById('dlg-title').textContent = title;
+    document.getElementById('dlg-sub').textContent = sub;
+    document.getElementById('dlg-sub').hidden = !sub;
+    document.getElementById('dlg-body').innerHTML = body;
+    const ok = document.getElementById('dlg-ok');
+    ok.textContent = okText; ok.disabled = false;
+    ok.className = 'btn btn-sm ' + (danger ? 'btn-danger' : 'btn-primary');
+    const err = document.getElementById('dlg-error'); err.textContent = ''; err.classList.remove('show');
+    document.getElementById('dlg-overlay').classList.remove('hidden');
+    return new Promise(resolve => {
+      dlgState = { resolve, onOk, okText };
+      if (onOpen) onOpen(); else setTimeout(() => ok.focus(), 30);
+    });
+  }
+  function closeDialog(result = false) {
+    document.getElementById('dlg-overlay').classList.add('hidden');
+    const st = dlgState; dlgState = null;
+    if (st) st.resolve(result);
+  }
+  async function confirmDialog() {
+    if (!dlgState) return;
+    const ok = document.getElementById('dlg-ok');
+    if (ok.disabled) return;
+    if (dlgState.onOk) {
+      ok.disabled = true; ok.textContent = 'Working…';
+      try { await dlgState.onOk(); }
+      catch (e) {
+        const err = document.getElementById('dlg-error');
+        err.textContent = e.message || 'Something went wrong.'; err.classList.add('show');
+        ok.disabled = false; ok.textContent = dlgState.okText;
+        return;
+      }
+    }
+    closeDialog(true);
+  }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && dlgState) closeDialog();
+    else if (e.key === 'Escape' && !document.getElementById('td-overlay').classList.contains('hidden')) closeTaskDef();
+  });
 
   /* ── Toast ── */
   function showToast(msg, type) {
