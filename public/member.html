@@ -756,7 +756,8 @@
     };
   })();
 
-  let memberTasks    = [];
+  let memberTasks    = [];   // active tasks (entry form); data is keyed by task.taskId
+  let historyTasks   = [];   // also inactive / previously-assigned tasks (My History)
   let selectedDate   = todayISO();
   let memberUsername = '';
   let memberTab      = 'today';
@@ -997,7 +998,7 @@
     const i    = parseInt(cardEl.dataset.idx, 10);
     const task = memberTasks[i];
     if (!task) return;
-    const data    = currentDateData[task.name] || {};
+    const data    = currentDateData[task.taskId] || {};
     const newHtml = renderCardEdit(task, i, data);
     const temp    = document.createElement('div');
     temp.innerHTML = newHtml;
@@ -1011,7 +1012,7 @@
       grid.innerHTML = '<div class="state-overlay" style="grid-column:1/-1">No tasks assigned to your account.</div>';
       return;
     }
-    grid.innerHTML = memberTasks.map((task, i) => renderCard(task, i, existing[task.name] || {})).join('');
+    grid.innerHTML = memberTasks.map((task, i) => renderCard(task, i, existing[task.taskId] || {})).join('');
   }
 
   function updateSubmittedBadge(existing) {
@@ -1081,7 +1082,7 @@
     document.querySelectorAll('.task-card:not(.view-mode)').forEach((card) => {
       const taskDef = memberTasks[parseInt(card.dataset.idx, 10)];
       if (!taskDef) return;
-      tasks[taskDef.name] = extractCardData(card, taskDef.type);
+      tasks[taskDef.taskId] = extractCardData(card, taskDef.type);
     });
 
     /* Include manager note */
@@ -1135,6 +1136,7 @@
 
       /* Update task list — picks up any additions/removals the manager made */
       if (me.tasks) memberTasks = me.tasks;
+      if (me.historyTasks) historyTasks = me.historyTasks;
 
       currentDateData = { ...existing };
       if (mnEl) mnEl.value = existing['_managerNote'] || '';
@@ -1174,8 +1176,8 @@
         const managerNote = dayData['_managerNote'] || '';
 
         /* Filter tasks that have actual data */
-        const taskRows = memberTasks.filter(t => {
-          const v = dayData[t.name];
+        const taskRows = (historyTasks.length ? historyTasks : memberTasks).filter(t => {
+          const v = dayData[t.taskId];
           if (!v) return false;
           if (v.rows && v.rows.length) return v.rows.some(r => r.client || r.value || r.links);
           return (v.value !== undefined && v.value !== '') || !!v.text || !!v.links;
@@ -1188,7 +1190,7 @@
         let firstRow    = true;
 
         taskRows.forEach(t => {
-          const v = dayData[t.name];
+          const v = dayData[t.taskId];
           tableRows += '<tr>';
           if (firstRow) {
             tableRows += '<td class="hist-date" rowspan="' + rowCount + '">' + escHtml(dateLabel) + '</td>';
@@ -1852,6 +1854,7 @@
       if (res.status === 401) { window.location.href = '/login'; return; }
       const me  = await res.json();
       memberTasks    = me.tasks || [];
+      historyTasks   = me.historyTasks || memberTasks;
       memberUsername = me.username;
       document.getElementById('member-name-badge').textContent = me.display;
       document.title = me.display + ' — Rank Orbit';

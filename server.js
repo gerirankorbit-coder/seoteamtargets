@@ -45,6 +45,10 @@ const fs       = require('fs');
 const cors     = require('cors');
 const os       = require('os');
 const { isHash, hashPassword, verifyPassword, migratePlainPasswords } = require('./lib/passwords');
+const {
+  TASK_TYPES, ENTRY_VERSION, publicTask, cleanTaskInput, newTaskId, tasksForUser, tasksByUser,
+  entryTasksV2, saveMemberTaskList, resetMemberTasks, setAssignees, migrateToTaskIds,
+} = require('./lib/tasks');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -56,10 +60,13 @@ mongoose.connect(MONGODB_URI, MONGODB_DB_NAME ? { dbName: MONGODB_DB_NAME } : {}
 
 // ── Schemas ────────────────────────────────────────────────────────────────
 // One document per (username + date) — tasks stored as Mixed to preserve
-// all field shapes (rows/value/text/links/sectionNote) without migration.
+// all field shapes (rows/value/text/links/sectionNote).
+// entryVersion 2 (V2): tasks are keyed by taskId; older entries are keyed by task name
+// and are converted by the startup migration (lib/tasks.js).
 const EntrySchema = new mongoose.Schema({
   username: { type: String, required: true },
   date:     { type: String, required: true },
+  entryVersion: { type: Number }, // 2 = tasks keyed by taskId (not named `schema`: reserved in Mongoose)
   tasks:    { type: mongoose.Schema.Types.Mixed, default: {} },
 }, { timestamps: true });
 EntrySchema.index({ username: 1, date: 1 }, { unique: true });
@@ -105,7 +112,28 @@ const AttendanceSchema = new mongoose.Schema({
 AttendanceSchema.index({ username: 1, date: 1 }, { unique: true });
 const Attendance = mongoose.models.Attendance || mongoose.model('Attendance', AttendanceSchema);
 
+// Task — one document per task; assignees are the usernames it is assigned to (one
+// task can be shared by many members). legacyKey is unique: "<username>|<original name>"
+// for tasks from the pre-V2 lists (so old name-keyed entries can be matched to them),
+// "task:<taskId>" for tasks created later.
+const TaskSchema = new mongoose.Schema({
+  taskId:          { type: String, required: true, unique: true },
+  name:            { type: String, required: true },
+  type:            { type: String, required: true, enum: TASK_TYPES },
+  label:           { type: String },
+  dailyTarget:     { type: Number, default: null },
+  active:          { type: Boolean, default: true },
+  assignees:       { type: [String], default: [] },
+  formerAssignees: { type: [String], default: [] },
+  order:           { type: Number, default: 0 },
+  legacyKey:       { type: String, required: true, unique: true },
+}, { timestamps: true });
+TaskSchema.index({ assignees: 1 });
+const Task = mongoose.models.Task || mongoose.model('Task', TaskSchema);
+
 // ── In-memory caches (loaded from DB on startup) ──────────────────────────
+// taskOverrides/taskBaselines are the pre-V2 per-member task lists; they are read
+// only to build the Task documents during the migration.
 let taskOverrides     = {};
 let taskBaselines     = {}; // { displayName: [TEAM task names at the time the override was saved] }
 let passwordOverrides = {}; // loaded for initial seed merge only
@@ -114,7 +142,10 @@ let usersCache        = {}; // { username: { password, role, display, passwordVe
 mongoose.connection.once('open', async () => {
   try {
     // Staging only: make sure the test.* accounts and TEST data exist (idempotent).
-    if (!IS_PRODUCTION) await require('./lib/staging-seed').seedStagingData({ User, Entry, Attendance, Config });
+    // Unique indexes must exist before anything writes tasks (parallel cold starts).
+    await Promise.all([Task.init(), Config.init()]);
+
+    if (!IS_PRODUCTION) await require('./lib/staging-seed').seedStagingData({ User, Entry, Attendance, Config, Task });
 
     // Load Config documents
     const [taskDoc, pwDoc, baseDoc] = await Promise.all([
@@ -183,6 +214,14 @@ mongoose.connection.once('open', async () => {
       if (usersCache['manager']) usersCache['manager'].display = 'Abdullah Saleem';
       console.log('✓ Migrated manager display name to Abdullah Saleem');
     }
+
+    // V2: permanent taskIds (one-time, idempotent; see lib/tasks.js)
+    const report = await migrateToTaskIds({
+      Task, Entry, Config, members: memberAccounts(), legacyListFor: legacyMemberTasks,
+    });
+    if (report && !report.dryRun) console.log('✓ Task model:', JSON.stringify({
+      entriesBefore: report.entriesBefore, entriesAfter: report.entriesAfter,
+      converted: report.entriesConverted, unmapped: report.unmappedValues, tasks: report.totalTasks }));
   } catch (err) {
     console.error('Startup error:', err);
   }
@@ -413,11 +452,9 @@ const TEAM = {
   ],
 };
 
-// A manager-saved override wins, but TEAM tasks added in code after that override
-// was saved are appended automatically. Tasks that were in TEAM when the override
-// was saved (the baseline) stay as the manager left them, so deletions stick.
-// Overrides saved before baselines existed have none, so every missing TEAM task is appended.
-function getMemberTasks(displayName) {
+// Pre-V2 task list of a member (used only by the migration): a manager-saved override
+// wins, plus TEAM tasks added in code after that override was saved.
+function legacyMemberTasks(displayName) {
   const defaults = TEAM[displayName] || [];
   const override = taskOverrides[displayName];
   if (!override) return defaults;
@@ -425,6 +462,25 @@ function getMemberTasks(displayName) {
   const baseline = new Set(taskBaselines[displayName] || []);
   const added    = defaults.filter(t => !have.has(t.name) && !baseline.has(t.name));
   return added.length ? [...override, ...added] : override;
+}
+
+// Every member account: the team list in code plus members added from the dashboard.
+function memberAccounts() {
+  const out = new Map();
+  for (const [username, u] of Object.entries(USERS)) {
+    if (u.role !== 'member') continue;
+    out.set(username, { username, display: (usersCache[username] || {}).display || u.display });
+  }
+  for (const [username, u] of Object.entries(usersCache)) {
+    if (u.role === 'member' && !out.has(username)) out.set(username, { username, display: u.display });
+  }
+  return [...out.values()];
+}
+
+// Dashboard routes address members by display name.
+function usernameForDisplay(displayName) {
+  const m = memberAccounts().find(a => a.display === displayName);
+  return m ? m.username : null;
 }
 
 function getLocalIP() {
@@ -622,21 +678,43 @@ app.get('/dashboard', requireManager, (req, res) => {
 
 // ── Protected API routes ───────────────────────────────────────────────────
 
-app.get('/api/me', (req, res) => {
-  const tasks = getMemberTasks(req.session.display);
-  res.json({ username: req.session.username, display: req.session.display, role: req.session.role, tasks });
+// tasks: the member's active tasks (entry form); historyTasks: also inactive and
+// previously-assigned tasks, so old entries still show with their current names.
+app.get('/api/me', async (req, res) => {
+  try {
+    const [tasks, historyTasks] = await Promise.all([
+      tasksForUser(Task, req.session.username),
+      tasksForUser(Task, req.session.username, { includeHistory: true }),
+    ]);
+    res.json({ username: req.session.username, display: req.session.display, role: req.session.role, tasks, historyTasks });
+  } catch (err) {
+    console.error('Me error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
 });
+
+// Entries are saved keyed by taskId (entryVersion 2).
+async function saveEntry(username, date, tasks) {
+  await Entry.findOneAndUpdate(
+    { username, date },
+    { username, date, tasks, entryVersion: ENTRY_VERSION },
+    { upsert: true, new: true }
+  );
+}
+
+// Entries → { date: tasks } keyed by taskId (old name-keyed entries converted on the fly).
+async function entriesByDate(entries, indexes = new Map()) {
+  const out = {};
+  for (const e of entries) out[e.date] = await entryTasksV2(Task, e, indexes);
+  return out;
+}
 
 // Save all tasks for a given date (one document per username+date)
 app.post('/api/save', async (req, res) => {
   const { date, tasks } = req.body;
   if (!date || !tasks) return res.status(400).json({ error: 'Missing required fields' });
   try {
-    await Entry.findOneAndUpdate(
-      { username: req.session.username, date },
-      { username: req.session.username, date, tasks },
-      { upsert: true, new: true }
-    );
+    await saveEntry(req.session.username, date, tasks);
     res.json({ success: true });
   } catch (err) {
     console.error('Save error:', err);
@@ -649,9 +727,9 @@ app.get('/api/mydata/:date', async (req, res) => {
   try {
     const entry = await Entry.findOne(
       { username: req.session.username, date: req.params.date },
-      { tasks: 1, _id: 0 }
-    );
-    res.json(entry ? (entry.tasks || {}) : {});
+      { username: 1, tasks: 1, entryVersion: 1, _id: 0 }
+    ).lean();
+    res.json(entry ? await entryTasksV2(Task, entry) : {});
   } catch (_) {
     res.json({});
   }
@@ -682,11 +760,7 @@ app.post('/api/manager-save/:username', requireManager, async (req, res) => {
   const target = req.params.username;
   if (!date || !tasks) return res.status(400).json({ error: 'Missing fields' });
   try {
-    await Entry.findOneAndUpdate(
-      { username: target, date },
-      { username: target, date, tasks },
-      { upsert: true, new: true }
-    );
+    await saveEntry(target, date, tasks);
     res.json({ success: true });
   } catch (err) {
     console.error('Manager save error:', err);
@@ -701,10 +775,8 @@ app.get('/api/data/:username', async (req, res) => {
     return res.status(403).json({ error: 'Access denied' });
   }
   try {
-    const entries = await Entry.find({ username: target }, { date: 1, tasks: 1, _id: 0 });
-    const result  = {};
-    entries.forEach(e => { result[e.date] = e.tasks; });
-    res.json(result);
+    const entries = await Entry.find({ username: target }, { username: 1, date: 1, tasks: 1, entryVersion: 1, _id: 0 }).lean();
+    res.json(await entriesByDate(entries));
   } catch (_) {
     res.json({});
   }
@@ -713,95 +785,107 @@ app.get('/api/data/:username', async (req, res) => {
 // Fetch everything — returns same shape as before: { username: { date: tasks } }
 app.get('/api/all', requireManager, async (req, res) => {
   try {
-    const entries = await Entry.find({}, { username: 1, date: 1, tasks: 1, _id: 0 });
+    const entries = await Entry.find({}, { username: 1, date: 1, tasks: 1, entryVersion: 1, _id: 0 }).lean();
     const result  = {};
-    entries.forEach(e => {
+    const indexes = new Map();
+    for (const e of entries) {
       if (!result[e.username]) result[e.username] = {};
-      result[e.username][e.date] = e.tasks;
-    });
+      result[e.username][e.date] = await entryTasksV2(Task, e, indexes);
+    }
     res.json(result);
   } catch (_) {
     res.json({});
   }
 });
 
-app.get('/api/members', requireManager, (req, res) => {
-  // Build member list from the hardcoded USERS object (always available, never
-  // dependent on MongoDB being loaded) then layer in any dynamically-added
-  // members that exist in usersCache but not in USERS (added via /api/admin/members).
-  const seen    = new Set();
-  const members = [];
-
-  // 1. Hardcoded members (source of truth for the permanent team)
-  Object.entries(USERS)
-    .filter(([, u]) => u.role === 'member')
-    .forEach(([username, u]) => {
-      seen.add(username);
-      // Prefer cache version if available (may have updated display/password)
-      const cached = usersCache[username];
-      const display = (cached && cached.display) || u.display;
-      members.push({ username, display, tasks: getMemberTasks(display) });
-    });
-
-  // 2. Dynamically-added members (only in MongoDB / usersCache, not in USERS)
-  Object.entries(usersCache)
-    .filter(([username, u]) => u.role === 'member' && !seen.has(username))
-    .forEach(([username, u]) => {
-      members.push({ username, display: u.display, tasks: getMemberTasks(u.display) });
-    });
-
-  res.json(members);
-});
-
-// Save task overrides for a member (persists to Config collection)
-app.post('/api/tasks/:displayName', requireManager, async (req, res) => {
-  const { tasks } = req.body;
-  if (!Array.isArray(tasks)) return res.status(400).json({ error: 'tasks must be an array' });
-  const displayName = decodeURIComponent(req.params.displayName);
-  if (!TEAM[displayName]) return res.status(404).json({ error: 'Member not found' });
+// Members with their active tasks (one query for all tasks).
+app.get('/api/members', requireManager, async (req, res) => {
   try {
-    taskOverrides[displayName] = tasks;
-    taskBaselines[displayName] = TEAM[displayName].map(t => t.name);
-    await Promise.all([
-      Config.findOneAndUpdate(
-        { key: 'taskOverrides' },
-        { key: 'taskOverrides', value: taskOverrides },
-        { upsert: true, new: true }
-      ),
-      Config.findOneAndUpdate(
-        { key: 'taskBaselines' },
-        { key: 'taskBaselines', value: taskBaselines },
-        { upsert: true, new: true }
-      ),
-    ]);
-    res.json({ success: true });
+    const accounts = memberAccounts();
+    const byUser   = await tasksByUser(Task, accounts.map(a => a.username));
+    res.json(accounts.map(a => ({ ...a, tasks: byUser[a.username] })));
   } catch (err) {
-    console.error('Task override save error:', err);
+    console.error('Members error:', err);
     res.status(500).json({ error: 'Database error' });
   }
 });
 
-// Reset task overrides to default for a member
+// Edit Tasks: save a member's full ordered task list (taskIds kept, new tasks created)
+app.post('/api/tasks/:displayName', requireManager, async (req, res) => {
+  const { tasks } = req.body;
+  if (!Array.isArray(tasks)) return res.status(400).json({ error: 'tasks must be an array' });
+  const username = usernameForDisplay(decodeURIComponent(req.params.displayName));
+  if (!username) return res.status(404).json({ error: 'Member not found' });
+  try {
+    await saveMemberTaskList(Task, username, tasks);
+    res.json({ success: true, tasks: await tasksForUser(Task, username) });
+  } catch (err) {
+    if (err.status === 400) return res.status(400).json({ error: err.message });
+    console.error('Task list save error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Reset to Default: the member gets their default list from code again (same taskIds)
 app.delete('/api/tasks/:displayName', requireManager, async (req, res) => {
   const displayName = decodeURIComponent(req.params.displayName);
+  const username = usernameForDisplay(displayName);
+  if (!username) return res.status(404).json({ error: 'Member not found' });
   try {
-    delete taskOverrides[displayName];
-    delete taskBaselines[displayName];
-    await Promise.all([
-      Config.findOneAndUpdate(
-        { key: 'taskOverrides' },
-        { key: 'taskOverrides', value: taskOverrides },
-        { upsert: true, new: true }
-      ),
-      Config.findOneAndUpdate(
-        { key: 'taskBaselines' },
-        { key: 'taskBaselines', value: taskBaselines },
-        { upsert: true, new: true }
-      ),
-    ]);
-    res.json({ success: true });
+    await resetMemberTasks(Task, username, TEAM[displayName] || []);
+    res.json({ success: true, tasks: await tasksForUser(Task, username) });
   } catch (err) {
-    console.error('Task override delete error:', err);
+    console.error('Task reset error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Result of the one-time taskId migration (counts, backups) — for the manager to verify.
+app.get('/api/admin/migration-report', requireManager, async (req, res) => {
+  const doc = await Config.findOne({ key: 'taskIdMigration' }).lean();
+  res.json((doc && doc.value) || { state: 'not started' });
+});
+
+// ── Task definitions (template-style: one task, many members) ──────────────
+app.get('/api/task-defs', requireManager, async (req, res) => {
+  try {
+    const tasks = (await Task.find({}).lean()).map(t => publicTask(t, { withAssignees: true }));
+    res.json(tasks);
+  } catch (err) {
+    console.error('Task defs error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// body: { name, type, label?, dailyTarget?, active?, assignees: [username] }
+app.post('/api/task-defs', requireManager, async (req, res) => {
+  const t = cleanTaskInput(req.body);
+  if (!t) return res.status(400).json({ error: 'name and a valid type are required' });
+  const assignees = Array.isArray(req.body.assignees) ? [...new Set(req.body.assignees.map(String))] : [];
+  try {
+    const taskId = newTaskId();
+    const task = await Task.create({ taskId, legacyKey: `task:${taskId}`, ...t, order: 500, assignees });
+    res.json(publicTask(task, { withAssignees: true }));
+  } catch (err) {
+    console.error('Task create error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// body: any of { name, type, label, dailyTarget, active, assignees }
+app.put('/api/task-defs/:taskId', requireManager, async (req, res) => {
+  try {
+    const task = await Task.findOne({ taskId: req.params.taskId }).lean();
+    if (!task) return res.status(404).json({ error: 'Task not found' });
+    const t = cleanTaskInput({ ...publicTask(task), ...req.body });
+    if (!t) return res.status(400).json({ error: 'name and a valid type are required' });
+    await Task.updateOne({ taskId: task.taskId }, { $set: t });
+    const updated = Array.isArray(req.body.assignees)
+      ? await setAssignees(Task, task.taskId, req.body.assignees)
+      : await Task.findOne({ taskId: task.taskId }).lean();
+    res.json(publicTask(updated, { withAssignees: true }));
+  } catch (err) {
+    console.error('Task update error:', err);
     res.status(500).json({ error: 'Database error' });
   }
 });
@@ -813,11 +897,7 @@ app.post('/api/admin/save', requireManager, async (req, res) => {
   const target = username.toLowerCase().trim();
   if (!usersCache[target] && !(await refreshUser(target))) return res.status(404).json({ error: 'User not found' });
   try {
-    await Entry.findOneAndUpdate(
-      { username: target, date },
-      { username: target, date, tasks },
-      { upsert: true, new: true }
-    );
+    await saveEntry(target, date, tasks);
     res.json({ success: true });
   } catch (err) {
     console.error('Admin save error:', err);

@@ -985,15 +985,16 @@
     closePopover();
     const username = cellEl.getAttribute('data-username');
     const date     = cellEl.getAttribute('data-date');
+    const taskId   = cellEl.getAttribute('data-taskid');
     const taskName = cellEl.getAttribute('data-taskname');
     const taskType = cellEl.getAttribute('data-tasktype');
     const member   = members.find(m => m.username === username);
     if (!member) return;
 
     const dayTasks = (allData[username] && allData[username][date]) || {};
-    const taskData = dayTasks[taskName] || {};
+    const taskData = dayTasks[taskId] || {};
 
-    emState = { username, date, taskName, taskType, memberDisplay: member.display, taskData };
+    emState = { username, date, taskId, taskName, taskType, memberDisplay: member.display, taskData };
 
     document.getElementById('em-sub').textContent = member.display + '  ·  ' + formatFull(date);
     document.getElementById('em-overlay').classList.remove('hidden');
@@ -1392,11 +1393,11 @@
   /* ── Save edited data via /api/admin/save ── */
   async function saveEditModal() {
     if (!emState) return;
-    const { username, date, taskName, taskType, memberDisplay } = emState;
+    const { username, date, taskId, taskName, taskType, memberDisplay } = emState;
 
     const editedTask = collectEmData(taskType);
     const dayTasks   = JSON.parse(JSON.stringify((allData[username] && allData[username][date]) || {}));
-    dayTasks[taskName] = editedTask;
+    dayTasks[taskId] = editedTask;
 
     const btn = document.getElementById('em-save-btn');
     btn.disabled    = true;
@@ -2045,7 +2046,7 @@
       dates.forEach(d => {
         const isToday  = d === today;
         const todayCls = isToday ? ' today-col' : '';
-        const entry       = mData[d] ? mData[d][task.name] : undefined;
+        const entry       = mData[d] ? mData[d][task.taskId] : undefined;
         const cell        = cellContent(entry, task.type);
         const noteContent = getCellNoteContent(entry, task.type);
         const hasNote     = !!noteContent;
@@ -2065,6 +2066,7 @@
           const editAttrs =
             ' data-username="' + escHtml(m.username)  + '"' +
             ' data-date="'     + escHtml(d)            + '"' +
+            ' data-taskid="'   + escHtml(task.taskId)  + '"' +
             ' data-taskname="' + escHtml(task.name)    + '"' +
             ' data-tasktype="' + escHtml(task.type)    + '"' +
             ' onclick="openCellModal(this)"';
@@ -2301,12 +2303,16 @@
         credentials: 'same-origin',
       });
       if (res.ok) {
-        members[editMemberIdx].tasks = JSON.parse(JSON.stringify(editTasks));
+        const saved = await res.json().catch(() => ({}));
+        /* Server returns the list with permanent taskIds (new tasks get one on save) */
+        members[editMemberIdx].tasks = saved.tasks || JSON.parse(JSON.stringify(editTasks));
+        editTasks = JSON.parse(JSON.stringify(members[editMemberIdx].tasks));
         showToast('Tasks saved for ' + m.display, 'success');
         /* Immediately refresh spreadsheet if this member is active */
         if (editMemberIdx === activeMember) renderSpreadsheet();
       } else {
-        showToast('Save failed.', 'error');
+        const body = await res.json().catch(() => ({}));
+        showToast(body.error || 'Save failed.', 'error');
       }
     } catch {
       showToast('Network error.', 'error');
