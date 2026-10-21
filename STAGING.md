@@ -30,6 +30,14 @@ Password for all three: `staging-test-123`
 | `test.manager` | Dashboard (all tabs) |
 | `test.member1` | Member portal, with 3 days of TEST entries and attendance |
 | `test.member2` | Member portal, with 3 days of TEST entries and attendance |
+| `test.ov.a` … `test.ov.d` | Demo members for the Overview (one per state / Needs Attention rule) |
+
+**Demo day.** Once a day (the first start of the day) staging rebuilds "today" so the manager
+Overview always shows every state: Member One working at 75% of target, Member Two absent,
+OV A with an entry but no attendance, OV B on a break and under 50% for 3 working days, OV C
+finished without an entry, OV D working with a note. The TEST OV accounts are reset every day;
+Member One's day is only filled if it is still empty, so your own testing is kept.
+`npm run seed:staging` forces a full reset (local only).
 
 ## When staging mode switches on
 
