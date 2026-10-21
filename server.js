@@ -528,7 +528,7 @@ if (!IS_PRODUCTION) {
   const PUBLIC_DIR = path.join(__dirname, 'public');
   const BANNER =
     '<div id="staging-banner" style="position:fixed;top:0;left:0;right:0;z-index:2147483647;' +
-    'background:#f59e0b;color:#111;font:700 12px/22px system-ui,sans-serif;text-align:center;' +
+    'background:#f59e0b;color:#111;font:700 12px/22px Inter,\'Segoe UI\',Roboto,sans-serif;text-align:center;' +
     'letter-spacing:.05em;pointer-events:none;opacity:.95">STAGING — test data only</div>';
   const withBanner = html => /<body[^>]*>/i.test(html)
     ? html.replace(/<body[^>]*>/i, m => m + BANNER)

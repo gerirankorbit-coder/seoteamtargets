@@ -4,7 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sign In — Rank Orbit</title>
+<script>/* Theme before first paint — see /theme.js */(function(){var d=document.documentElement;try{var s=localStorage,u=s.getItem('ro_theme_user'),t=(u&&s.getItem('ro_theme:'+u))||s.getItem('ro_theme');if(t!=='light'&&t!=='dark')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';d.setAttribute('data-theme',t)}catch(e){d.setAttribute('data-theme','light')}})();</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap">
 <link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/design-system.css">
+<script src="/theme.js"></script>
 <style>
   body { display: flex; flex-direction: column; min-height: 100vh; }
 
@@ -13,8 +19,8 @@
     content: '';
     position: fixed; inset: 0;
     background:
-      radial-gradient(ellipse 60% 50% at 20% 50%, rgba(233,30,140,0.08) 0%, transparent 70%),
-      radial-gradient(ellipse 50% 60% at 80% 50%, rgba(0,212,255,0.06) 0%, transparent 70%);
+      radial-gradient(ellipse 60% 50% at 20% 50%, color-mix(in srgb, var(--pink) 8%, transparent) 0%, transparent 70%),
+      radial-gradient(ellipse 50% 60% at 80% 50%, color-mix(in srgb, var(--blue) 6%, transparent) 0%, transparent 70%);
     pointer-events: none;
   }
 
@@ -32,11 +38,11 @@
   /* ── Card ── */
   .login-card {
     width: 100%; max-width: 420px;
-    background: rgba(19,19,26,0.95);
+    background: color-mix(in srgb, var(--surface) 95%, transparent);
     border: 1px solid var(--border);
     border-radius: 20px;
     padding: 40px 36px 36px;
-    box-shadow: 0 8px 48px rgba(0,0,0,0.6), 0 0 80px rgba(233,30,140,0.05);
+    box-shadow: 0 8px 48px rgba(0,0,0,0.6), 0 0 80px color-mix(in srgb, var(--pink) 5%, transparent);
     backdrop-filter: blur(20px);
   }
 
@@ -45,7 +51,7 @@
     background: linear-gradient(135deg, var(--pink), var(--blue));
     border-radius: 18px;
     display: flex; align-items: center; justify-content: center;
-    font-size: 24px; font-weight: 900; color: #fff;
+    font-size: 24px; font-weight: 900; color: var(--on-accent);
     margin: 0 auto 20px;
     box-shadow: 0 0 24px var(--pink-glow);
   }
@@ -85,12 +91,12 @@
   }
   .inp-login:focus { border-color: var(--pink); box-shadow: 0 0 0 3px var(--pink-dim); }
   .inp-login::placeholder { color: var(--text-dim); }
-  .inp-login.error { border-color: #dc2626; }
+  .inp-login.error { border-color: var(--danger); }
 
   /* ── Info banner (password changed notice) ── */
   .info-msg {
-    background: rgba(0,212,255,0.08);
-    border: 1px solid rgba(0,212,255,0.3);
+    background: color-mix(in srgb, var(--blue) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--blue) 30%, transparent);
     border-radius: var(--radius-sm);
     padding: 10px 14px;
     font-size: 12px; color: var(--blue);
@@ -101,11 +107,11 @@
 
   /* ── Error message ── */
   .error-msg {
-    background: rgba(220,38,38,0.1);
-    border: 1px solid rgba(220,38,38,0.3);
+    background: color-mix(in srgb, var(--danger) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent);
     border-radius: var(--radius-sm);
     padding: 10px 14px;
-    font-size: 13px; color: #f87171;
+    font-size: 13px; color: var(--danger);
     text-align: center;
     display: none;
     animation: shake 0.35s ease;
@@ -122,8 +128,8 @@
   /* ── Submit btn ── */
   .btn-signin {
     width: 100%; padding: 13px;
-    background: linear-gradient(135deg, var(--pink) 0%, #c2185b 100%);
-    color: #fff; border: none;
+    background: linear-gradient(135deg, var(--pink) 0%, var(--ro-accent-strong) 100%);
+    color: var(--on-accent); border: none;
     border-radius: var(--radius-sm);
     font-size: 14px; font-weight: 700;
     cursor: pointer;
@@ -157,6 +163,12 @@
 <div class="topbar">
   <div class="topbar-logo">RO</div>
   <div class="topbar-title">Rank <span>Orbit</span></div>
+  <div class="topbar-right">
+    <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch theme">
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+    </button>
+  </div>
 </div>
 
 <div class="login-wrap">
@@ -223,7 +235,7 @@
 
     const btn = document.getElementById('btn-signin');
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner" style="border-top-color:#fff;width:14px;height:14px;margin-right:6px;vertical-align:middle;"></span> Signing in…';
+    btn.innerHTML = '<span class="spinner" style="border-top-color:var(--on-accent);width:14px;height:14px;margin-right:6px;vertical-align:middle;"></span> Signing in…';
     hideError();
 
     try {

@@ -1,0 +1,228 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Rank Orbit V2 — design system
+   Loaded after style.css on every page. Two themes on <html data-theme>:
+   "light" (Light + Emerald) and "dark" (Dark Premium). /theme.js sets the
+   attribute before first paint and wires the header toggle.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Shared tokens ─────────────────────────────────────────────────────────── */
+:root {
+  --font-display: 'Plus Jakarta Sans', 'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  --font-body:    'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+
+  --radius-card:  16px;
+  --radius-inner: 12px;
+  --radius-pill:  999px;
+  --space-1: 8px;
+  --space-2: 12px;
+  --space-3: 16px;
+  --space-4: 24px;
+}
+
+/* ── Light + Emerald ───────────────────────────────────────────────────────── */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --ro-bg:           #F6F8F7;
+  --ro-surface:      #FFFFFF;
+  --ro-surface-2:    #F0F4F2;
+  --ro-surface-3:    #E7EEEA;
+  --ro-sidebar:      #FFFFFF;
+  --ro-border:       #E3ECE7;
+  --ro-border-2:     #CFDDD5;
+  --ro-text:         #12211C;
+  --ro-muted:        #5A6F66;
+  --ro-dim:          #8A9C94;
+  --ro-accent:       #0F7A5C;
+  --ro-accent-strong:#0B5E47;
+  --ro-accent-soft:  #E6F4EE;
+  --ro-on-accent:    #FFFFFF;
+  --ro-info:         #2B6C9E;
+  --ro-success:      #15803D;
+  --ro-danger:       #B42318;
+  --ro-warning-bg:   #FFF7ED;
+  --ro-warning-text: #9A5B12;
+  --ro-shadow-color: rgba(18,50,40,.08);
+  --ro-shadow:       0 1px 2px rgba(18,50,40,.06), 0 8px 24px rgba(18,50,40,.08);
+}
+
+/* ── Dark Premium ──────────────────────────────────────────────────────────── */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ro-bg:           #0B1220;
+  --ro-surface:      #121C2E;
+  --ro-surface-2:    #17233A;
+  --ro-surface-3:    #1D2B46;
+  --ro-sidebar:      #0D1626;
+  --ro-border:       #22304D;
+  --ro-border-2:     #2E3F63;
+  --ro-text:         #E8EDF5;
+  --ro-muted:        #8B98B0;
+  --ro-dim:          #5F6C85;
+  --ro-accent:       #C9A86A;
+  --ro-accent-strong:#B08F52;
+  --ro-accent-soft:  #2A2416;
+  --ro-on-accent:    #0B1220;
+  --ro-info:         #7FA7E0;
+  --ro-success:      #35C48D;
+  --ro-danger:       #F07178;
+  --ro-warning-bg:   #241A0D;
+  --ro-warning-text: #E3B95F;
+  --ro-shadow-color: rgba(0,0,0,.45);
+  --ro-shadow:       0 1px 2px rgba(0,0,0,.35), 0 10px 30px rgba(0,0,0,.45);
+}
+
+/* ── Existing pages: map their variables (style.css) onto the theme ───────── */
+:root[data-theme] {
+  --bg:         var(--ro-bg);
+  --surface:    var(--ro-surface);
+  --surface-2:  var(--ro-surface-2);
+  --surface-3:  var(--ro-surface-3);
+  --border:     var(--ro-border);
+  --border-2:   var(--ro-border-2);
+  --text:       var(--ro-text);
+  --text-muted: var(--ro-muted);
+  --text-dim:   var(--ro-dim);
+  --pink:       var(--ro-accent);
+  --pink-dim:   color-mix(in srgb, var(--ro-accent) 15%, transparent);
+  --pink-glow:  color-mix(in srgb, var(--ro-accent) 28%, transparent);
+  --blue:       var(--ro-info);
+  --blue-dim:   color-mix(in srgb, var(--ro-info) 14%, transparent);
+  --gold:       var(--ro-warning-text);
+  --gold-dim:   color-mix(in srgb, var(--ro-warning-text) 15%, transparent);
+  --success:    var(--ro-success);
+  --danger:     var(--ro-danger);
+  --warning:    var(--ro-warning-text);
+  --on-accent:  var(--ro-on-accent);
+  --shadow:     var(--ro-shadow);
+  --shadow-sm:  0 2px 8px var(--ro-shadow-color);
+}
+
+/* ── Typography ────────────────────────────────────────────────────────────── */
+html, body, button, input, select, textarea { font-family: var(--font-body); }
+body { letter-spacing: -0.01em; }
+h1, h2, h3, h4, h5, h6,
+.topbar-title, .hero-title, .ro-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+/* Numbers that line up: KPI cards, tables, timers, counts */
+table, .kpi-card, .tabular, time, input[type="number"],
+.stat-num, .view-count, .view-total, .em-pv-count, .em-pv-total, .total-label,
+.att-status-working, .att-status-checkout, .att-status-ended, [class*="timer"] {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Components ────────────────────────────────────────────────────────────── */
+.card {
+  background: var(--ro-surface);
+  border: 1px solid var(--ro-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--ro-shadow);
+  padding: var(--space-4);
+}
+
+.kpi-card {
+  background: var(--ro-surface);
+  border: 1px solid var(--ro-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--ro-shadow);
+  padding: var(--space-3) var(--space-4);
+  display: flex; flex-direction: column; gap: 4px;
+}
+.kpi-card .kpi-label { font-size: 12px; font-weight: 600; color: var(--ro-muted); }
+.kpi-card .kpi-value { font-family: var(--font-display); font-size: 28px; font-weight: 800; letter-spacing: -0.02em; color: var(--ro-text); }
+.kpi-card .kpi-sub   { font-size: 12px; color: var(--ro-muted); }
+
+/* Primary actions are pills. On the existing .btn buttons only colour + shape change. */
+.btn-primary {
+  background: var(--ro-accent);
+  color: var(--ro-on-accent);
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--ro-accent) 30%, transparent);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, box-shadow .15s, transform .15s;
+}
+.btn-primary:hover { background: var(--ro-accent-strong); box-shadow: 0 4px 16px color-mix(in srgb, var(--ro-accent) 38%, transparent); }
+.btn-primary:not(.btn) {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1);
+  padding: 10px 20px; font-size: 14px;
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--ro-muted);
+  border: 1px solid var(--ro-border);
+  cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.btn-ghost:hover { background: var(--ro-surface-2); color: var(--ro-text); border-color: var(--ro-border-2); }
+.btn-ghost:not(.btn) {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1);
+  padding: 9px 18px; font-size: 14px; font-weight: 600;
+  border-radius: var(--radius-inner);
+}
+
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 10px; border-radius: var(--radius-pill);
+  font-size: 12px; font-weight: 600; line-height: 18px;
+  background: var(--ro-surface-2); color: var(--ro-muted);
+  border: 1px solid var(--ro-border);
+}
+.chip::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.chip--working { color: var(--ro-success); background: color-mix(in srgb, var(--ro-success) 12%, transparent); border-color: color-mix(in srgb, var(--ro-success) 30%, transparent); }
+.chip--break   { color: var(--ro-warning-text); background: var(--ro-warning-bg); border-color: color-mix(in srgb, var(--ro-warning-text) 30%, transparent); }
+.chip--offline { color: var(--ro-muted); }
+.chip--missing { color: var(--ro-danger); background: color-mix(in srgb, var(--ro-danger) 10%, transparent); border-color: color-mix(in srgb, var(--ro-danger) 28%, transparent); }
+
+/* <div class="progress-bar" style="--value:62"><span></span></div> */
+.progress-bar {
+  height: 8px; border-radius: var(--radius-pill);
+  background: var(--ro-surface-3); overflow: hidden;
+}
+.progress-bar > span {
+  display: block; height: 100%; border-radius: inherit;
+  width: calc(var(--value, 0) * 1%);
+  background: var(--ro-accent);
+  transition: width .3s ease;
+}
+
+/* <div class="progress-ring" style="--value:62"><span>62%</span></div> */
+.progress-ring {
+  --size: 96px; --thickness: 9px;
+  width: var(--size); height: var(--size); border-radius: 50%;
+  display: grid; place-items: center;
+  background:
+    radial-gradient(closest-side, var(--ro-surface) calc(100% - var(--thickness)), transparent calc(100% - var(--thickness) + 1px)),
+    conic-gradient(var(--ro-accent) calc(var(--value, 0) * 1%), var(--ro-surface-3) 0);
+}
+.progress-ring > span {
+  font-family: var(--font-display); font-weight: 800; font-size: 20px;
+  letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: var(--ro-text);
+}
+
+.sidebar-link {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: 10px var(--space-2); border-radius: var(--radius-inner);
+  color: var(--ro-muted); text-decoration: none;
+  font-size: 14px; font-weight: 600;
+  transition: background .15s, color .15s;
+}
+.sidebar-link:hover  { background: var(--ro-surface-2); color: var(--ro-text); }
+.sidebar-link.active { background: var(--ro-accent-soft); color: var(--ro-accent); }
+
+/* Header theme toggle (wired by /theme.js) */
+.theme-toggle {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; padding: 0;
+  border-radius: var(--radius-pill);
+  background: var(--ro-surface-2); color: var(--ro-text);
+  border: 1px solid var(--ro-border);
+  cursor: pointer; transition: background .15s, border-color .15s;
+}
+.theme-toggle:hover { border-color: var(--ro-border-2); background: var(--ro-surface-3); }
+.theme-toggle svg { width: 17px; height: 17px; }
+.theme-toggle .icon-sun  { display: none; }
+:root[data-theme="dark"] .theme-toggle .icon-sun  { display: block; }
+:root[data-theme="dark"] .theme-toggle .icon-moon { display: none; }
