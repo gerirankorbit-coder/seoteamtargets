@@ -55,9 +55,11 @@ const app  = express();
 const PORT = process.env.PORT || 3000;
 
 // ── MongoDB connection ─────────────────────────────────────────────────────
+let dbError = null, startupError = null; // last failures, shown by /api/staging/health
 mongoose.connect(MONGODB_URI, MONGODB_DB_NAME ? { dbName: MONGODB_DB_NAME } : {})
   .then(() => console.log('✓ MongoDB connected'))
-  .catch(err => console.error('✗ MongoDB error:', err));
+  .catch(err => { dbError = err; console.error('✗ MongoDB error:', err); });
+mongoose.connection.on('error', err => { dbError = err; });
 
 // ── Schemas ────────────────────────────────────────────────────────────────
 // One document per (username + date) — tasks stored as Mixed to preserve
@@ -225,6 +227,7 @@ mongoose.connection.once('open', async () => {
       entriesBefore: report.entriesBefore, entriesAfter: report.entriesAfter,
       converted: report.entriesConverted, unmapped: report.unmappedValues, tasks: report.totalTasks }));
   } catch (err) {
+    startupError = err;
     console.error('Startup error:', err);
   }
 });
@@ -665,6 +668,35 @@ function requireManagerOnly(req, res, next) {
     return res.status(403).json({ error: 'Only manager can perform this action' });
   }
   next();
+}
+
+// Staging only: why can't the app reach its database? (no secrets in the output)
+if (!IS_PRODUCTION) {
+  app.get('/api/staging/health', async (req, res) => {
+    const redact = v => v ? String(v).replace(/(mongodb(?:\+srv)?:\/\/)[^@\s/]*@/gi, '$1***@') : null;
+    const state = ['disconnected', 'connected', 'connecting', 'disconnecting'][mongoose.connection.readyState] || 'unknown';
+    const out = {
+      mode: 'staging',
+      vercelEnv: process.env.VERCEL_ENV || null,
+      gitBranch: process.env.VERCEL_GIT_COMMIT_REF || null,
+      commit: (process.env.VERCEL_GIT_COMMIT_SHA || '').slice(0, 7) || null,
+      mongoUriSet: !!MONGODB_URI,
+      mongoUriType: MONGODB_URI ? (MONGODB_URI.startsWith('mongodb+srv://') ? 'mongodb+srv' : MONGODB_URI.startsWith('mongodb://') ? 'mongodb' : 'not a MongoDB URI') : null,
+      database: EFFECTIVE_DB,
+      sessionSecretSet: !!process.env.SESSION_SECRET,
+      connection: state,
+      connectError: redact(dbError && dbError.message),
+      startupError: redact(startupError && startupError.message),
+    };
+    if (state === 'connected') {
+      try {
+        out.testUsers = await User.countDocuments({ username: /^test\./ });
+        out.tasks = await Task.countDocuments({});
+        out.ok = out.testUsers > 0;
+      } catch (err) { out.queryError = redact(err.message); out.ok = false; }
+    } else out.ok = false;
+    res.json(out);
+  });
 }
 
 app.use(requireAuth);
