@@ -143,19 +143,6 @@
   .legend-item { display: flex; align-items: center; gap: 5px; }
   .legend-dot  { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
 
-  /* ── Analytics ── */
-  .analytics-wrap { padding: 20px; }
-  .charts-grid {
-    display: grid; gap: 20px;
-    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
-  }
-  .chart-card {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--radius); padding: 20px;
-  }
-  .chart-title { font-size: 13px; font-weight: 700; margin-bottom: 16px; color: var(--text); }
-  .chart-subtitle { font-size: 11px; color: var(--text-muted); margin-top: -12px; margin-bottom: 14px; }
-
   /* ── Edit Tasks tab ── */
   .edit-wrap {
     display: grid; grid-template-columns: 220px 1fr; gap: 0;
@@ -651,6 +638,30 @@
   .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; text-transform: none; letter-spacing: 0; }
   #dlg-body p { font-size: 13px; line-height: 1.5; color: var(--ro-text); }
   #dlg-body p.muted { color: var(--ro-muted); font-size: 12.5px; }
+
+  /* ── Reports ── */
+  .rep-filters { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; padding: 16px 20px; margin-bottom: 16px; }
+  .rep-custom { display: flex; gap: 12px; flex-wrap: wrap; }
+  .rep-range { font-size: 13px; color: var(--ro-muted); align-self: center; font-variant-numeric: tabular-nums; }
+  .rep-export { margin-left: auto; }
+  .rep-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 16px; margin-bottom: 16px; }
+  .rep-chart-card, .rep-list-card { padding: 20px; }
+  .rep-chart-box { position: relative; height: 260px; }
+  .rep-side { display: flex; flex-direction: column; gap: 16px; }
+  .rep-list { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; }
+  .rep-item { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--ro-border); font-size: 13.5px; }
+  .rep-item:first-child { border-top: 0; }
+  .rep-rank { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+  .rep-rank.top { background: var(--ro-accent-soft); color: var(--ro-accent); }
+  .rep-rank.support { background: var(--ro-warning-bg); color: var(--ro-warning-text); }
+  .rep-name { flex: 1; min-width: 0; font-weight: 600; color: var(--ro-text); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rep-name:hover { color: var(--ro-accent); }
+  .rep-meta { font-size: 12px; color: var(--ro-muted); white-space: nowrap; }
+  .rep-pct { font-variant-numeric: tabular-nums; min-width: 42px; text-align: right; }
+  .rep-empty { font-size: 13px; color: var(--ro-muted); padding: 8px 0; }
+  .rep-table .team-target { display: inline-flex; }
+  @media (max-width: 1000px) { .rep-grid { grid-template-columns: 1fr; } }
+  @media (max-width: 560px) { .rep-export { margin-left: 0; } .rep-filters .ws-field, .rep-filters .ws-field select { width: 100%; } }
 
   /* ── Tasks & Targets ── */
   #page-tasks .edit-wrap { margin: 0; border-radius: var(--radius-card); border-color: var(--ro-border); background: var(--ro-surface); }
@@ -1198,22 +1209,60 @@
     </section>
     <section class="page" id="page-reports" hidden>
       <div class="page-head">
-        <div><h1 class="page-title">Reports</h1><p class="page-sub">Submission activity across the team.</p></div>
+        <div><h1 class="page-title">Reports</h1><p class="page-sub" id="rep-sub">How the team did over a period — from entries and attendance.</p></div>
+        <div class="segmented" role="tablist" aria-label="Period">
+          <button type="button" data-period="week" class="active" onclick="setReportPeriod('week')">This Week</button>
+          <button type="button" data-period="month" onclick="setReportPeriod('month')">This Month</button>
+          <button type="button" data-period="custom" onclick="setReportPeriod('custom')">Custom range</button>
+        </div>
       </div>
-<!-- ── Analytics panel ── -->
+<!-- ── Reports ── -->
 <div id="panel-analytics">
-  <div class="analytics-wrap">
-    <div class="charts-grid">
-      <div class="chart-card">
-        <div class="chart-title">Daily Activity — Last 14 Days</div>
-        <div class="chart-subtitle">Number of members who submitted an entry each day</div>
-        <canvas id="chart-daily" height="200"></canvas>
+  <div class="card rep-filters">
+    <span class="rep-custom" id="rep-custom" hidden>
+      <label class="ws-field">From <input type="date" class="inp" id="rep-from" onchange="loadReport()"></label>
+      <label class="ws-field">To <input type="date" class="inp" id="rep-to" onchange="loadReport()"></label>
+    </span>
+    <label class="ws-field">Member <select class="inp" id="rep-member" onchange="renderReport()"><option value="">All members</option></select></label>
+    <label class="ws-toggle"><input type="checkbox" id="rep-inactive" onchange="renderReport()"> Include deactivated</label>
+    <span class="rep-range" id="rep-range"></span>
+    <button class="btn btn-primary btn-sm rep-export" onclick="exportReportCSV()">&#8659; Export CSV</button>
+  </div>
+  <p class="am-error" id="rep-error"></p>
+
+  <div class="rep-grid">
+    <div class="card rep-chart-card">
+      <div class="card-head-row"><div><h2 class="card-heading">Submission rate by member</h2>
+        <p class="page-sub">Days with an entry ÷ expected days (weekdays, plus any weekend day worked)</p></div></div>
+      <div class="rep-chart-box"><canvas id="rep-chart" aria-label="Submission rate by member"></canvas></div>
+    </div>
+    <div class="rep-side">
+      <div class="card rep-list-card">
+        <h2 class="card-heading">Top 5 this period</h2>
+        <p class="page-sub">Highest average target (60% or more); ties go to the better submission rate.</p>
+        <ol class="rep-list" id="rep-top"></ol>
       </div>
-      <div class="chart-card">
-        <div class="chart-title">Submission Rate — Last 31 Days</div>
-        <div class="chart-subtitle">Percentage of days each member submitted an entry</div>
-        <canvas id="chart-members" height="200"></canvas>
+      <div class="card rep-list-card">
+        <h2 class="card-heading">Needs support</h2>
+        <p class="page-sub">Below 60% of target — a good moment for a check-in or a hand with blockers.</p>
+        <ol class="rep-list" id="rep-support"></ol>
       </div>
+    </div>
+  </div>
+
+  <div class="card team-table-card">
+    <div class="team-table-wrap">
+      <table class="team-table rep-table">
+        <thead><tr>
+          <th><button type="button" class="th-sort" data-rsort="display" onclick="sortReport('display')">Member</button></th>
+          <th><button type="button" class="th-sort" data-rsort="presentDays" onclick="sortReport('presentDays')">Present days</button></th>
+          <th><button type="button" class="th-sort" data-rsort="workingMinutes" onclick="sortReport('workingMinutes')">Working hours</button></th>
+          <th><button type="button" class="th-sort" data-rsort="submissionRate" onclick="sortReport('submissionRate')">Submission rate</button></th>
+          <th><button type="button" class="th-sort" data-rsort="avgTarget" onclick="sortReport('avgTarget')">Avg target</button></th>
+          <th><button type="button" class="th-sort" data-rsort="streak" onclick="sortReport('streak')">Current streak</button></th>
+        </tr></thead>
+        <tbody id="rep-tbody"><tr><td colspan="6" class="ov-loading">Loading…</td></tr></tbody>
+      </table>
     </div>
   </div>
 </div>
@@ -1448,23 +1497,11 @@
   let activeTab    = 'spreadsheet';
   let editTasks    = [];
   let editMemberIdx = 0;
-  let chartDaily   = null;
-  let chartMembers = null;
   let emState      = null; // active edit-modal context
   let isManager    = false;
 
   /* ── Helpers ── */
   function todayISO() { return new Date().toISOString().split('T')[0]; }
-
-  function getLast31Days() {
-    const days = [], today = new Date();
-    for (let i = 0; i < 31; i++) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - i);
-      days.push(d.toISOString().split('T')[0]);
-    }
-    return days;
-  }
 
   function formatHeader(iso) {
     const [y, m, d] = iso.split('-').map(Number);
@@ -2643,7 +2680,7 @@
     else if (page === 'work')       { renderMemberTabs(); renderSpreadsheet({ jump: true }); }
     else if (page === 'attendance') initAttendanceTab();
     else if (page === 'tasks')      renderTasksPage();
-    else if (page === 'reports')    renderAnalytics();
+    else if (page === 'reports')    renderReports();
     else if (page === 'settings')   renderSettings();
     else if (page === 'profile')    loadProfile();
   }
@@ -3400,106 +3437,150 @@
     downloadCSV('work-' + m.username + '-' + month + '.csv', rows);
   }
 
-  /* ── Analytics ── */
-  /* Charts are drawn with resolved theme colours, so redraw them after a theme switch */
-  document.addEventListener('ro-theme-change', () => {
-    const panel = document.getElementById('chart-daily');
-    if (panel && panel.offsetParent !== null) renderAnalytics();
-  });
+  /* ── Reports: period → per-member numbers from /api/reports ── */
+  let reportData = null, reportPeriod = 'week', reportSort = { key: 'avgTarget', dir: -1 }, repChart = null;
+  const NEEDS_SUPPORT_BELOW = 60;
 
-  function renderAnalytics() {
-    const dates31 = getLast31Days();
-    const dates14 = dates31.slice(0, 14).reverse();
+  function setReportPeriod(p) {
+    reportPeriod = p;
+    document.querySelectorAll('#page-reports [data-period]').forEach(b => b.classList.toggle('active', b.dataset.period === p));
+    document.getElementById('rep-custom').hidden = p !== 'custom';
+    if (p === 'custom') {
+      const to = document.getElementById('rep-to'), from = document.getElementById('rep-from');
+      if (!to.value) to.value = todayISO();
+      if (!from.value) { const d = new Date(todayISO() + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() - 29); from.value = d.toISOString().slice(0, 10); }
+      to.max = from.max = todayISO();
+    }
+    loadReport();
+  }
+  function renderReports() { setReportPeriod(reportPeriod); }
 
-    const dailyCounts = dates14.map(d =>
-      members.filter(m => {
-        const dayData = allData[m.username] && allData[m.username][d];
-        return dayData && Object.keys(dayData).length > 0;
-      }).length
-    );
+  let reportSeq = 0; // only the newest request may draw (quick From/To changes can answer out of order)
+  async function loadReport() {
+    const seq = ++reportSeq;
+    const err = document.getElementById('rep-error'); err.classList.remove('show');
+    let q = 'period=' + reportPeriod + '&' + nowQuery();
+    if (reportPeriod === 'custom') {
+      const from = document.getElementById('rep-from').value, to = document.getElementById('rep-to').value;
+      const msg = !from || !to ? 'Pick a start and an end date.' : from > to ? 'The start date must be before the end date.' : '';
+      if (msg) { err.textContent = msg; err.classList.add('show'); return; }
+      q += '&from=' + from + '&to=' + to;
+    }
+    try {
+      const res = await fetch('/api/reports?' + q, { credentials: 'same-origin' });
+      const body = await res.json().catch(() => ({}));
+      if (seq !== reportSeq) return;
+      if (!res.ok) { err.textContent = body.error || 'Could not load the report.'; err.classList.add('show'); return; }
+      reportData = body;
+    } catch { err.textContent = 'Network error — please try again.'; err.classList.add('show'); return; }
+    const sel = document.getElementById('rep-member'), prev = sel.value;
+    sel.innerHTML = '<option value="">All members</option>' + reportData.rows.slice().sort((a, b) => a.display.localeCompare(b.display))
+      .map(r => '<option value="' + escHtml(r.username) + '">' + escHtml(r.display) + (r.active ? '' : ' (inactive)') + '</option>').join('');
+    if (reportData.rows.some(r => r.username === prev)) sel.value = prev;
+    renderReport();
+  }
 
-    const dailyLabels = dates14.map(d => {
-      const [, m, day] = d.split('-').map(Number);
-      const mon = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m - 1];
-      return mon + ' ' + day;
+  // Rows after the member + deactivated filters
+  function reportRows() {
+    if (!reportData) return [];
+    const who = document.getElementById('rep-member').value, inactive = document.getElementById('rep-inactive').checked;
+    return reportData.rows.filter(r => who ? r.username === who : (inactive || r.active));
+  }
+  const fmtHours = m => (m / 60).toFixed(1).replace(/\.0$/, '') + 'h';
+  const rankBest = (a, b) => (b.avgTarget - a.avgTarget) || ((b.submissionRate ?? -1) - (a.submissionRate ?? -1)) || a.display.localeCompare(b.display);
+
+  function renderReport() {
+    if (!reportData) return;
+    const d = reportData, rows = reportRows();
+    const fmt = iso => new Date(iso + 'T00:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+    document.getElementById('rep-range').textContent = fmt(d.from) + ' – ' + fmt(d.to) + ' · ' + d.days + ' day' + (d.days === 1 ? '' : 's');
+
+    // Leaderboards (members with a target only): below 60% → Needs support (lowest first);
+    // the Top 5 come from everyone else, so nobody appears on both lists.
+    const targeted = rows.filter(r => r.avgTarget !== null).sort(rankBest);
+    const top = targeted.filter(r => r.avgTarget >= NEEDS_SUPPORT_BELOW).slice(0, 5);
+    const support = targeted.filter(r => r.avgTarget < NEEDS_SUPPORT_BELOW).reverse().slice(0, 5);
+    const item = (r, i, cls) => '<li class="rep-item"><span class="rep-rank ' + cls + '">' + (i + 1) + '</span>' +
+      '<a href="/dashboard/team/' + encodeURIComponent(r.username) + '" class="rep-name" data-user="' + escHtml(r.username) + '">' + escHtml(r.display) + '</a>' +
+      '<span class="rep-meta">' + (r.submissionRate === null ? '' : r.submissionRate + '% submitted') + '</span><b class="rep-pct">' + r.avgTarget + '%</b></li>';
+    document.getElementById('rep-top').innerHTML = top.map((r, i) => item(r, i, 'top')).join('')
+      || '<li class="rep-empty">' + (targeted.length ? 'Nobody has reached ' + NEEDS_SUPPORT_BELOW + '% yet this period.' : 'No targets in this period yet.') + '</li>';
+    document.getElementById('rep-support').innerHTML = support.map((r, i) => item(r, i, 'support')).join('')
+      || '<li class="rep-empty">' + (targeted.length ? 'Everyone is at ' + NEEDS_SUPPORT_BELOW + '% or above — great work, team.' : 'No targets in this period yet.') + '</li>';
+
+    // Table
+    const { key, dir } = reportSort;
+    const sorted = rows.slice().sort((a, b) => {
+      const va = a[key], vb = b[key];
+      if (va === null || va === undefined) return 1;
+      if (vb === null || vb === undefined) return -1;
+      return (typeof va === 'string' ? va.localeCompare(vb) : va - vb) * dir;
     });
-
-    const memberLabels = members.map(m => m.display.split(' ')[0]);
-    const memberRates  = members.map(m => {
-      const mData = allData[m.username] || {};
-      const count = dates31.filter(d => mData[d] && Object.keys(mData[d]).length > 0).length;
-      return Math.round((count / 31) * 100);
+    document.querySelectorAll('[data-rsort]').forEach(b => {
+      b.classList.toggle('sorted', b.dataset.rsort === key);
+      b.dataset.dir = b.dataset.rsort === key ? (dir > 0 ? 'asc' : 'desc') : '';
     });
+    document.getElementById('rep-tbody').innerHTML = sorted.map(r =>
+      '<tr class="team-row" tabindex="0" data-username="' + escHtml(r.username) + '" onclick="openProfile(this.dataset.username)" onkeydown="if(event.key===\'Enter\')openProfile(this.dataset.username)">' +
+      '<td><span class="team-member"><span class="avatar-sm">' + escHtml(initials(r.display)) + '</span><span><span class="team-member-name">' + escHtml(r.display) +
+        (r.active ? '' : ' <span class="chip chip--offline">Inactive</span>') + '</span><span class="team-member-user">' + escHtml(r.username) + '</span></span></span></td>' +
+      '<td class="num">' + r.presentDays + '</td>' +
+      '<td class="num">' + fmtHours(r.workingMinutes) + '</td>' +
+      '<td class="num">' + (r.submissionRate === null ? '<span class="muted">—</span>'
+        : '<span class="team-target"><b>' + r.submissionRate + '%</b><span class="progress-bar" style="--value:' + r.submissionRate + '"><span></span></span></span> <span class="muted">' + r.submittedDays + '/' + r.expectedDays + '</span>') + '</td>' +
+      '<td class="num">' + (r.avgTarget === null ? '<span class="muted">' + (r.hasTargets ? 'No working day' : 'No target') + '</span>' : '<b>' + r.avgTarget + '%</b>') + '</td>' +
+      '<td class="num">' + r.streak + ' day' + (r.streak === 1 ? '' : 's') + '</td></tr>').join('')
+      || '<tr><td colspan="6" class="ov-loading">No member matches these filters.</td></tr>';
 
-    if (chartDaily)   { chartDaily.destroy();   chartDaily   = null; }
-    if (chartMembers) { chartMembers.destroy();  chartMembers = null; }
+    renderReportChart(rows);
+  }
 
-    /* Canvas can't read CSS variables — resolve the theme tokens to colours here */
-    const css  = getComputedStyle(document.documentElement);
-    const tok  = name => css.getPropertyValue(name).trim();
-    const withAlpha = (hex, a) => {
-      const h = hex.replace('#', '');
-      const n = parseInt(h.length === 3 ? h.replace(/./g, c => c + c) : h, 16);
-      return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`;
-    };
-    const C = {
-      surface: tok('--ro-surface-2'), text: tok('--ro-text'), muted: tok('--ro-muted'), border: tok('--ro-border'),
-      info: tok('--ro-info'), success: tok('--ro-success'), warning: tok('--ro-warning-text'), danger: tok('--ro-danger'),
-    };
-    const font = { family: tok('--font-body') || 'Inter', size: 10 };
-    const baseChartOpts = {
-      responsive: true,
-      plugins: { legend: { display: false }, tooltip: { backgroundColor: C.surface, titleColor: C.text, bodyColor: C.muted, borderColor: C.border, borderWidth: 1, titleFont: { family: font.family }, bodyFont: { family: font.family } } },
-      scales: {
-        x: { ticks: { color: C.muted, font }, grid: { color: withAlpha(C.border, 0.6) } },
-        y: { ticks: { color: C.muted, font }, grid: { color: withAlpha(C.border, 0.6) } },
-      },
-    };
+  function sortReport(key) {
+    reportSort = reportSort.key === key ? { key, dir: -reportSort.dir } : { key, dir: key === 'display' ? 1 : -1 };
+    renderReport();
+  }
 
-    chartDaily = new Chart(document.getElementById('chart-daily'), {
-      type: 'line',
-      data: {
-        labels: dailyLabels,
-        datasets: [{
-          label: 'Members submitted',
-          data: dailyCounts,
-          borderColor: C.info,
-          backgroundColor: withAlpha(C.info, 0.1),
-          borderWidth: 2, pointRadius: 4,
-          pointBackgroundColor: C.info,
-          tension: 0.3, fill: true,
-        }],
-      },
-      options: { ...baseChartOpts },
-    });
-
-    chartMembers = new Chart(document.getElementById('chart-members'), {
+  function renderReportChart(rows) {
+    if (typeof Chart === 'undefined') return;
+    const data = rows.slice().sort((a, b) => (b.submissionRate ?? -1) - (a.submissionRate ?? -1));
+    const css = getComputedStyle(document.documentElement), tok = n => css.getPropertyValue(n).trim();
+    const accent = tok('--ro-accent'), muted = tok('--ro-muted'), border = tok('--ro-border');
+    const font = { family: tok('--font-body') || 'Inter', size: 11 };
+    if (repChart) repChart.destroy();
+    document.querySelector('.rep-chart-box').style.height = Math.max(220, 36 * data.length + 60) + 'px';
+    repChart = new Chart(document.getElementById('rep-chart'), {
       type: 'bar',
-      data: {
-        labels: memberLabels,
-        datasets: [{
-          label: 'Submission %',
-          data: memberRates,
-          backgroundColor: memberRates.map(r =>
-            r >= 80 ? withAlpha(C.success, 0.75) :
-            r >= 50 ? withAlpha(C.info, 0.65)    :
-            r >= 25 ? withAlpha(C.warning, 0.65) :
-                      withAlpha(C.danger, 0.65)),
-          borderRadius: 4,
-        }],
-      },
+      data: { labels: data.map(r => r.display), datasets: [{
+        label: 'Submission rate (%)', data: data.map(r => r.submissionRate ?? 0),
+        backgroundColor: accent + 'cc', hoverBackgroundColor: accent, borderRadius: 6, maxBarThickness: 26,
+      }] },
       options: {
-        ...baseChartOpts,
-        scales: {
-          ...baseChartOpts.scales,
-          y: { ...baseChartOpts.scales.y, max: 100, ticks: { ...baseChartOpts.scales.y.ticks, callback: v => v + '%' } },
-        },
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false, animation: { duration: 300 },
         plugins: {
-          ...baseChartOpts.plugins,
-          tooltip: { ...baseChartOpts.plugins.tooltip, callbacks: { label: ctx => ctx.parsed.y + '%' } },
+          legend: { display: true, labels: { color: muted, font, boxWidth: 12 } },
+          tooltip: { backgroundColor: tok('--ro-surface-2'), titleColor: tok('--ro-text'), bodyColor: muted, borderColor: border, borderWidth: 1,
+            titleFont: font, bodyFont: font, callbacks: { label: c => { const r = data[c.dataIndex]; return ' ' + (r.submissionRate ?? 0) + '% — ' + r.submittedDays + ' of ' + r.expectedDays + ' days'; } } },
+        },
+        scales: {
+          x: { min: 0, max: 100, ticks: { color: muted, font, callback: v => v + '%' }, grid: { color: border } },
+          y: { ticks: { color: muted, font }, grid: { display: false } },
         },
       },
     });
+  }
+  document.addEventListener('ro-theme-change', () => { if (currentPage === 'reports') renderReportChart(reportRows()); });
+  function repListClick(e) { const a = e.target.closest('a[data-user]'); if (!a) return; e.preventDefault(); openProfile(a.dataset.user); }
+  document.getElementById('rep-top').addEventListener('click', repListClick);
+  document.getElementById('rep-support').addEventListener('click', repListClick);
+
+  function exportReportCSV() {
+    if (!reportData) return;
+    const rows = reportRows();
+    downloadCSV('report-' + reportData.from + '_to_' + reportData.to + '.csv', [
+      ['Member', 'Username', 'Status', 'Present days', 'Working hours', 'Days submitted', 'Expected days', 'Submission rate %', 'Avg target %', 'Current streak (days)'],
+      ...rows.map(r => [r.display, r.username, r.active ? 'Active' : 'Deactivated', r.presentDays, (r.workingMinutes / 60).toFixed(2),
+        r.submittedDays, r.expectedDays, r.submissionRate ?? '', r.avgTarget ?? '', r.streak]),
+    ]);
   }
 
   /* ── Edit Tasks tab ── */

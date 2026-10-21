@@ -51,6 +51,7 @@ const {
 } = require('./lib/tasks');
 const { buildOverview } = require('./lib/overview');
 const { buildTeam, buildProfile, buildMySummary } = require('./lib/team');
+const { buildReport } = require('./lib/reports');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -1004,6 +1005,17 @@ app.get('/api/team', requireManager, async (req, res) => {
     res.json(await buildTeam({ Task, Entry, Attendance }, { members, users, date: req.query.date, time: req.query.time }));
   } catch (err) {
     console.error('Team error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Reports: per-member numbers for a period (?period=week|month|custom&from=&to=)
+app.get('/api/reports', requireManager, async (req, res) => {
+  try {
+    res.json(await buildReport({ Task, Entry, Attendance }, { members: memberAccounts(), query: req.query }));
+  } catch (err) {
+    if (err.status === 400) return res.status(400).json({ error: err.message });
+    console.error('Reports error:', err);
     res.status(500).json({ error: 'Database error' });
   }
 });
