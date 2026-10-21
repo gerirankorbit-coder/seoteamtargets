@@ -174,14 +174,14 @@
 <div class="login-wrap">
   <div class="login-card">
     <div class="card-logo">RO</div>
-    <h1 class="card-title">Welcome Back</h1>
-    <p class="card-subtitle">Sign in to your account</p>
+    <h1 class="card-title">Sign in to Rank Orbit</h1>
+    <p class="card-subtitle">Use the username and password your manager gave you</p>
 
     <div class="info-msg" id="info-msg" style="display:none"></div>
 
-    <div class="role-indicator" id="role-indicator">
+    <div class="role-indicator" id="role-indicator" hidden>
       <span class="role-icon">🔐</span>
-      <span>Signing in as <strong id="role-label">Team Member</strong></span>
+      <span>Opening the <strong id="role-label"></strong></span>
     </div>
 
     <div class="form-fields">
@@ -222,11 +222,13 @@
     infoEl.style.display = 'block';
   }
 
-  // Set role label from query param (cosmetic only)
-  const roleParam = params.get('role');
-  if (roleParam === 'manager' || roleParam === 'assistant') {
-    document.getElementById('role-label').textContent = 'Manager';
-    document.getElementById('role-indicator').querySelector('.role-icon').textContent = '🔑';
+  // Which portal was chosen on the homepage (wording only — your account decides where you land)
+  const portal = params.get('portal') || ({ manager: 'manager', assistant: 'manager' })[params.get('role')] || '';
+  if (portal === 'manager' || portal === 'member') {
+    const ind = document.getElementById('role-indicator');
+    document.getElementById('role-label').textContent = portal === 'manager' ? 'Manager Dashboard' : 'Member Portal';
+    ind.querySelector('.role-icon').textContent = portal === 'manager' ? '📊' : '👤';
+    ind.hidden = false;
   }
 
   async function submitLogin() {

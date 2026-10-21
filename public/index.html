@@ -182,12 +182,12 @@
   <p class="hero-subtitle">Team Progress Tracking — daily tasks, targets, and analytics in one place.</p>
 
   <div class="cta-group">
-    <a href="/member" class="cta-card primary">
+    <a href="/login?portal=member" class="cta-card primary">
       <span class="cta-icon">👤</span>
       <span class="cta-label">Member Portal</span>
       <span class="cta-desc">Log daily task progress</span>
     </a>
-    <a href="/dashboard" class="cta-card secondary">
+    <a href="/login?portal=manager" class="cta-card secondary">
       <span class="cta-icon">📊</span>
       <span class="cta-label">Manager Dashboard</span>
       <span class="cta-desc">View team analytics</span>
@@ -195,15 +195,24 @@
   </div>
 
   <div class="stats-strip">
-    <div class="stat"><div class="stat-num">16</div><div class="stat-lbl">Team Members</div></div>
-    <div class="stat"><div class="stat-num">6</div><div class="stat-lbl">Task Types</div></div>
-    <div class="stat"><div class="stat-num">31</div><div class="stat-lbl">Day History</div></div>
+    <div class="stat"><div class="stat-num" id="stat-members">–</div><div class="stat-lbl">Team Members</div></div>
+    <div class="stat"><div class="stat-num" id="stat-tasks">–</div><div class="stat-lbl">Active Tasks</div></div>
+    <div class="stat"><div class="stat-num" id="stat-entries">–</div><div class="stat-lbl">Entries Logged</div></div>
   </div>
 </div>
 
 <div class="page-footer">Built by <strong>Abdullah Saleem</strong></div>
 
 <script>
+  // Live numbers from the database (counts only); "–" stays if they cannot load
+  fetch('/api/public/stats').then(r => r.ok ? r.json() : null).then(d => {
+    if (!d) return;
+    const fmt = n => Number(n).toLocaleString('en-US');
+    document.getElementById('stat-members').textContent = fmt(d.members);
+    document.getElementById('stat-tasks').textContent   = fmt(d.tasks);
+    document.getElementById('stat-entries').textContent = fmt(d.entries);
+  }).catch(() => {});
+
   const container = document.getElementById('particles');
   const colors = ['var(--pink)', 'var(--blue)', 'var(--gold)', 'var(--ro-accent-strong)'];
   for (let i = 0; i < 45; i++) {

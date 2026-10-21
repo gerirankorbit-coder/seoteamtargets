@@ -539,6 +539,12 @@
   .att-mx-cell-absent  { background: color-mix(in srgb, var(--danger) 8%, transparent);  color: var(--danger); }
   .att-mx-cell-weekend { background: transparent; color: var(--text-dim); opacity: 0.4; }
   .att-mx-cell-future  { background: transparent; color: var(--text-dim); opacity: 0.3; }
+  .att-mx-legend { padding: 0 0 12px; }
+  .att-mx-legend .legend-dot { opacity: 1; width: 12px; height: 12px; }
+  .att-mx-legend .legend-dot.att-mx-cell-wfo    { background: color-mix(in srgb, var(--success) 55%, transparent); }
+  .att-mx-legend .legend-dot.att-mx-cell-wfh    { background: color-mix(in srgb, var(--blue) 50%, transparent); }
+  .att-mx-legend .legend-dot.att-mx-cell-absent { background: color-mix(in srgb, var(--danger) 35%, transparent); }
+  .att-mx-legend .legend-weekend { border: 1px dashed var(--ro-border); }
   .att-mx-table td:not(:first-child):hover { filter: brightness(1.4); }
   /* Split history sections in edit modal */
   .att-hist-section-title {
@@ -1167,7 +1173,7 @@
       <button class="btn btn-ghost btn-sm" onclick="loadMatrixAttendance()">&#8635; Refresh</button>
     </div>
     <div id="att-matrix-wrap">
-      <div class="state-overlay">Select a month to load the matrix.</div>
+      <div class="state-overlay">Select a month to load the month view.</div>
     </div>
   </div>
 </div>
@@ -2346,10 +2352,11 @@
         let text  = '–';
         let recId = '';
 
-        if (isWeekend)              { cls = 'att-mx-cell-weekend'; text = ''; }
-        else if (isFuture)          { cls = 'att-mx-cell-future';  text = ''; }
-        else if (r && r.workMode === 'WFO') { cls = 'att-mx-cell-wfo'; text = 'WFO'; recId = String(r._id); }
+        // A worked day always shows, weekend or not
+        if (r && r.workMode === 'WFO')      { cls = 'att-mx-cell-wfo'; text = 'WFO'; recId = String(r._id); }
         else if (r && r.workMode === 'WFH') { cls = 'att-mx-cell-wfh'; text = 'WFH'; recId = String(r._id); }
+        else if (isWeekend)         { cls = 'att-mx-cell-weekend'; text = ''; }
+        else if (isFuture)          { cls = 'att-mx-cell-future';  text = ''; }
 
         const clickAttr = recId
           ? ' data-recid="' + escHtml(recId) + '" data-uname="' + escHtml(m.username) + '" onclick="openAttEditModal(this.dataset.recid,this.dataset.uname)"'
@@ -2360,7 +2367,14 @@
       return '<tr><td>' + escHtml(m.display) + '</td>' + cells.join('') + '</tr>';
     }).join('');
 
+    const dot = cls => '<span class="legend-dot ' + cls + '"></span>';
     wrap.innerHTML =
+      '<div class="legend att-mx-legend">' +
+        '<div class="legend-item">' + dot('att-mx-cell-wfo') + ' WFO — worked from the office</div>' +
+        '<div class="legend-item">' + dot('att-mx-cell-wfh') + ' WFH — worked from home</div>' +
+        '<div class="legend-item">' + dot('att-mx-cell-absent') + ' – No attendance on a weekday</div>' +
+        '<div class="legend-item">' + dot('att-mx-cell-weekend legend-weekend') + ' Weekend / future day</div>' +
+      '</div>' +
       '<div class="att-mx-wrap">' +
       '<table class="att-mx-table">' +
       '<thead><tr><th>Member</th>' + dayHeaders.join('') + '</tr></thead>' +
@@ -2403,7 +2417,7 @@
   function exportMatrixCSV() {
     const mp    = document.getElementById('att-matrix-month');
     const month = mp ? mp.value : '';
-    if (!month || !members.length) { showToast('Load the matrix first.', 'error'); return; }
+    if (!month || !members.length) { showToast('Load the month view first.', 'error'); return; }
     const [y, mo]     = month.split('-').map(Number);
     const daysInMonth = new Date(y, mo, 0).getDate();
     const today       = todayISO();
@@ -2415,10 +2429,11 @@
     const rows = [['Member', ...days]];
     members.forEach(m => rows.push([m.display, ...days.map(date => {
       const dt = new Date(date + 'T12:00:00');
+      const r = (matrixData[m.username] || {})[date];
+      if (r) return r.workMode || 'Present'; // a worked weekend day counts too
       if (dt.getDay() === 0 || dt.getDay() === 6) return 'Weekend';
       if (date > today) return '';
-      const r = (matrixData[m.username] || {})[date];
-      return !r ? 'Absent' : (r.workMode || 'Present');
+      return 'Absent';
     })]));
     downloadCSV('attendance-month-' + month + '.csv', rows);
   }
@@ -3361,7 +3376,7 @@
           html += '<td class="mgr-note-cell' + todayCls + '"' +
             ' data-note="'  + escHtml(note) + '"' +
             ' data-task="Note for Manager"' +
-            ' data-label="' + escHtml('Employee Note — ' + m.display) + '"' +
+            ' data-label="' + escHtml('Member Note — ' + m.display) + '"' +
             ' onclick="showCellNote(this)">' +
             '<div style="font-size:10px;color:var(--gold);word-break:break-word;">' +
             escHtml(note.length > 55 ? note.slice(0, 55) + '…' : note) +

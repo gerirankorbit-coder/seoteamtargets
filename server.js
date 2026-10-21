@@ -597,6 +597,21 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// Homepage numbers (public, counts only): active team members, active tasks, entries logged
+app.get('/api/public/stats', async (req, res) => {
+  try {
+    const [members, tasks, entries] = await Promise.all([
+      User.countDocuments({ role: 'member', active: { $ne: false } }),
+      Task.countDocuments({ active: { $ne: false }, 'assignees.0': { $exists: true } }),
+      Entry.estimatedDocumentCount(),
+    ]);
+    res.set('Cache-Control', 'public, max-age=60');
+    res.json({ members, tasks, entries });
+  } catch (err) {
+    res.status(503).json({ error: 'unavailable' });
+  }
+});
+
 app.get('/login', (req, res) => {
   if (req.session.role === 'manager' || req.session.role === 'assistant') return res.redirect('/dashboard');
   if (req.session.role === 'member') return res.redirect('/member');
@@ -673,7 +688,9 @@ function touchLastActive(session) {
 async function requireAuth(req, res, next) {
   if (!req.session.role) {
     if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'Not authenticated' });
-    return res.redirect('/login');
+    // Tell the sign-in page which portal was asked for (wording only — the role decides access)
+    const portal = req.path.startsWith('/dashboard') ? 'manager' : req.path.startsWith('/member') ? 'member' : '';
+    return res.redirect('/login' + (portal ? '?portal=' + portal : ''));
   }
   let currentUser = getUser(req.session.username), removed = false;
   if (!currentUser || !currentUser.checkedAt || Date.now() - currentUser.checkedAt > VERSION_RECHECK_MS) {
