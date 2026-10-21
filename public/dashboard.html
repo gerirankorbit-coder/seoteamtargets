@@ -631,14 +631,6 @@
   .overview-greeting { font-size: 22px; font-weight: 800; }
   .overview-note { margin-top: 12px; color: var(--ro-muted); font-size: 14px; }
 
-  .team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
-  .team-card { display: flex; align-items: center; gap: 12px; padding: 16px; text-decoration: none; color: inherit; transition: border-color .15s, transform .15s; }
-  .team-card:hover { border-color: var(--ro-accent); transform: translateY(-1px); }
-  .team-card-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
-  .team-card-name { font-weight: 700; font-size: 14px; }
-  .team-card-sub { font-size: 12px; color: var(--ro-muted); }
-  .team-card-stats { display: flex; flex-direction: column; align-items: flex-end; font-size: 12px; color: var(--ro-muted); font-variant-numeric: tabular-nums; }
-  .team-card-stats b { color: var(--ro-text); }
 
   .settings-grid { display: grid; gap: 16px; max-width: 860px; }
   .card-heading { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
@@ -701,6 +693,88 @@
     .chart-filters { width: 100%; flex-direction: column; align-items: stretch; } .chart-filters select { width: 100%; }
     .segmented { align-self: flex-start; }
     .ov-chart-box { height: 240px; }
+  }
+  /* ── Team table ── */
+  .team-table-card { padding: 0; overflow: hidden; }
+  .team-filters { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 16px 20px; border-bottom: 1px solid var(--ro-border); }
+  .team-search { position: relative; flex: 1; min-width: 220px; max-width: 360px; }
+  .team-search svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 15px; height: 15px; color: var(--ro-muted); }
+  .team-search input {
+    width: 100%; height: 38px; padding: 0 12px 0 34px; border-radius: 999px; outline: none;
+    border: 1px solid var(--ro-border); background: var(--ro-surface-2); color: var(--ro-text); font-size: 13.5px;
+  }
+  .team-search input:focus { border-color: var(--ro-accent); box-shadow: 0 0 0 3px var(--ro-accent-soft); }
+  .team-filters select { width: auto; min-width: 150px; }
+  .team-count { margin-left: auto; font-size: 12px; color: var(--ro-muted); font-variant-numeric: tabular-nums; }
+  .team-table-wrap { overflow-x: auto; }
+  .team-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  .team-table th {
+    text-align: left; padding: 10px 16px; font-size: 11.5px; font-weight: 600; letter-spacing: .02em; text-transform: uppercase;
+    color: var(--ro-muted); background: var(--ro-surface-2); border-bottom: 1px solid var(--ro-border); white-space: nowrap;
+  }
+  .team-table td { padding: 12px 16px; border-bottom: 1px solid var(--ro-border); white-space: nowrap; vertical-align: middle; }
+  .team-table tbody tr:last-child td { border-bottom: 0; }
+  /* undo the spreadsheet's generic table rules (sticky first column, fixed widths) */
+  .team-table th, .team-table td,
+  .team-table thead th:first-child, .team-table tbody td:first-child {
+    position: static; min-width: 0; width: auto; height: auto; border-right: 0;
+    text-align: left; line-height: 1.4; font-weight: inherit; z-index: auto;
+  }
+  .team-table td, .team-table tbody td:first-child { padding: 12px 16px; font-size: 13.5px; background: transparent; }
+  .team-table th, .team-table thead th:first-child { padding: 10px 16px; font-size: 11.5px; font-weight: 600; background: var(--ro-surface-2); }
+  .team-table tbody tr:nth-child(even) td:first-child { background: transparent; }
+  .team-row { cursor: pointer; transition: background .15s; }
+  .team-row:hover, .team-row:focus { background: var(--ro-surface-2); outline: none; }
+  .team-table .num { font-variant-numeric: tabular-nums; }
+  .team-table .muted, .muted { color: var(--ro-muted); }
+  .team-member { display: flex; align-items: center; gap: 10px; }
+  .team-member-name { display: block; font-weight: 600; color: var(--ro-text); }
+  .team-member-user { display: block; font-size: 12px; color: var(--ro-muted); }
+  .team-target { display: inline-flex; align-items: center; gap: 8px; }
+  .team-target .progress-bar { width: 70px; height: 6px; }
+  .th-sort { border: 0; background: none; padding: 0; font: inherit; color: inherit; text-transform: inherit; letter-spacing: inherit; cursor: pointer; }
+  .th-sort::after { content: ' ↕'; opacity: .45; }
+  .th-sort.sorted { color: var(--ro-text); }
+  .th-sort.sorted[data-dir="asc"]::after  { content: ' ↑'; opacity: 1; }
+  .th-sort.sorted[data-dir="desc"]::after { content: ' ↓'; opacity: 1; }
+
+  /* ── Employee profile ── */
+  .back-link { display: inline-block; margin-bottom: 12px; font-size: 13px; font-weight: 600; color: var(--ro-muted); text-decoration: none; }
+  .back-link:hover { color: var(--ro-accent); }
+  .profile-header { display: flex; align-items: center; gap: 18px; margin-bottom: 20px; flex-wrap: wrap; }
+  .avatar-lg {
+    width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; flex-shrink: 0;
+    background: var(--ro-accent-soft); color: var(--ro-accent); font-family: var(--font-display); font-weight: 800; font-size: 22px;
+  }
+  .profile-header-main { flex: 1; min-width: 220px; }
+  .pf-chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0 6px; }
+  .pf-meta { font-size: 13px; color: var(--ro-muted); }
+  .pf-section-label { font-size: 12px; font-weight: 600; letter-spacing: .02em; text-transform: uppercase; color: var(--ro-muted); margin: 0 0 10px; }
+  .pf-chart-box { height: 220px; }
+  .pf-tabs-card { padding: 0; margin-top: 16px; overflow: hidden; }
+  .pf-tabs { display: flex; gap: 4px; padding: 10px 12px 0; border-bottom: 1px solid var(--ro-border); overflow-x: auto; }
+  .pf-tab {
+    border: 0; background: none; padding: 10px 14px; font-size: 14px; font-weight: 600; color: var(--ro-muted);
+    border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer; white-space: nowrap;
+  }
+  .pf-tab.active { color: var(--ro-accent); border-bottom-color: var(--ro-accent); }
+  .pf-panel { padding: 16px 20px 20px; }
+  .pf-panel-bar { display: flex; justify-content: flex-end; margin-bottom: 12px; }
+  .pf-hint { margin-top: 12px; }
+  .pf-hint a { color: var(--ro-accent); }
+  .pf-note-form { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; margin-bottom: 18px; }
+  .pf-note-form textarea { width: 100%; resize: vertical; min-height: 72px; }
+  .pf-note-group + .pf-note-group { margin-top: 18px; }
+  .pf-note-title { font-size: 13px; font-weight: 700; margin-bottom: 8px; color: var(--ro-text); }
+  .pf-note { padding: 10px 12px; border: 1px solid var(--ro-border); border-radius: var(--radius-inner); background: var(--ro-surface-2); }
+  .pf-note + .pf-note { margin-top: 8px; }
+  .pf-note-text { font-size: 13.5px; white-space: pre-wrap; color: var(--ro-text); }
+  .pf-note-meta { font-size: 12px; color: var(--ro-muted); margin-top: 4px; }
+  #ptab-entries #panel-spreadsheet .section-header { padding-top: 0; }
+  @media (max-width: 560px) {
+    .team-filters { padding: 12px; } .team-search { max-width: none; min-width: 100%; }
+    .team-filters select { flex: 1; min-width: 0; } .team-count { width: 100%; margin-left: 0; }
+    .pf-panel { padding: 12px; }
   }
   @media (max-width: 900px) {
     .sidebar { transform: translateX(-100%); transition: transform .2s ease; box-shadow: var(--ro-shadow); }
@@ -803,7 +877,80 @@
       <div class="page-head">
         <div><h1 class="page-title">Team</h1><p class="page-sub">Everyone on the team — open a member to see their work.</p></div>
       </div>
-      <div class="team-grid" id="team-grid"></div>
+      <div class="card team-table-card">
+        <div class="team-filters">
+          <label class="team-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input id="team-search" type="search" placeholder="Search by name or username" autocomplete="off" oninput="renderTeam()" aria-label="Search team"></label>
+          <select class="inp" id="team-shift" onchange="renderTeam()" aria-label="Shift">
+            <option value="">All shifts</option><option value="day">Day</option><option value="night">Night</option><option value="none">Shift not set</option>
+          </select>
+          <select class="inp" id="team-status" onchange="renderTeam()" aria-label="Status today">
+            <option value="">All statuses</option><option value="working">Working</option><option value="break">On break</option>
+            <option value="offline">Offline</option><option value="not_started">Not started</option>
+          </select>
+          <span class="team-count" id="team-count"></span>
+        </div>
+        <div class="team-table-wrap">
+          <table class="team-table">
+            <thead><tr>
+              <th><button type="button" class="th-sort" data-sort="display" onclick="sortTeam('display')">Member</button></th>
+              <th>Role</th><th>Shift</th><th>Today</th>
+              <th><button type="button" class="th-sort" data-sort="weekTarget" onclick="sortTeam('weekTarget')">This week target</button></th>
+              <th><button type="button" class="th-sort" data-sort="streak" onclick="sortTeam('streak')">Streak</button></th>
+              <th><button type="button" class="th-sort" data-sort="lastActiveAt" onclick="sortTeam('lastActiveAt')">Last active</button></th>
+            </tr></thead>
+            <tbody id="team-tbody"><tr><td colspan="7" class="ov-loading">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" id="page-profile" hidden>
+      <a class="back-link" href="/dashboard/team" data-page="team">&#8249; Team</a>
+      <div class="card profile-header">
+        <span class="avatar-lg" id="pf-avatar">–</span>
+        <div class="profile-header-main">
+          <h1 class="page-title" id="pf-name">…</h1>
+          <div class="pf-chips" id="pf-chips"></div>
+          <div class="pf-meta" id="pf-meta"></div>
+        </div>
+        <a class="btn btn-ghost btn-sm" id="pf-work-link" href="/dashboard/work"
+           onclick="if(!event.metaKey&&!event.ctrlKey){event.preventDefault();openMemberWork(profileUser)}">Open in Work</a>
+      </div>
+
+      <div class="pf-section-label" id="pf-month-label">This month</div>
+      <div class="kpi-grid">
+        <div class="kpi-card"><span class="kpi-label">Present days</span><span class="kpi-value" id="pf-present">–</span><span class="kpi-sub">days with attendance</span></div>
+        <div class="kpi-card"><span class="kpi-label">Working hours</span><span class="kpi-value" id="pf-hours">–</span><span class="kpi-sub">breaks excluded</span></div>
+        <div class="kpi-card"><span class="kpi-label">Avg target</span><span class="kpi-value" id="pf-target">–</span><span class="kpi-sub" id="pf-target-sub">working days</span></div>
+        <div class="kpi-card"><span class="kpi-label">Current streak</span><span class="kpi-value" id="pf-streak">–</span><span class="kpi-sub">days in a row with an entry</span></div>
+      </div>
+
+      <div class="card overview-chart">
+        <div class="card-head-row"><div><h2 class="card-heading">Performance</h2><p class="page-sub">Daily target % — last 31 days (working days only)</p></div></div>
+        <div class="ov-chart-box pf-chart-box"><canvas id="pf-chart" aria-label="Daily target percent"></canvas></div>
+      </div>
+
+      <div class="card pf-tabs-card">
+        <div class="pf-tabs" role="tablist">
+          <button type="button" role="tab" class="pf-tab active" data-ptab="entries"    onclick="switchProfileTab('entries')">Entries</button>
+          <button type="button" role="tab" class="pf-tab"        data-ptab="attendance" onclick="switchProfileTab('attendance')">Attendance</button>
+          <button type="button" role="tab" class="pf-tab"        data-ptab="tasks"      onclick="switchProfileTab('tasks')">Tasks</button>
+          <button type="button" role="tab" class="pf-tab"        data-ptab="notes"      onclick="switchProfileTab('notes')">Notes</button>
+        </div>
+        <div class="pf-panel" id="ptab-entries"></div>
+        <div class="pf-panel" id="ptab-attendance" hidden>
+          <div class="pf-panel-bar"><label class="work-member-pick">Month <input type="month" class="inp" id="pf-att-month" onchange="loadProfileAttendance()"></label></div>
+          <div id="pf-att-wrap"></div>
+        </div>
+        <div class="pf-panel" id="ptab-tasks" hidden><div id="pf-tasks"></div></div>
+        <div class="pf-panel" id="ptab-notes" hidden>
+          <div class="pf-note-form">
+            <textarea class="inp" id="pf-note-input" rows="3" placeholder="Add a private note about this member (only managers see it)…" maxlength="2000"></textarea>
+            <button class="btn btn-primary btn-sm" onclick="addProfileNote()">Add note</button>
+          </div>
+          <div id="pf-notes"></div>
+        </div>
+      </div>
     </section>
     <section class="page" id="page-work" hidden>
       <div class="page-head">
@@ -1864,8 +2011,8 @@
     }
   }
 
-  function renderMonthlyAttendance(records, month) {
-    const wrap = document.getElementById('att-monthly-table-wrap');
+  function renderMonthlyAttendance(records, month, wrapId = 'att-monthly-table-wrap') {
+    const wrap = document.getElementById(wrapId);
     const recordMap = {};
     records.forEach(r => { recordMap[r.date] = r; });
 
@@ -2186,6 +2333,7 @@
       closeAttEditModal();
       if (attTab === 'daily')   loadDailyAttendance();
       if (attTab === 'monthly') loadMonthlyAttendance();
+      if (currentPage === 'profile') loadProfileAttendance();
       if (attTab === 'matrix')  loadMatrixAttendance();
     } catch {
       showToast('Network error.', 'error');
@@ -2236,6 +2384,7 @@
         closeAttNoteModal();
         if (attTab === 'daily')   loadDailyAttendance();
         if (attTab === 'monthly') loadMonthlyAttendance();
+        if (currentPage === 'profile') loadProfileAttendance();
         if (attTab === 'matrix')  loadMatrixAttendance();
       } else {
         const data = await res.json().catch(() => ({}));
@@ -2250,18 +2399,21 @@
 
   /* ── Tab scroll ── */
   /* ── Shell navigation: every sidebar page has its own URL under /dashboard ── */
-  const PAGES     = ['overview', 'team', 'work', 'attendance', 'tasks', 'reports', 'settings'];
+  const PAGES     = ['overview', 'team', 'work', 'attendance', 'tasks', 'reports', 'settings', 'profile'];
   const PAGE_TAB  = { work: 'spreadsheet', reports: 'analytics', tasks: 'tasks', attendance: 'attendance' };
   const TAB_PAGE  = { spreadsheet: 'work', analytics: 'reports', tasks: 'tasks', attendance: 'attendance' };
   const PAGE_NAME = { overview: 'Overview', team: 'Team', work: 'Work', attendance: 'Attendance',
-                      tasks: 'Tasks & Targets', reports: 'Reports', settings: 'Settings' };
+                      tasks: 'Tasks & Targets', reports: 'Reports', settings: 'Settings', profile: 'Profile' };
   let currentPage = null;
+  let profileUser = null;   // username shown on /dashboard/team/<username>
 
   function pageFromPath(pathname) {
-    const seg = pathname.replace(/^\/dashboard\/?/, '').split('/')[0];
-    return PAGES.includes(seg) ? seg : 'overview';
+    const [seg, sub] = pathname.replace(/^\/dashboard\/?/, '').split('/');
+    if (seg === 'team' && sub) { profileUser = decodeURIComponent(sub); return 'profile'; }
+    return PAGES.includes(seg) && seg !== 'profile' ? seg : 'overview';
   }
   function pageUrl(page) {
+    if (page === 'profile') return '/dashboard/team/' + encodeURIComponent(profileUser || '');
     const base = page === 'overview' ? '/dashboard' : '/dashboard/' + page;
     const m = members[activeMember];
     return page === 'work' && m ? base + '?member=' + encodeURIComponent(m.username) : base;
@@ -2272,12 +2424,14 @@
     currentPage = page;
     activeTab   = PAGE_TAB[page] || page;
     document.querySelectorAll('.page').forEach(el => { el.hidden = el.id !== 'page-' + page; });
+    if (page !== 'profile') restoreSpreadsheet();
     document.querySelectorAll('.sidebar-link').forEach(a => {
-      const on = a.dataset.page === page;
+      const on = a.dataset.page === (page === 'profile' ? 'team' : page);
       a.classList.toggle('active', on);
       if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
-    document.title = PAGE_NAME[page] + ' — Rank Orbit';
+    const pm = page === 'profile' && members.find(x => x.username === profileUser);
+    document.title = (pm ? pm.display : PAGE_NAME[page]) + ' — Rank Orbit';
     if (push) history.pushState({ page }, '', pageUrl(page));
     closeSidebar();
     window.scrollTo(0, 0);
@@ -2289,6 +2443,14 @@
     else if (page === 'tasks')      renderEditTasks();
     else if (page === 'reports')    renderAnalytics();
     else if (page === 'settings')   renderSettings();
+    else if (page === 'profile')    loadProfile();
+  }
+
+  function openProfile(username) {
+    if (!members.some(m => m.username === username)) return;
+    profileUser = username;
+    closeSearch();
+    navigate('profile');
   }
 
   /* Old tab API, kept for existing callers */
@@ -2351,14 +2513,14 @@
     if (!q) { box.hidden = true; return; }
     const hits = searchMatches();
     box.innerHTML = hits.length
-      ? hits.map(m => '<button type="button" class="search-hit" data-username="' + escHtml(m.username) + '" onclick="openMemberWork(this.dataset.username)">' +
+      ? hits.map(m => '<button type="button" class="search-hit" data-username="' + escHtml(m.username) + '" onclick="openProfile(this.dataset.username)">' +
           '<span class="avatar-sm">' + escHtml(initials(m.display)) + '</span>' +
           '<span><span class="search-hit-name">' + escHtml(m.display) + '</span><span class="search-hit-sub">' + escHtml(m.username) + '</span></span></button>').join('')
       : '<div class="search-empty">No member matches “' + escHtml(q) + '”</div>';
     box.hidden = false;
   }
   function onSearchKey(e) {
-    if (e.key === 'Enter') { const hit = searchMatches()[0]; if (hit) openMemberWork(hit.username); }
+    if (e.key === 'Enter') { const hit = searchMatches()[0]; if (hit) openProfile(hit.username); }
   }
   function closeSearch() {
     const box = document.getElementById('search-results');
@@ -2376,7 +2538,9 @@
     not_started: ['chip--missing', 'Not started'],
   };
   const pad2 = n => String(n).padStart(2, '0');
-  const localDate = d => d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+  // Same calendar date the member portal uses for entries/attendance (todayISO = UTC date);
+  // the clock time sent alongside is the manager's local time.
+  const localDate = () => todayISO();
 
   function renderOverview() {
     const now  = new Date();
@@ -2423,8 +2587,8 @@
     cnt.textContent = d.attention.length + (d.attention.length === 1 ? ' item' : ' items');
     document.getElementById('attention-list').innerHTML = d.attention.length
       ? d.attention.map(a =>
-          '<a class="ov-row" href="/dashboard/work?member=' + encodeURIComponent(a.username) + '" data-username="' + escHtml(a.username) + '"' +
-          ' onclick="if(!event.metaKey&&!event.ctrlKey){event.preventDefault();openMemberWork(this.dataset.username)}">' +
+          '<a class="ov-row" href="/dashboard/team/' + encodeURIComponent(a.username) + '" data-username="' + escHtml(a.username) + '"' +
+          ' onclick="if(!event.metaKey&&!event.ctrlKey){event.preventDefault();openProfile(this.dataset.username)}">' +
           '<span class="avatar-sm">' + escHtml(initials(a.display)) + '</span>' +
           '<span class="ov-row-text"><span class="ov-row-name">' + escHtml(a.display) + '</span>' +
           '<span class="ov-row-sub ov-reason-' + escHtml(a.kind) + '">' + escHtml(a.reason) + '</span></span>' +
@@ -2435,8 +2599,8 @@
     document.getElementById('glance-list').innerHTML = d.team.map(t => {
       const [chipCls, chipText] = STATUS_CHIP[t.status] || STATUS_CHIP.offline;
       const pct = t.targetPct;
-      return '<a class="ov-row" href="/dashboard/work?member=' + encodeURIComponent(t.username) + '" data-username="' + escHtml(t.username) + '"' +
-        ' onclick="if(!event.metaKey&&!event.ctrlKey){event.preventDefault();openMemberWork(this.dataset.username)}">' +
+      return '<a class="ov-row" href="/dashboard/team/' + encodeURIComponent(t.username) + '" data-username="' + escHtml(t.username) + '"' +
+        ' onclick="if(!event.metaKey&&!event.ctrlKey){event.preventDefault();openProfile(this.dataset.username)}">' +
         '<span class="avatar-sm">' + escHtml(initials(t.display)) + '</span>' +
         '<span class="ov-row-text"><span class="ov-row-name">' + escHtml(t.display) + '</span>' +
         '<span class="chip ' + chipCls + ' ov-status">' + chipText + '</span></span>' +
@@ -2504,22 +2668,216 @@
   }
   document.addEventListener('ro-theme-change', () => { if (currentPage === 'overview') renderOverviewChart(); });
 
-  /* ── Team ── */
-  function renderTeam() {
-    const days  = getLast31Days();
-    const grid  = document.getElementById('team-grid');
-    if (!members.length) { grid.innerHTML = '<div class="state-overlay">No team members yet.</div>'; return; }
-    grid.innerHTML = members.map(m => {
-      const mData = allData[m.username] || {};
-      const submitted = days.filter(d => mData[d] && Object.keys(mData[d]).some(k => !k.startsWith('_'))).length;
-      return '<a class="card team-card" href="/dashboard/work?member=' + encodeURIComponent(m.username) + '" data-username="' + escHtml(m.username) + '"' +
-        ' onclick="if(!event.metaKey&&!event.ctrlKey){event.preventDefault();openMemberWork(this.dataset.username)}">' +
-        '<span class="avatar-md">' + escHtml(initials(m.display)) + '</span>' +
-        '<span class="team-card-text"><span class="team-card-name">' + escHtml(m.display) + '</span>' +
-        '<span class="team-card-sub">' + escHtml(m.username) + '</span></span>' +
-        '<span class="team-card-stats"><span><b>' + (m.tasks || []).length + '</b> tasks</span>' +
-        '<span><b>' + submitted + '</b>/31 days</span></span></a>';
-    }).join('');
+  /* ── Team: searchable, filterable, sortable table (one /api/team call) ── */
+  let teamData = null, teamSort = { key: 'display', dir: 1 };
+  const SHIFT_NAME = { day: 'Day', night: 'Night' };
+  const ROLE_NAME  = { member: 'Member', assistant: 'Assistant', manager: 'Manager' };
+  const nowQuery = () => { const n = new Date(); return 'date=' + localDate(n) + '&time=' + pad2(n.getHours()) + ':' + pad2(n.getMinutes()); };
+
+  function timeAgo(iso) {
+    if (!iso) return 'Never';
+    const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+    if (mins < 1)  return 'Just now';
+    if (mins < 60) return mins + ' min ago';
+    if (mins < 24 * 60) return Math.round(mins / 60) + ' h ago';
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) + ', ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+  }
+  const statusChip = s => { const [cls, txt] = STATUS_CHIP[s] || STATUS_CHIP.offline; return '<span class="chip ' + cls + '">' + txt + '</span>'; };
+
+  async function renderTeam() {
+    if (!teamData) {
+      try {
+        const res = await fetch('/api/team?' + nowQuery(), { credentials: 'same-origin' });
+        if (res.status === 401) { window.location.href = '/login'; return; }
+        teamData = await res.json();
+      } catch { document.getElementById('team-tbody').innerHTML = '<tr><td colspan="7" class="ov-loading">Could not load the team.</td></tr>'; return; }
+    }
+    const q      = document.getElementById('team-search').value.trim().toLowerCase();
+    const shift  = document.getElementById('team-shift').value;
+    const status = document.getElementById('team-status').value;
+    const rows = teamData.rows.filter(r =>
+      (!q || r.display.toLowerCase().includes(q) || r.username.toLowerCase().includes(q)) &&
+      (!shift || (shift === 'none' ? !r.shift : r.shift === shift)) &&
+      (!status || r.status === status));
+    const { key, dir } = teamSort;
+    rows.sort((a, b) => {
+      const va = a[key], vb = b[key];
+      if (va === null || va === undefined) return 1;            // empty values always last
+      if (vb === null || vb === undefined) return -1;
+      return (typeof va === 'string' ? va.localeCompare(vb) : va - vb) * dir;
+    });
+    document.querySelectorAll('.th-sort').forEach(b => {
+      b.classList.toggle('sorted', b.dataset.sort === key);
+      b.dataset.dir = b.dataset.sort === key ? (dir > 0 ? 'asc' : 'desc') : '';
+    });
+    document.getElementById('team-count').textContent = rows.length + ' of ' + teamData.rows.length;
+    document.getElementById('team-tbody').innerHTML = rows.map(r =>
+      '<tr class="team-row" tabindex="0" data-username="' + escHtml(r.username) + '"' +
+      ' onclick="openProfile(this.dataset.username)" onkeydown="if(event.key===\'Enter\')openProfile(this.dataset.username)">' +
+      '<td><span class="team-member"><span class="avatar-sm">' + escHtml(initials(r.display)) + '</span>' +
+      '<span><span class="team-member-name">' + escHtml(r.display) + (r.active ? '' : ' <span class="chip chip--offline">Inactive</span>') + '</span>' +
+      '<span class="team-member-user">' + escHtml(r.username) + '</span></span></span></td>' +
+      '<td>' + (ROLE_NAME[r.role] || escHtml(r.role)) + '</td>' +
+      '<td>' + (r.shift ? SHIFT_NAME[r.shift] || escHtml(r.shift) : '<span class="muted">—</span>') + '</td>' +
+      '<td>' + statusChip(r.status) + '</td>' +
+      '<td class="num">' + (r.weekTarget === null ? '<span class="muted">' + (r.hasTargets ? 'No working day yet' : 'No target') + '</span>'
+          : '<span class="team-target"><b>' + r.weekTarget + '%</b><span class="progress-bar" style="--value:' + r.weekTarget + '"><span></span></span></span>') + '</td>' +
+      '<td class="num">' + r.streak + ' day' + (r.streak === 1 ? '' : 's') + '</td>' +
+      '<td class="muted">' + timeAgo(r.lastActiveAt) + '</td></tr>').join('')
+      || '<tr><td colspan="7" class="ov-loading">No member matches these filters.</td></tr>';
+  }
+
+  function sortTeam(key) {
+    teamSort = teamSort.key === key ? { key, dir: -teamSort.dir } : { key, dir: key === 'display' ? 1 : -1 };
+    renderTeam();
+  }
+
+  /* ── Employee 360° profile ── */
+  let profileData = null, pfChart = null, profileTab = 'entries';
+  const TYPE_NAME = { links: 'Links List', layers: 'Layers List', count: 'Number', note: 'Text Note', count_note: 'Number + Note', links_note: 'Links + Note' };
+  const spreadsheetHome = { parent: null, next: null };
+
+  /* The Entries tab shows the same spreadsheet as Work (same cell popup + edit) */
+  function mountSpreadsheet(container) {
+    const panel = document.getElementById('panel-spreadsheet');
+    if (!spreadsheetHome.parent) { spreadsheetHome.parent = panel.parentNode; spreadsheetHome.next = panel.nextSibling; }
+    if (panel.parentNode !== container) container.appendChild(panel);
+  }
+  function restoreSpreadsheet() {
+    const panel = document.getElementById('panel-spreadsheet');
+    if (spreadsheetHome.parent && panel.parentNode !== spreadsheetHome.parent) spreadsheetHome.parent.insertBefore(panel, spreadsheetHome.next);
+  }
+
+  async function loadProfile() {
+    const m = members.find(x => x.username === profileUser);
+    if (!m) { document.getElementById('pf-name').textContent = 'Member not found'; return; }
+    activeMember = members.indexOf(m);
+    document.getElementById('pf-name').textContent   = m.display;
+    document.getElementById('pf-avatar').textContent = initials(m.display);
+    document.getElementById('pf-work-link').href = '/dashboard/work?member=' + encodeURIComponent(m.username);
+    document.getElementById('pf-att-month').value = localDate(new Date()).slice(0, 7);
+    switchProfileTab(profileTab);
+    try {
+      const res = await fetch('/api/members/' + encodeURIComponent(m.username) + '/profile?' + nowQuery(), { credentials: 'same-origin' });
+      if (res.status === 401) { window.location.href = '/login'; return; }
+      profileData = await res.json();
+    } catch { showToast('Could not load the profile.', 'error'); return; }
+    if (profileData.user.username !== profileUser) return; // navigated away meanwhile
+    renderProfile();
+  }
+
+  function renderProfile() {
+    const d = profileData, u = d.user, mo = d.month;
+    const chip = (cls, txt) => '<span class="chip ' + cls + '">' + txt + '</span>';
+    document.getElementById('pf-chips').innerHTML =
+      chip('', ROLE_NAME[u.role] || escHtml(u.role)) +
+      chip('', u.shift ? (SHIFT_NAME[u.shift] || escHtml(u.shift)) + ' shift' : 'Shift not set') +
+      statusChip(d.status) +
+      chip(u.active ? 'chip--working' : 'chip--missing', u.active ? 'Active' : 'Inactive');
+    document.getElementById('pf-meta').textContent = '@' + u.username + '  ·  Last active: ' + timeAgo(u.lastActiveAt);
+    document.getElementById('pf-month-label').textContent = 'This month · ' + mo.label;
+    document.getElementById('pf-present').textContent = mo.presentDays;
+    document.getElementById('pf-hours').textContent   = Math.floor(mo.workingMinutes / 60) + 'h ' + pad2(mo.workingMinutes % 60) + 'm';
+    document.getElementById('pf-target').textContent  = mo.avgTarget === null ? '—' : mo.avgTarget + '%';
+    document.getElementById('pf-target-sub').textContent = mo.avgTarget === null ? 'no targeted working day yet' : 'average over working days';
+    document.getElementById('pf-streak').textContent  = mo.streak;
+    renderProfileChart();
+    renderProfileTasks();
+    renderProfileNotes();
+  }
+
+  function renderProfileChart() {
+    if (!profileData || typeof Chart === 'undefined') return;
+    const css = getComputedStyle(document.documentElement), tok = n => css.getPropertyValue(n).trim();
+    const accent = tok('--ro-accent'), muted = tok('--ro-muted'), border = tok('--ro-border'), danger = tok('--ro-danger');
+    const font = { family: tok('--font-body') || 'Inter', size: 11 };
+    const perf = profileData.perf;
+    if (pfChart) pfChart.destroy();
+    pfChart = new Chart(document.getElementById('pf-chart'), {
+      type: 'bar',
+      data: {
+        labels: perf.map(p => new Date(p.date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })),
+        datasets: [{
+          label: 'Target achieved %', data: perf.map(p => p.pct),
+          backgroundColor: perf.map(p => p.pct !== null && p.pct < 50 ? danger + 'cc' : accent + 'cc'),
+          borderRadius: 4, maxBarThickness: 18,
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: true, labels: { color: muted, font, boxWidth: 12, generateLabels: () => [
+            { text: 'Target achieved % (50% or more)', fillStyle: accent, strokeStyle: accent, fontColor: muted },
+            { text: 'Below 50%', fillStyle: danger, strokeStyle: danger, fontColor: muted }] } },
+          tooltip: { callbacks: { label: c => c.raw === null ? 'No working day' : c.raw + '%' },
+                     backgroundColor: tok('--ro-surface-2'), titleColor: tok('--ro-text'), bodyColor: muted, borderColor: border, borderWidth: 1 },
+        },
+        scales: {
+          x: { ticks: { color: muted, font, maxRotation: 0, autoSkip: true }, grid: { display: false } },
+          y: { min: 0, max: 100, ticks: { color: muted, font, callback: v => v + '%' }, grid: { color: border } },
+        },
+      },
+    });
+  }
+  document.addEventListener('ro-theme-change', () => { if (currentPage === 'profile') renderProfileChart(); });
+
+  function switchProfileTab(tab) {
+    profileTab = tab;
+    document.querySelectorAll('.pf-tab').forEach(b => { const on = b.dataset.ptab === tab; b.classList.toggle('active', on); b.setAttribute('aria-selected', on); });
+    ['entries', 'attendance', 'tasks', 'notes'].forEach(t => { document.getElementById('ptab-' + t).hidden = t !== tab; });
+    if (tab === 'entries')    { mountSpreadsheet(document.getElementById('ptab-entries')); renderSpreadsheet(); }
+    if (tab === 'attendance') loadProfileAttendance();
+  }
+
+  async function loadProfileAttendance() {
+    if (currentPage !== 'profile' || !profileUser) return;
+    const month = document.getElementById('pf-att-month').value || localDate(new Date()).slice(0, 7);
+    const wrap = document.getElementById('pf-att-wrap');
+    wrap.innerHTML = '<div class="ov-loading">Loading…</div>';
+    try {
+      const res = await fetch('/api/attendance/monthly/' + encodeURIComponent(profileUser) + '/' + month, { credentials: 'same-origin' });
+      renderMonthlyAttendance(await res.json(), month, 'pf-att-wrap');
+    } catch { wrap.innerHTML = '<div class="ov-loading">Failed to load.</div>'; }
+  }
+
+  function renderProfileTasks() {
+    const tasks = profileData.tasks;
+    document.getElementById('pf-tasks').innerHTML = tasks.length ? '<div class="team-table-wrap"><table class="team-table pf-task-table"><thead><tr>' +
+      '<th>Task</th><th>Type</th><th>Daily target</th><th>Status</th></tr></thead><tbody>' +
+      tasks.map(t => '<tr><td><b>' + escHtml(t.name) + '</b>' + (t.sharedWith ? ' <span class="muted">· shared with ' + t.sharedWith + ' more</span>' : '') + '</td>' +
+        '<td>' + (TYPE_NAME[t.type] || escHtml(t.type)) + '</td>' +
+        '<td class="num">' + (t.dailyTarget === null ? '<span class="muted">—</span>' : t.dailyTarget) + '</td>' +
+        '<td>' + (!t.assigned ? '<span class="chip chip--offline">Previously assigned</span>' : t.active ? '<span class="chip chip--working">Active</span>' : '<span class="chip chip--offline">Inactive</span>') + '</td></tr>').join('') +
+      '</tbody></table></div><p class="page-sub pf-hint">Edit names, types and targets in <a href="/dashboard/tasks" data-page="tasks">Tasks &amp; Targets</a>.</p>'
+      : '<div class="ov-loading">No tasks assigned yet.</div>';
+  }
+
+  function renderProfileNotes() {
+    const n = profileData.notes;
+    const when = iso => new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const list = (title, items, fmt) => '<div class="pf-note-group"><h3 class="pf-note-title">' + title + '</h3>' +
+      (items.length ? items.map(fmt).join('') : '<div class="ov-loading">None yet.</div>') + '</div>';
+    document.getElementById('pf-notes').innerHTML =
+      list('Manager notes', n.manager, x => '<div class="pf-note"><div class="pf-note-text">' + escHtml(x.text) + '</div><div class="pf-note-meta">' + escHtml(x.author) + ' · ' + when(x.at) + '</div></div>') +
+      list('Notes for manager (from entries)', n.fromEntries, x => '<div class="pf-note"><div class="pf-note-text">' + escHtml(x.text) + '</div><div class="pf-note-meta">' + formatFull(x.date) + '</div></div>') +
+      list('Attendance notes', n.attendance, x => '<div class="pf-note"><div class="pf-note-text">' + escHtml(x.text) + '</div><div class="pf-note-meta">' + formatFull(x.date) + '</div></div>');
+  }
+
+  async function addProfileNote() {
+    const inp = document.getElementById('pf-note-input');
+    const text = inp.value.trim();
+    if (!text) { showToast('Write a note first.', 'error'); return; }
+    try {
+      const res = await fetch('/api/members/' + encodeURIComponent(profileUser) + '/notes', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ text }) });
+      const data = await res.json();
+      if (!res.ok) { showToast(data.error || 'Could not save the note.', 'error'); return; }
+      profileData.notes.manager.unshift(data);
+      inp.value = '';
+      renderProfileNotes();
+      showToast('Note added.', 'success');
+    } catch { showToast('Network error.', 'error'); }
   }
 
   /* ── Settings ── */
@@ -2554,7 +2912,7 @@
 
     let submitted = 0;
     dates.forEach(d => { if (mData[d]) submitted++; });
-    document.getElementById('m-meta').textContent = tasks.length + ' tasks · ' + submitted + '/31 days submitted';
+    document.getElementById('m-meta').textContent = tasks.length + (tasks.length === 1 ? ' task · ' : ' tasks · ') + submitted + '/31 days submitted';
 
     let html = '<table><thead><tr><th>Task</th>';
     dates.forEach(d => {
@@ -2955,6 +3313,7 @@
       await loadAll();
       if (activeTab === 'spreadsheet') renderSpreadsheet();
       if (currentPage === 'overview') loadOverview();
+      if (currentPage === 'team') { teamData = null; renderTeam(); }
     }, 30000);
   }
 

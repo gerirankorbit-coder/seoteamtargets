@@ -50,6 +50,7 @@ const {
   entryTasksV2, saveMemberTaskList, resetMemberTasks, setAssignees, migrateToTaskIds,
 } = require('./lib/tasks');
 const { buildOverview } = require('./lib/overview');
+const { buildTeam, buildProfile } = require('./lib/team');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -95,6 +96,8 @@ const UserSchema = new mongoose.Schema({
   display:         { type: String, required: true },
   passwordVersion: { type: Number, default: 1 },
   shift:           { type: String }, // optional: 'day' | 'night' (used by Overview rules)
+  active:          { type: Boolean, default: true },
+  lastActiveAt:    { type: Date },   // last time the member used the portal
 });
 const User = mongoose.models.User || mongoose.model('User', UserSchema);
 
@@ -120,6 +123,14 @@ const AttendanceSchema = new mongoose.Schema({
 }, { timestamps: true });
 AttendanceSchema.index({ username: 1, date: 1 }, { unique: true });
 const Attendance = mongoose.models.Attendance || mongoose.model('Attendance', AttendanceSchema);
+
+// Manager's private notes about a member (Employee profile → Notes)
+const MemberNoteSchema = new mongoose.Schema({
+  username: { type: String, required: true, index: true },
+  text:     { type: String, required: true },
+  author:   { type: String, required: true },
+}, { timestamps: true });
+const MemberNote = mongoose.models.MemberNote || mongoose.model('MemberNote', MemberNoteSchema);
 
 // Task — one document per task; assignees are the usernames it is assigned to (one
 // task can be shared by many members). legacyKey is unique: "<username>|<original name>"
@@ -584,16 +595,13 @@ app.post('/api/login', async (req, res) => {
   if (!username || !password) return res.status(400).json({ error: 'Missing credentials.' });
   const uname = username.toLowerCase().trim();
 
-  // Cache first; on a miss or a wrong password re-check MongoDB (the cache may be
-  // cold, or the password may have been changed on another server instance).
+  // Always check the password against MongoDB, not this instance's cache: the password
+  // may have been changed on another server instance (an old password must not work,
+  // and the session must get the current passwordVersion).
   let user, valid = false;
   try {
-    user  = getUser(uname);
+    user  = await refreshUser(uname);
     valid = !!user && await verifyPassword(password, user.password);
-    if (!valid) {
-      user  = await refreshUser(uname);
-      valid = !!user && await verifyPassword(password, user.password);
-    }
   } catch (err) {
     console.error('Login error:', err);
     return res.status(500).json({ error: 'Server error. Please try again.' });
@@ -637,6 +645,17 @@ app.post('/api/logout', (req, res) => {
 // instance re-reads the user from MongoDB at most every 30 s, so a password change
 // made on any instance logs the member out everywhere within that window.
 const VERSION_RECHECK_MS = 30 * 1000;
+
+// "Last active" for the Team page: a plain timestamp, written at most every 2 min
+// per member and instance (no tracking — just when they last used the portal).
+const lastActiveWrite = new Map();
+function touchLastActive(session) {
+  if (session.role !== 'member') return;
+  const now = Date.now(), prev = lastActiveWrite.get(session.username) || 0;
+  if (now - prev < 2 * 60 * 1000) return;
+  lastActiveWrite.set(session.username, now);
+  User.updateOne({ username: session.username }, { $set: { lastActiveAt: new Date(now) } }).catch(() => {});
+}
 async function requireAuth(req, res, next) {
   if (!req.session.role) {
     if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'Not authenticated' });
@@ -647,6 +666,7 @@ async function requireAuth(req, res, next) {
     try { currentUser = await refreshUser(req.session.username); }
     catch (err) { console.error('Session check error:', err); } // keep the session on a DB hiccup
   }
+  touchLastActive(req.session);
   if (currentUser) {
     const currentVer = currentUser.passwordVersion || 1;
     const sessionVer = req.session.passwordVersion  || 1;
@@ -755,7 +775,7 @@ app.get('/member', (req, res) =>
 // Manager shell: /dashboard is Overview; each sidebar page has its own URL and the
 // same page renders it client-side.
 const DASHBOARD_PAGES = ['team', 'work', 'attendance', 'tasks', 'reports', 'settings'];
-app.get(['/dashboard', '/dashboard/:page'], requireManager, (req, res, next) => {
+app.get(['/dashboard', '/dashboard/:page', '/dashboard/team/:username'], requireManager, (req, res, next) => {
   if (req.params.page && !DASHBOARD_PAGES.includes(req.params.page)) return next();
   res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
@@ -925,13 +945,61 @@ app.delete('/api/tasks/:displayName', requireManager, async (req, res) => {
 });
 
 // Manager Overview: KPIs, needs-attention list, team at a glance and chart history in
-// one call. date/time = the manager's local "now" (YYYY-MM-DD, HH:MM).
+// one call. date = the portal's calendar date (UTC, as entries are dated), time = the
+// manager's local clock (HH:MM) for the time-of-day rules.
 app.get('/api/overview', requireManager, async (req, res) => {
   try {
     res.json(await buildOverview({ Task, Entry, Attendance, User },
       { members: memberAccounts(), date: req.query.date, time: req.query.time }));
   } catch (err) {
     console.error('Overview error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Team page: one row per member (status, this-week target %, streak, last active)
+app.get('/api/team', requireManager, async (req, res) => {
+  try {
+    const members = memberAccounts();
+    const users = await User.find({ username: { $in: members.map(m => m.username) } },
+                                  { _id: 0, username: 1, role: 1, shift: 1, active: 1, lastActiveAt: 1 }).lean();
+    res.json(await buildTeam({ Task, Entry, Attendance }, { members, users, date: req.query.date, time: req.query.time }));
+  } catch (err) {
+    console.error('Team error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Employee 360° profile
+app.get('/api/members/:username/profile', requireManager, async (req, res) => {
+  const member = memberAccounts().find(m => m.username === req.params.username);
+  if (!member) return res.status(404).json({ error: 'Member not found' });
+  try {
+    const [user, notes] = await Promise.all([
+      User.findOne({ username: member.username }, { _id: 0, password: 0, passwordVersion: 0 }).lean(),
+      MemberNote.find({ username: member.username }).sort({ createdAt: -1 }).lean(),
+    ]);
+    res.json(await buildProfile({ Task, Entry, Attendance }, {
+      member, user: user || {}, notes: notes.map(n => ({ id: String(n._id), text: n.text, author: n.author, at: n.createdAt })),
+      date: req.query.date, time: req.query.time,
+    }));
+  } catch (err) {
+    console.error('Profile error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Manager notes about a member
+app.post('/api/members/:username/notes', requireManager, async (req, res) => {
+  const text = String((req.body && req.body.text) || '').trim();
+  if (!text) return res.status(400).json({ error: 'Note text is required' });
+  if (text.length > 2000) return res.status(400).json({ error: 'Note is too long (max 2000 characters)' });
+  if (!memberAccounts().some(m => m.username === req.params.username)) return res.status(404).json({ error: 'Member not found' });
+  try {
+    const n = await MemberNote.create({ username: req.params.username, text, author: req.session.display || req.session.username });
+    res.json({ id: String(n._id), text: n.text, author: n.author, at: n.createdAt });
+  } catch (err) {
+    console.error('Note error:', err);
     res.status(500).json({ error: 'Database error' });
   }
 });
