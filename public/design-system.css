@@ -7,11 +7,13 @@
 
 /* ── Shared tokens ─────────────────────────────────────────────────────────── */
 :root {
-  --font-display: 'Plus Jakarta Sans', 'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
-  --font-body:    'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  /* Look inspired by trackcontent.ai: Geist (a clean grotesk, tight headings), royal blue */
+  --font-display: 'Geist', 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  --font-body:    'Geist', 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  --font-mono:    'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  --radius-card:  16px;
-  --radius-inner: 12px;
+  --radius-card:  12px;
+  --radius-inner: 8px;
   --radius-pill:  999px;
   --space-1: 8px;
   --space-2: 12px;
@@ -19,56 +21,62 @@
   --space-4: 24px;
 }
 
-/* ── Light + Emerald ───────────────────────────────────────────────────────── */
+/* ── Light (white + royal blue) ───────────────────────────────────────────── */
 :root[data-theme="light"] {
   color-scheme: light;
-  --ro-bg:           #F6F8F7;
+  --ro-bg:           #FAFAFA;
   --ro-surface:      #FFFFFF;
-  --ro-surface-2:    #F0F4F2;
-  --ro-surface-3:    #E7EEEA;
+  --ro-surface-2:    #F4F6F9;
+  --ro-surface-3:    #EBEEF3;
   --ro-sidebar:      #FFFFFF;
-  --ro-border:       #E3ECE7;
-  --ro-border-2:     #CFDDD5;
-  --ro-text:         #12211C;
-  --ro-muted:        #5A6F66;
-  --ro-dim:          #8A9C94;
-  --ro-accent:       #0F7A5C;
-  --ro-accent-strong:#0B5E47;
-  --ro-accent-soft:  #E6F4EE;
+  --ro-border:       #E6E9EE;
+  --ro-border-2:     #D5DAE2;
+  --ro-text:         #0A0F14;
+  --ro-muted:        #5C6470;
+  --ro-dim:          #98A0AB;
+  --ro-accent:       #1447E8;
+  --ro-accent-strong:#0F38C2;
+  --ro-accent-soft:  #EBF1FF;
+  --ro-accent-fill:  #1447E8;          /* button / logo background (white text on it) */
   --ro-on-accent:    #FFFFFF;
-  --ro-info:         #2B6C9E;
-  --ro-success:      #15803D;
-  --ro-danger:       #B42318;
-  --ro-warning-bg:   #FFF7ED;
-  --ro-warning-text: #9A5B12;
-  --ro-shadow-color: rgba(18,50,40,.08);
-  --ro-shadow:       0 1px 2px rgba(18,50,40,.06), 0 8px 24px rgba(18,50,40,.08);
+  --ro-info:         #1F6FD1;          /* readable blue for text */
+  --ro-sky:          #4FA2FF;          /* light blue for fills (rings, secondary buttons) */
+  --ro-success:      #197F38;
+  --ro-danger:       #D92D20;
+  --ro-warning-bg:   #FFF6E8;
+  --ro-warning-text: #A15C07;
+  --ro-hero:         #EEF6FF;          /* the soft blue wash at the top of hero areas */
+  --ro-shadow-color: rgba(16,24,40,.06);
+  --ro-shadow:       0 1px 2px rgba(16,24,40,.04), 0 4px 16px rgba(16,24,40,.06);
 }
 
-/* ── Dark Premium ──────────────────────────────────────────────────────────── */
+/* ── Dark (deep navy + bright blue) ───────────────────────────────────────── */
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --ro-bg:           #0B1220;
-  --ro-surface:      #121C2E;
-  --ro-surface-2:    #17233A;
-  --ro-surface-3:    #1D2B46;
-  --ro-sidebar:      #0D1626;
-  --ro-border:       #22304D;
-  --ro-border-2:     #2E3F63;
-  --ro-text:         #E8EDF5;
-  --ro-muted:        #8B98B0;
-  --ro-dim:          #5F6C85;
-  --ro-accent:       #C9A86A;
-  --ro-accent-strong:#B08F52;
-  --ro-accent-soft:  #2A2416;
-  --ro-on-accent:    #0B1220;
-  --ro-info:         #7FA7E0;
-  --ro-success:      #35C48D;
-  --ro-danger:       #F07178;
-  --ro-warning-bg:   #241A0D;
-  --ro-warning-text: #E3B95F;
+  --ro-bg:           #0A0D14;
+  --ro-surface:      #10141D;
+  --ro-surface-2:    #161B26;
+  --ro-surface-3:    #1C2230;
+  --ro-sidebar:      #0D1018;
+  --ro-border:       #232A38;
+  --ro-border-2:     #2F3849;
+  --ro-text:         #F3F5F8;
+  --ro-muted:        #9AA3B2;
+  --ro-dim:          #677083;
+  --ro-accent:       #4C7DFF;          /* links, active items, rings on dark */
+  --ro-accent-strong:#2A54DB;
+  --ro-accent-soft:  #16213D;
+  --ro-accent-fill:  #3361F0;          /* deeper than --ro-accent so white text stays readable */
+  --ro-on-accent:    #FFFFFF;
+  --ro-info:         #7DB8FF;
+  --ro-sky:          #5AA9FF;
+  --ro-success:      #3CCB7F;
+  --ro-danger:       #F97066;
+  --ro-warning-bg:   #2A1F0C;
+  --ro-warning-text: #F2B95A;
+  --ro-hero:         #0F1730;
   --ro-shadow-color: rgba(0,0,0,.45);
-  --ro-shadow:       0 1px 2px rgba(0,0,0,.35), 0 10px 30px rgba(0,0,0,.45);
+  --ro-shadow:       0 1px 2px rgba(0,0,0,.35), 0 8px 24px rgba(0,0,0,.40);
 }
 
 /* ── Existing pages: map their variables (style.css) onto the theme ───────── */
@@ -106,8 +114,9 @@ body { letter-spacing: -0.01em; }
 h1, h2, h3, h4, h5, h6,
 .topbar-title, .hero-title, .ro-display {
   font-family: var(--font-display);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
 }
+code, kbd, pre, samp, .mono { font-family: var(--font-mono); }
 /* Numbers that line up: KPI cards, tables, timers, counts */
 table, .kpi-card, .tabular, time, input[type="number"],
 .stat-num, .view-count, .view-total, .em-pv-count, .em-pv-total, .total-label,
@@ -133,21 +142,21 @@ table, .kpi-card, .tabular, time, input[type="number"],
   display: flex; flex-direction: column; gap: 4px;
 }
 .kpi-card .kpi-label { font-size: 12px; font-weight: 600; color: var(--ro-muted); }
-.kpi-card .kpi-value { font-family: var(--font-display); font-size: 28px; font-weight: 800; letter-spacing: -0.02em; color: var(--ro-text); }
+.kpi-card .kpi-value { font-family: var(--font-display); font-size: 28px; font-weight: 700; letter-spacing: -0.02em; color: var(--ro-text); }
 .kpi-card .kpi-sub   { font-size: 12px; color: var(--ro-muted); }
 
-/* Primary actions are pills. On the existing .btn buttons only colour + shape change. */
+/* Primary actions: solid royal blue, small radius (trackcontent.ai style). */
 .btn-primary {
-  background: var(--ro-accent);
+  background: var(--ro-accent-fill);
   color: var(--ro-on-accent);
   border: 1px solid transparent;
-  border-radius: var(--radius-pill);
-  box-shadow: 0 2px 10px color-mix(in srgb, var(--ro-accent) 30%, transparent);
+  border-radius: var(--radius-inner);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--ro-accent) 30%, transparent), inset 0 1px 0 rgba(255,255,255,.12);
   font-weight: 600;
   cursor: pointer;
   transition: background .15s, box-shadow .15s, transform .15s;
 }
-.btn-primary:hover { background: var(--ro-accent-strong); box-shadow: 0 4px 16px color-mix(in srgb, var(--ro-accent) 38%, transparent); }
+.btn-primary:hover { background: var(--ro-accent-strong); box-shadow: 0 4px 12px color-mix(in srgb, var(--ro-accent) 28%, transparent); }
 .btn-primary:not(.btn) {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1);
   padding: 10px 20px; font-size: 14px;
@@ -201,7 +210,7 @@ table, .kpi-card, .tabular, time, input[type="number"],
     conic-gradient(var(--ro-accent) calc(var(--value, 0) * 1%), var(--ro-surface-3) 0);
 }
 .progress-ring > span {
-  font-family: var(--font-display); font-weight: 800; font-size: 20px;
+  font-family: var(--font-display); font-weight: 700; font-size: 20px;
   letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: var(--ro-text);
 }
 

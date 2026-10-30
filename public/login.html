@@ -7,22 +7,14 @@
 <script>/* Theme before first paint — see /theme.js */(function(){var d=document.documentElement;try{var s=localStorage,u=s.getItem('ro_theme_user'),t=(u&&s.getItem('ro_theme:'+u))||s.getItem('ro_theme');if(t!=='light'&&t!=='dark')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';d.setAttribute('data-theme',t)}catch(e){d.setAttribute('data-theme','light')}})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="/style.css">
 <link rel="stylesheet" href="/design-system.css">
 <script src="/theme.js"></script>
 <style>
-  body { display: flex; flex-direction: column; min-height: 100vh; }
-
-  /* ── Background ── */
-  body::before {
-    content: '';
-    position: fixed; inset: 0;
-    background:
-      radial-gradient(ellipse 60% 50% at 20% 50%, color-mix(in srgb, var(--pink) 8%, transparent) 0%, transparent 70%),
-      radial-gradient(ellipse 50% 60% at 80% 50%, color-mix(in srgb, var(--blue) 6%, transparent) 0%, transparent 70%);
-    pointer-events: none;
-  }
+  /* Soft blue wash at the top, then the plain page (same look as the homepage) */
+  body { display: flex; flex-direction: column; min-height: 100vh;
+         background: linear-gradient(180deg, var(--ro-hero) 0, var(--ro-bg) 480px) no-repeat, var(--ro-bg); }
 
   /* ── Topbar ── */
   .topbar { flex-shrink: 0; }
@@ -38,26 +30,25 @@
   /* ── Card ── */
   .login-card {
     width: 100%; max-width: 420px;
-    background: color-mix(in srgb, var(--surface) 95%, transparent);
-    border: 1px solid var(--border);
-    border-radius: 20px;
+    background: var(--ro-surface);
+    border: 1px solid var(--ro-border);
+    border-radius: var(--radius-card);
     padding: 40px 36px 36px;
-    box-shadow: 0 8px 48px rgba(0,0,0,0.6), 0 0 80px color-mix(in srgb, var(--pink) 5%, transparent);
-    backdrop-filter: blur(20px);
+    box-shadow: var(--ro-shadow);
   }
 
   .card-logo {
     width: 60px; height: 60px;
-    background: linear-gradient(135deg, var(--pink), var(--blue));
-    border-radius: 18px;
+    background: var(--ro-accent-fill);
+    border-radius: 14px;
     display: flex; align-items: center; justify-content: center;
-    font-size: 24px; font-weight: 900; color: var(--on-accent);
+    font-size: 22px; font-weight: 700; color: var(--ro-on-accent);
     margin: 0 auto 20px;
-    box-shadow: 0 0 24px var(--pink-glow);
+    box-shadow: 0 6px 18px color-mix(in srgb, var(--ro-accent) 28%, transparent);
   }
   .card-title {
-    text-align: center; font-size: 22px; font-weight: 800;
-    margin-bottom: 4px; letter-spacing: -0.3px;
+    text-align: center; font-size: 24px; font-weight: 600;
+    margin-bottom: 6px; letter-spacing: -0.03em;
   }
   .card-subtitle { text-align: center; font-size: 13px; color: var(--text-muted); margin-bottom: 28px; }
 
@@ -128,15 +119,15 @@
   /* ── Submit btn ── */
   .btn-signin {
     width: 100%; padding: 13px;
-    background: linear-gradient(135deg, var(--pink) 0%, var(--ro-accent-strong) 100%);
-    color: var(--on-accent); border: none;
-    border-radius: var(--radius-sm);
-    font-size: 14px; font-weight: 700;
+    background: var(--ro-accent-fill);
+    color: var(--ro-on-accent); border: none;
+    border-radius: var(--radius-inner);
+    font-size: 14px; font-weight: 600;
     cursor: pointer;
-    box-shadow: 0 4px 16px var(--pink-glow);
-    transition: all 0.18s;
+    box-shadow: 0 1px 2px color-mix(in srgb, var(--ro-accent) 30%, transparent), inset 0 1px 0 rgba(255,255,255,.12);
+    transition: background .15s, box-shadow .15s;
   }
-  .btn-signin:hover { transform: translateY(-1px); box-shadow: 0 6px 24px var(--pink-glow); }
+  .btn-signin:hover { background: var(--ro-accent-strong); box-shadow: 0 4px 12px color-mix(in srgb, var(--ro-accent) 28%, transparent); }
   .btn-signin:active { transform: none; }
   .btn-signin:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
