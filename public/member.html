@@ -741,8 +741,8 @@
     return '<div class="tc-target"><div class="tc-target-row"><span>Daily target</span><b class="tc-achieved">' + v + ' / ' + t.dailyTarget + ' ' + escHtml(unitOf(t)) + '</b></div>' +
       '<div class="progress-bar" style="--value:' + pct + '" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '" aria-label="' + escHtml(t.name) + ' target"><span></span></div></div>';
   }
-  function cardHtml(t, i) {
-    const d = currentDateData[t.taskId] || {};
+  function cardHtml(t, i, source = currentDateData) {
+    const d = source[t.taskId] || {};
     const edit = editing.has(t.taskId);
     const note = d.sectionNote || '';
     return '<article class="task-card' + (hasData(t.type, d) ? ' done' : '') + '" data-idx="' + i + '" data-task-id="' + escHtml(t.taskId) + '">' +
@@ -759,7 +759,7 @@
   }
   function renderTasks() {
     const grid = document.getElementById('tasks-grid');
-    grid.innerHTML = memberTasks.length ? memberTasks.map(cardHtml).join('')
+    grid.innerHTML = memberTasks.length ? memberTasks.map((t, i) => cardHtml(t, i)).join('')
       : '<div class="empty-state">No tasks are assigned to you yet. Your manager adds them from Tasks &amp; Targets.</div>';
     renderProgress();
   }
@@ -846,14 +846,17 @@
     if (!dirtyCards.size && !noteDirty) return;
     const ids = [...dirtyCards], note = noteDirty, date = selectedDate;
     dirtyCards = new Set(); noteDirty = false;
-    const tasks = liveData();
+    // Only what changed is sent: the manager may be editing other tasks of the same day
+    const live = liveData(), tasks = {};
+    ids.forEach(id => { if (live[id]) tasks[id] = live[id]; });
+    if (note) tasks._managerNote = live._managerNote;
     ids.forEach(id => setCardState(id, 'saving', 'Saving…'));
     if (note) setCardState(null, 'saving', 'Saving…');
     saving = (async () => {
       try {
-        await api('/api/save', 'POST', { date, tasks });
+        await api('/api/save', 'POST', { date, tasks, partial: true });
         if (date === selectedDate) {
-          currentDateData = tasks;
+          currentDateData = { ...currentDateData, ...tasks };
           const at = 'Saved ✓ ' + nowHM();
           ids.forEach(id => { if (!dirtyCards.has(id)) setCardState(id, 'saved', at); });
           if (note && !noteDirty) setCardState(null, 'saved', at);
@@ -874,7 +877,8 @@
   window.addEventListener('pagehide', () => {
     if (!dirtyCards.size && !noteDirty) return;
     fetch('/api/save', { method: 'POST', keepalive: true, credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ date: selectedDate, tasks: liveData() }) });
+      body: JSON.stringify({ date: selectedDate, partial: true, tasks: (live => {
+        const t = {}; dirtyCards.forEach(id => { if (live[id]) t[id] = live[id]; }); if (noteDirty) t._managerNote = live._managerNote; return t; })(liveData()) }) });
   });
 
   // One listener for every card
@@ -1048,6 +1052,86 @@
     window.location.href = '/login';
   }
 
+  /* ═══ LIVE UPDATES from the manager ══════════════════════════════════════
+     The server bumps this member's revision whenever the manager changes their tasks,
+     targets, entries, attendance or name. The open page checks it every 10 s (and as soon
+     as the tab is back in view) and applies the change in place — never touching a card
+     the member is typing in or has not saved yet. */
+  const SYNC_EVERY = 10000;
+  let myRev = null, syncing = false;
+  const sameTask = (a, b) => a && b && a.name === b.name && a.type === b.type && a.dailyTarget === b.dailyTarget && a.label === b.label;
+  async function checkRev() {
+    if (document.hidden || syncing || !me) return;
+    let rev;
+    try { rev = (await api('/api/my/rev')).rev; } catch { return; }
+    if (myRev === null) { myRev = rev; return; }
+    if (rev === myRev) return;
+    syncing = true;
+    try { if (await applyManagerChanges()) myRev = rev; } finally { syncing = false; }
+  }
+  async function applyManagerChanges() {
+    if (saving) await saving;                       // let the member's own save land first
+    const date = selectedDate;
+    let meNow, dayNow, attNow;
+    try { [meNow, dayNow, attNow] = await Promise.all([api('/api/me'), api('/api/mydata/' + date), api('/api/attendance/today')]); }
+    catch { return false; }
+    if (date !== selectedDate) return false;          // the member moved to another day meanwhile
+    const notes = [];
+
+    // Name / shift
+    if (meNow.display !== me.display || meNow.shift !== me.shift) { me = { ...me, display: meNow.display, shift: meNow.shift }; renderHello(); }
+
+    // Task list (added, removed, renamed, new target, new order)
+    const oldTasks = memberTasks, newTasks = meNow.tasks || [];
+    const listChanged = JSON.stringify(oldTasks) !== JSON.stringify(newTasks);
+    const dayChanged = JSON.stringify(currentDateData) !== JSON.stringify(dayNow || {});
+    if (listChanged) notes.push('your task list');
+    else if (dayChanged) notes.push('your entry for ' + (date === todayISO() ? 'today' : formatDay(date)));
+
+    if (listChanged || dayChanged) {
+      const grid = document.getElementById('tasks-grid');
+      const focused = document.activeElement && grid.contains(document.activeElement) ? document.activeElement : null;
+      const busy = id => dirtyCards.has(id) || (focused && focused.closest('.task-card') && focused.closest('.task-card').dataset.taskId === id);
+      const live = liveData();
+      // Saved state = the server's; what is shown keeps the member's unsaved typing
+      currentDateData = { ...(dayNow || {}) };
+      const shown = { ...currentDateData };
+      newTasks.forEach(t => { if (busy(t.taskId) && live[t.taskId]) shown[t.taskId] = live[t.taskId]; });
+      const isToday = date === todayISO();
+      const oldById = Object.fromEntries(oldTasks.map(t => [t.taskId, t]));
+      newTasks.forEach(t => { if (!oldById[t.taskId] && (isToday || !hasData(t.type, currentDateData[t.taskId]))) editing.add(t.taskId); });
+      memberTasks = newTasks; historyTasks = meNow.historyTasks || newTasks;
+      const existing = new Map([...grid.querySelectorAll('.task-card')].map(c => [c.dataset.taskId, c]));
+      const nodes = newTasks.map((t, i) => {
+        const el = existing.get(t.taskId);
+        if (el && busy(t.taskId) && sameTask(oldById[t.taskId], t)) { el.dataset.idx = i; return el; }   // keep what they are typing
+        const tmp = document.createElement('div'); tmp.innerHTML = cardHtml(t, i, shown); return tmp.firstElementChild;
+      });
+      // Same tasks in the same order: swap only the cards that changed (a kept card never moves,
+      // so it keeps focus); otherwise rebuild the list.
+      const current = [...grid.children];
+      const sameOrder = nodes.length && current.length === nodes.length && current.every((c, i) => c.dataset && c.dataset.taskId === nodes[i].dataset.taskId);
+      if (sameOrder) nodes.forEach((n, i) => { if (current[i] !== n) current[i].replaceWith(n); });
+      else grid.replaceChildren(...(nodes.length ? nodes : [Object.assign(document.createElement('div'), { className: 'empty-state', textContent: 'No tasks are assigned to you yet. Your manager adds them from Tasks & Targets.' })]));
+      if (focused && document.activeElement !== focused && focused.isConnected) focused.focus();
+      // Note for Manager: only if they are not writing it right now
+      const mn = document.getElementById('manager-note-input');
+      if (!noteDirty && document.activeElement !== mn) mn.value = currentDateData._managerNote || '';
+      renderProgress(); updateEntryBadge();
+    }
+
+    // Attendance (the manager corrected a time or a break)
+    const attKey = r => r ? JSON.stringify([r.startTime, r.endTime, r.workMode, r.note, r.checkOuts, r.sessions, r.totalWorkingMinutes]) : '';
+    if (attKey(attNow) !== attKey(attRecord)) { attRecord = attNow; renderMyDay(); notes.push('your attendance'); }
+
+    refreshSummary();
+    if (view === 'history') loadHistoryView();
+    if (notes.length) showToast('Your manager updated ' + notes.join(' and ') + '.', 'info');
+    return true;
+  }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) checkRev(); });
+  window.addEventListener('focus', () => checkRev());
+
   /* ── Init ── */
   async function init() {
     try { me = await api('/api/me'); }
@@ -1062,6 +1146,7 @@
     refreshSummary();
     refreshBreakCount();
     setInterval(refreshBreakCount, 30000);
+    checkRev(); setInterval(checkRev, SYNC_EVERY);
     showView(startView, { push: false });
   }
   init();

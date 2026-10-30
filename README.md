@@ -85,6 +85,16 @@ Every task also has an optional note ("+ Note").
 
 ---
 
+## Live updates
+
+Whatever the manager changes for a member — tasks, targets, entries, attendance, name — shows
+on that member's open My Space within about 10 seconds, without a reload, even when the
+manager and the member reach different server instances. Each change bumps the member's
+revision (`users.rev`); the portal checks `/api/my/rev` every 10 s while the tab is visible
+(and as soon as it is shown again) and updates in place, never touching a card the member
+is typing in. Saves are per task, so the manager and the member editing the same day never
+overwrite each other's other tasks.
+
 ## Data
 
 All data is in MongoDB:

@@ -99,6 +99,7 @@ const UserSchema = new mongoose.Schema({
   shift:           { type: String }, // optional: 'day' | 'night' (used by Overview rules)
   active:          { type: Boolean, default: true },
   lastActiveAt:    { type: Date },   // last time the member used the portal
+  rev:             { type: Number, default: 0 }, // bumped when the manager changes this member's tasks / entries / attendance
 });
 const User = mongoose.models.User || mongoose.model('User', UserSchema);
 
@@ -676,7 +677,8 @@ app.get('/api/me', async (req, res) => {
       tasksForUser(Task, req.session.username),
       tasksForUser(Task, req.session.username, { includeHistory: true }),
     ]);
-    const u = getUser(req.session.username) || {};
+    // name and shift straight from the database: another instance may have just changed them
+    const u = (await User.findOne({ username: req.session.username }, { _id: 0, display: 1, shift: 1 }).lean()) || getUser(req.session.username) || {};
     res.json({ username: req.session.username, display: u.display || req.session.display, role: req.session.role,
                shift: u.shift || null, tasks, historyTasks });
   } catch (err) {
@@ -697,12 +699,43 @@ app.get('/api/my/summary', async (req, res) => {
 });
 
 // Entries are saved keyed by taskId (entryVersion 2).
-async function saveEntry(username, date, tasks) {
-  await Entry.findOneAndUpdate(
-    { username, date },
-    { username, date, tasks, entryVersion: ENTRY_VERSION },
-    { upsert: true, new: true }
-  );
+// partial: only the given task values (and _managerNote) are written; the rest of the day
+// stays as it is in the database. The member portal and the manager both save this way, so
+// two people editing the same day never overwrite each other's other tasks.
+async function saveEntry(username, date, tasks, { partial = false } = {}) {
+  if (!partial) {
+    await Entry.findOneAndUpdate(
+      { username, date },
+      { username, date, tasks, entryVersion: ENTRY_VERSION },
+      { upsert: true, new: true }
+    );
+    return;
+  }
+  const existing = await Entry.findOne({ username, date }).lean();
+  if (existing && existing.entryVersion !== ENTRY_VERSION) {   // an old name-keyed day: convert, then merge
+    const merged = { ...(await entryTasksV2(Task, existing)), ...tasks };
+    await Entry.updateOne({ _id: existing._id }, { $set: { tasks: merged, entryVersion: ENTRY_VERSION } });
+    return;
+  }
+  const set = { entryVersion: ENTRY_VERSION };
+  for (const [k, v] of Object.entries(tasks)) {
+    if (!/^[\w-]+$/.test(k)) continue;   // task IDs and _managerNote only (no dots / operators)
+    set['tasks.' + k] = v;
+  }
+  await Entry.updateOne({ username, date }, { $set: set, $setOnInsert: { username, date } }, { upsert: true });
+}
+
+// Everyone a task is (or was) assigned to — a rename or a new target concerns all of them
+async function taskPeople(filter) {
+  const tasks = await Task.find(filter, { _id: 0, assignees: 1, formerAssignees: 1 }).lean();
+  return tasks.flatMap(t => [...(t.assignees || []), ...(t.formerAssignees || [])]);
+}
+
+// Live updates for the member portal: the manager changing anything for a member bumps
+// that member's revision; the portal polls /api/my/rev and reloads when it changes.
+async function bumpRev(usernames) {
+  const list = [...new Set([].concat(usernames || []).filter(Boolean))];
+  if (list.length) await User.updateMany({ username: { $in: list } }, { $set: { rev: Date.now() } }).catch(err => console.error('Rev bump error:', err));
 }
 
 // Entries → { date: tasks } keyed by taskId (old name-keyed entries converted on the fly).
@@ -714,13 +747,24 @@ async function entriesByDate(entries, indexes = new Map()) {
 
 // Save all tasks for a given date (one document per username+date)
 app.post('/api/save', async (req, res) => {
-  const { date, tasks } = req.body;
+  const { date, tasks, partial } = req.body;
   if (!date || !tasks) return res.status(400).json({ error: 'Missing required fields' });
   try {
-    await saveEntry(req.session.username, date, tasks);
+    await saveEntry(req.session.username, date, tasks, { partial: !!partial });
     res.json({ success: true });
   } catch (err) {
     console.error('Save error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// The member's current revision (see bumpRev). Cheap: polled by the open portal.
+app.get('/api/my/rev', async (req, res) => {
+  try {
+    const u = await User.findOne({ username: req.session.username }, { _id: 0, rev: 1 }).lean();
+    res.set('Cache-Control', 'no-store');
+    res.json({ rev: (u && u.rev) || 0 });
+  } catch (err) {
     res.status(500).json({ error: 'Database error' });
   }
 });
@@ -762,11 +806,12 @@ app.post('/api/admin/change-password', requireManager, async (req, res) => {
 
 // Manager: save / override any member's submitted data for a date
 app.post('/api/manager-save/:username', requireManager, async (req, res) => {
-  const { date, tasks } = req.body;
+  const { date, tasks, partial } = req.body;
   const target = req.params.username;
   if (!date || !tasks) return res.status(400).json({ error: 'Missing fields' });
   try {
-    await saveEntry(target, date, tasks);
+    await saveEntry(target, date, tasks, { partial: !!partial });
+    await bumpRev(target);
     res.json({ success: true });
   } catch (err) {
     console.error('Manager save error:', err);
@@ -823,7 +868,9 @@ app.post('/api/tasks/:displayName', requireManager, async (req, res) => {
   const username = usernameForDisplay(decodeURIComponent(req.params.displayName));
   if (!username) return res.status(404).json({ error: 'Member not found' });
   try {
+    const before = await taskPeople({ assignees: username });
     await saveMemberTaskList(Task, username, tasks);
+    await bumpRev([username, ...before, ...(await taskPeople({ assignees: username }))]);
     res.json({ success: true, tasks: await tasksForUser(Task, username) });
   } catch (err) {
     if (err.status === 400) return res.status(400).json({ error: err.message });
@@ -841,6 +888,7 @@ app.delete('/api/tasks/:displayName', requireManager, async (req, res) => {
     const defaults = defaultTasksFor(username, displayName);
     if (!defaults) return res.status(400).json({ error: 'This member has no default task list' });
     await resetMemberTasks(Task, username, defaults);
+    await bumpRev(username);
     res.json({ success: true, tasks: await tasksForUser(Task, username) });
   } catch (err) {
     console.error('Task reset error:', err);
@@ -944,6 +992,7 @@ app.post('/api/task-defs', requireManager, async (req, res) => {
   try {
     const taskId = newTaskId();
     const task = await Task.create({ taskId, legacyKey: `task:${taskId}`, ...t, order: 500, assignees });
+    await bumpRev(assignees);
     res.json(publicTask(task, { withAssignees: true }));
   } catch (err) {
     console.error('Task create error:', err);
@@ -962,6 +1011,7 @@ app.put('/api/task-defs/:taskId', requireManager, async (req, res) => {
     const updated = Array.isArray(req.body.assignees)
       ? await setAssignees(Task, task.taskId, req.body.assignees)
       : await Task.findOne({ taskId: task.taskId }).lean();
+    await bumpRev([...(task.assignees || []), ...(task.formerAssignees || []), ...((updated && updated.assignees) || [])]);
     res.json(publicTask(updated, { withAssignees: true }));
   } catch (err) {
     console.error('Task update error:', err);
@@ -971,12 +1021,13 @@ app.put('/api/task-defs/:taskId', requireManager, async (req, res) => {
 
 // Save data for any member — used by manager to edit submitted entries
 app.post('/api/admin/save', requireManager, async (req, res) => {
-  const { username, date, tasks } = req.body;
+  const { username, date, tasks, partial } = req.body;
   if (!username || !date || !tasks) return res.status(400).json({ error: 'Missing fields' });
   const target = username.toLowerCase().trim();
   if (!usersCache[target] && !(await refreshUser(target))) return res.status(404).json({ error: 'User not found' });
   try {
-    await saveEntry(target, date, tasks);
+    await saveEntry(target, date, tasks, { partial: !!partial });
+    await bumpRev(target);
     res.json({ success: true });
   } catch (err) {
     console.error('Admin save error:', err);
@@ -1072,6 +1123,7 @@ app.patch('/api/admin/members/:username', requireManagerOnly, async (req, res) =
     if (Object.keys(set).length)   update.$set   = set;
     if (Object.keys(unset).length) update.$unset = unset;
     await User.updateOne({ username: acc.target }, update);
+    await bumpRev(acc.target);
     const u = await refreshUser(acc.target);
     res.json({ success: true, username: acc.target, display: u.display, shift: u.shift, active: u.active });
   } catch (err) {
@@ -1291,6 +1343,7 @@ app.put('/api/attendance/note/:id', requireAuth, async (req, res) => {
       return res.status(403).json({ error: 'Access denied' });
     record.note = String(note).trim();
     await record.save();
+    if (record.username !== req.session.username) await bumpRev(record.username);
     res.json({ success: true, record });
   } catch (err) {
     console.error('Attendance note error:', err);
@@ -1400,6 +1453,7 @@ app.put('/api/attendance/edit/:id', async (req, res) => {
     record.markModified('editHistory');
     record.markModified('checkOuts');
     await record.save();
+    if (record.username !== req.session.username) await bumpRev(record.username);
     res.json({ success: true, record });
   } catch (err) {
     console.error('Attendance edit error:', err);

@@ -2166,7 +2166,8 @@
       const res = await fetch('/api/admin/save', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ username, date, tasks: dayTasks }),
+        // only this task is written; the member may be filling other tasks of the same day right now
+        body:    JSON.stringify({ username, date, tasks: { [taskId]: editedTask }, partial: true }),
         credentials: 'same-origin',
       });
       if (res.ok) {
