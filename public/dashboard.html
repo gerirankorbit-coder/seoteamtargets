@@ -902,6 +902,102 @@
   thead th.future-col { color: var(--ro-dim); }
   tbody td.future-cell { background: transparent; }
 
+  /* ── Work: heatmap (task × day tiles) + day panel ── */
+  #panel-spreadsheet .section-header { padding: 4px 20px 12px; }
+  #panel-spreadsheet .m-name { font-size: 18px; font-weight: 600; letter-spacing: -0.02em; }
+  #panel-spreadsheet .m-meta { font-size: 12px; border-radius: 999px; padding: 3px 10px; }
+  .wk-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 0 20px 14px; }
+  .wk-kpi { background: var(--ro-surface); border: 1px solid var(--ro-border); border-radius: var(--radius-card); padding: 12px 16px; }
+  .wk-kpi span { font-size: 12px; color: var(--ro-muted); font-weight: 500; }
+  .wk-kpi b { display: block; font-size: 22px; font-weight: 600; letter-spacing: -0.03em; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .wk-kpi small { font-size: 11.5px; color: var(--ro-muted); }
+  .wk-card { margin: 0 20px 28px; background: var(--ro-surface); border: 1px solid var(--ro-border); border-radius: var(--radius-card); box-shadow: var(--ro-shadow); overflow: hidden; }
+  .table-wrapper.hm-wrap { margin: 0; border: 0; border-radius: 0; box-shadow: none; max-height: none; overflow-x: auto; overflow-y: visible; }
+  .hm { --days: 31; min-width: calc(204px + var(--days) * 23px + 16px + 132px); }
+  .hm-r { display: grid; grid-template-columns: 204px minmax(0, 1fr) 132px; align-items: center; border-bottom: 1px solid var(--ro-border); }
+  .hm-r:last-child { border-bottom: 0; }
+  .hm-c { position: sticky; left: 0; z-index: 2; background: var(--ro-surface); padding: 12px 10px 12px 18px; align-self: stretch; display: flex; flex-direction: column; justify-content: center; gap: 4px; min-width: 0; }
+  .hm-c b { font-size: 13.5px; font-weight: 600; letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hm-c small { font-size: 11.5px; color: var(--ro-muted); }
+  .hm-c .type-chip { align-self: flex-start; font-size: 10.5px; padding: 1px 7px; }
+  .hm-days { display: grid; grid-template-columns: repeat(var(--days), minmax(20px, 1fr)); gap: 3px; padding: 10px 8px; }
+  .hm-s { padding: 10px 16px 10px 4px; text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+  .hm-s b { font-size: 16px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .hm-s small { font-size: 11.5px; color: var(--ro-muted); }
+  .hm-h { position: sticky; top: 0; z-index: 3; background: var(--ro-surface); }
+  .hm-h .hm-c, .hm-h .hm-s { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ro-accent); }
+  .hm-dh { border: 0; background: none; padding: 2px 0; cursor: pointer; font: inherit; font-size: 10.5px; line-height: 1.25; color: var(--ro-muted); border-radius: 6px; font-variant-numeric: tabular-nums; }
+  .hm-dh b { display: block; font-size: 11.5px; color: var(--ro-text); font-weight: 600; }
+  .hm-dh:hover { background: var(--ro-surface-2); }
+  .hm-dh.we { opacity: .5; } .hm-dh.today b, .hm-dh.today { color: var(--ro-accent); }
+  .hm-dh.future { opacity: .35; cursor: default; }
+  .t { position: relative; aspect-ratio: 1; min-height: 20px; border-radius: 6px; border: 0; padding: 0; display: grid; place-items: center;
+       font: 600 10.5px/1 var(--font-body); font-variant-numeric: tabular-nums; color: var(--ro-text); background: var(--ro-surface-2); cursor: pointer;
+       transition: transform .12s, box-shadow .12s; }
+  button.t:hover { transform: scale(1.12); box-shadow: 0 2px 8px var(--ro-shadow-color); z-index: 1; }
+  .t.l1 { background: color-mix(in srgb, var(--ro-accent) 14%, var(--ro-surface)); }
+  .t.l2 { background: color-mix(in srgb, var(--ro-accent) 34%, var(--ro-surface)); }
+  .t.l3 { background: color-mix(in srgb, var(--ro-accent) 66%, var(--ro-surface)); color: #fff; }
+  .t.l4 { background: var(--ro-accent-fill); color: #fff; }
+  .t.done { background: color-mix(in srgb, var(--ro-success) 20%, var(--ro-surface)); color: var(--ro-success); }
+  .t.miss { background: transparent; border: 1.5px dashed color-mix(in srgb, var(--ro-danger) 45%, transparent); }
+  .t.empty { background: transparent; cursor: default; }
+  .t.future { background: transparent; border: 1px dashed var(--ro-border); opacity: .45; cursor: default; }
+  .t.wkend:not(.has) { opacity: .45; }
+  .t.today { box-shadow: 0 0 0 2px var(--ro-surface), 0 0 0 4px var(--ro-accent); }
+  .t.note::after, .wk-dot { content: ''; position: absolute; top: 2px; right: 2px; width: 5px; height: 5px; border-radius: 50%; background: #F59E0B; }
+  .t.att-wfo { background: color-mix(in srgb, var(--ro-success) 22%, var(--ro-surface)); color: var(--ro-success); font-size: 9.5px; }
+  .t.att-wfh { background: color-mix(in srgb, var(--ro-info) 20%, var(--ro-surface)); color: var(--ro-info); font-size: 9.5px; }
+  .hm-att .hm-c b { color: var(--ro-muted); font-weight: 600; }
+  .hm-att { background: var(--ro-surface-2); } .hm-att .hm-c { background: var(--ro-surface-2); }
+  .hm.only-missing .t:not(.miss):not(.future) { opacity: .18; }
+  .wk-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; padding: 11px 18px; border-top: 1px solid var(--ro-border); background: var(--ro-surface-2); font-size: 12px; color: var(--ro-muted); }
+  .wk-legend > span { display: inline-flex; align-items: center; gap: 6px; }
+  .wk-legend .t { width: 14px; height: 14px; min-height: 0; border-radius: 4px; cursor: default; }
+  .wk-scale .t { margin: 0 -3px; }
+  .wk-dot { position: static; display: inline-block; }
+  .wk-legend-hint { margin-left: auto; }
+  .hm-tip { position: fixed; z-index: 950; width: 250px; padding: 11px 13px; border-radius: 10px; background: var(--ro-text); color: var(--ro-bg); font-size: 12px; line-height: 1.5; box-shadow: 0 12px 32px rgba(0,0,0,.25); pointer-events: none; }
+  .hm-tip b { font-size: 12.5px; font-weight: 600; } .hm-tip .r { display: flex; justify-content: space-between; gap: 10px; opacity: .85; }
+  .hm-tip .r span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hm-tip .foot { margin-top: 6px; display: flex; justify-content: space-between; font-weight: 600; }
+  .hm-empty { padding: 36px 20px; text-align: center; color: var(--ro-muted); font-size: 13px; }
+  .dp-overlay { z-index: 880; }
+  .dp-eyebrow { font-size: 11.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ro-accent); margin-bottom: 4px; }
+  .dp-title { font-size: 18px !important; font-weight: 600 !important; letter-spacing: -0.03em; white-space: normal !important; }
+  .dp-header { padding: 18px 20px 14px !important; }
+  .dp-header .em-close { font-size: 16px; }
+  .dp-body { padding: 4px 20px 20px !important; gap: 0 !important; }
+  .dp-task { padding: 14px 0; border-top: 1px solid var(--ro-border); display: flex; flex-direction: column; gap: 8px; }
+  .dp-task:first-child { border-top: 0; }
+  .dp-task-top { display: flex; align-items: center; gap: 8px; }
+  .dp-task-top b { font-size: 14px; font-weight: 600; letter-spacing: -0.01em; }
+  .dp-val { margin-left: auto; font-weight: 600; font-variant-numeric: tabular-nums; font-size: 13.5px; white-space: nowrap; }
+  .dp-val.miss { color: var(--ro-danger); font-weight: 500; font-size: 12.5px; }
+  .dp-task .progress-bar { height: 6px; }
+  .dp-task.hit .progress-bar > span { background: var(--ro-success); }
+  .dp-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .dp-chip { font-size: 12px; padding: 3px 9px; border-radius: 999px; background: var(--ro-surface-2); border: 1px solid var(--ro-border); }
+  .dp-text { font-size: 13px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; color: var(--ro-text); }
+  .dp-links { font-family: var(--font-mono); font-size: 12px; color: var(--ro-info); word-break: break-all; display: flex; flex-direction: column; gap: 2px; }
+  .dp-note { font-size: 12.5px; line-height: 1.5; color: var(--ro-warning-text); background: var(--ro-warning-bg); border-radius: 8px; padding: 8px 10px; white-space: pre-wrap; }
+  .dp-edit { align-self: flex-start; }
+  .dp-task.focus { margin: 0 -12px; padding: 14px 12px; border-radius: 10px; background: var(--ro-accent-soft); border-top-color: transparent; }
+  .dp-task.focus + .dp-task { border-top-color: transparent; }
+  .hm-dh.pulse { animation: dhPulse 1.2s ease; }
+  @keyframes dhPulse { 0%, 100% { background: none; } 30% { background: var(--ro-accent-soft); } }
+  .dp-mgr { margin-top: 6px; padding: 14px; border-radius: 10px; background: var(--ro-surface-2); border: 1px solid var(--ro-border); }
+  .dp-mgr .dp-eyebrow { color: var(--ro-muted); }
+  @media (max-width: 900px) { .wk-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 560px) {
+    .wk-kpis, .wk-card { margin-left: 0; margin-right: 0; }
+    .hm { min-width: calc(150px + var(--days) * 26px + 96px); }
+    .hm-r { grid-template-columns: 150px minmax(0, 1fr) 96px; }
+    .hm-c { padding-left: 12px; } .hm-s { padding-right: 12px; } .hm-s b { font-size: 14px; }
+    .wk-legend-hint { margin-left: 0; }
+  }
+  #ptab-entries .wk-kpis, #ptab-entries .wk-card { margin-left: 0; margin-right: 0; }
+
   /* ── Attendance toolbar ── */
   .att-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 0 20px 4px; }
   .att-view-hint { font-size: 12.5px; color: var(--ro-muted); }
@@ -1090,7 +1186,7 @@
     </section>
     <section class="page" id="page-work" hidden>
       <div class="page-head">
-        <div><h1 class="page-title">Work</h1><p class="page-sub">Daily entries per member — click a filled cell to view or edit.</p></div>
+        <div><h1 class="page-title">Work</h1><p class="page-sub">Each member’s month at a glance — click any day to see everything that day and edit it.</p></div>
       </div>
 <!-- ── Spreadsheet panel ── -->
 <div id="panel-spreadsheet">
@@ -1109,15 +1205,20 @@
     <div class="m-name"   id="m-name">Select a member</div>
     <div class="m-meta"   id="m-meta"></div>
   </div>
-  <div class="table-wrapper" id="table-wrapper">
-    <div class="state-overlay"><div class="spinner"></div> Loading data…</div>
+  <div class="wk-kpis" id="wk-kpis"></div>
+  <div class="wk-card">
+    <div class="table-wrapper hm-wrap" id="table-wrapper">
+      <div class="state-overlay"><div class="spinner"></div> Loading data…</div>
+    </div>
+    <div class="wk-legend">
+      <span class="wk-scale">Less <i class="t l1"></i><i class="t l2"></i><i class="t l3"></i><i class="t l4"></i> More of target</span>
+      <span><i class="t miss"></i> Missed</span>
+      <span><i class="t done"></i> Done (no target)</span>
+      <span><i class="wk-dot"></i> Has a note</span>
+      <span class="wk-legend-hint">Click a day to see everything that day and edit it</span>
+    </div>
   </div>
-  <div class="legend">
-    <div class="legend-item"><div class="legend-dot" style="background:color-mix(in srgb, var(--blue) 15%, transparent);border:1px solid color-mix(in srgb, var(--blue) 30%, transparent)"></div> Submitted</div>
-    <div class="legend-item"><div class="legend-dot" style="background:color-mix(in srgb, var(--danger) 10%, transparent);border:1px solid color-mix(in srgb, var(--danger) 25%, transparent)"></div> Missing</div>
-    <div class="legend-item"><div class="legend-dot" style="background:color-mix(in srgb, var(--gold) 20%, transparent);border:1px solid color-mix(in srgb, var(--gold) 40%, transparent)"></div> Today</div>
-    <div class="legend-item"><span class="cell-note-tag">NOTE</span> Has note — click cell to view</div>
-  </div>
+  <div class="hm-tip" id="hm-tip" hidden></div>
 </div>
     </section>
     <section class="page" id="page-attendance" hidden>
@@ -1344,6 +1445,25 @@
       <button class="btn btn-ghost btn-sm"   onclick="closeAttNoteModal()">Cancel</button>
       <button class="btn btn-primary btn-sm" id="att-note-save-btn" onclick="saveAttNote()">Save Note</button>
     </div>
+  </div>
+</div>
+
+<!-- ── Work: one day for one member (all tasks, attendance, notes) ── -->
+<div id="dp-overlay" class="em-overlay dp-overlay hidden" onclick="if(event.target===this)closeDayPanel()">
+  <div class="em-modal dp-modal" role="dialog" aria-modal="true" aria-labelledby="dp-title">
+    <div class="em-header dp-header">
+      <div class="em-header-text">
+        <div class="dp-eyebrow" id="dp-date"></div>
+        <div class="em-title dp-title" id="dp-title"></div>
+        <div class="em-sub" id="dp-sub"></div>
+      </div>
+      <div class="em-header-actions">
+        <button class="em-close" id="dp-prev" onclick="shiftDayPanel(-1)" aria-label="Previous day" title="Previous day">&#8249;</button>
+        <button class="em-close" id="dp-next" onclick="shiftDayPanel(1)" aria-label="Next day" title="Next day">&#8250;</button>
+        <button class="em-close" onclick="closeDayPanel()" aria-label="Close">&#10005;</button>
+      </div>
+    </div>
+    <div class="em-body dp-body" id="dp-body"></div>
   </div>
 </div>
 
@@ -1637,7 +1757,7 @@
     }
   }
 
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closePopover(); closeModal(); closeAddMemberModal(); closeAttEditModal(); closeAttNoteModal(); } });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closePopover(); if (emState) closeModal(); else if (dayPanel) closeDayPanel(); closeAddMemberModal(); closeAttEditModal(); closeAttNoteModal(); } });
 
   /* ══════════════════════════════════════════════════════════════
      Manager Cell Modal  —  Preview → Edit two-mode flow
@@ -1762,7 +1882,7 @@
     if (!emState) return;
     /* Re-read from allData cache (no in-flight changes since we haven't saved) */
     const dayTasks = (allData[emState.username] && allData[emState.username][emState.date]) || {};
-    emState.taskData = dayTasks[emState.taskName] || {};
+    emState.taskData = dayTasks[emState.taskId] || {};
     showPreviewMode();
   }
 
@@ -3297,111 +3417,271 @@
     return { m, month, today, mData, dates, tasks, q, onlyMissing };
   }
 
+  /* ── Work: heatmap — one row per task, one tile per day; click a day → day panel ── */
+  // The number a task value counts towards its daily target (same rule as the server). null = no number.
+  function achievedValue(type, d) {
+    if (!d) return 0;
+    const ints = s => (String(s ?? '').match(/\d+/g) || []).reduce((a, n) => a + parseInt(n, 10), 0);
+    switch (type) {
+      case 'count': case 'count_note': return ints(d.value);
+      case 'links': case 'layers': return typeof d.total === 'number' ? d.total : (d.rows || []).reduce((a, r) => a + ints(r.value ?? r.links), 0);
+      case 'links_note': return String(d.links || '').split(/[\s,]+/).filter(Boolean).length;
+      default: return null;
+    }
+  }
+  const isWeekendISO = iso => [0, 6].includes(new Date(iso + 'T00:00:00Z').getUTCDay());
+  const tileLevel = pct => pct <= 0 ? 0 : pct < 40 ? 1 : pct < 80 ? 2 : pct < 100 ? 3 : 4;
+  const workAtt = {};            // "username|YYYY-MM" → { date: attendance record }
+  async function loadWorkAttendance(username, month) {
+    const key = username + '|' + month;
+    if (workAtt[key]) return;
+    workAtt[key] = {};
+    try {
+      const res = await fetch('/api/attendance/monthly/' + encodeURIComponent(username) + '/' + month, { credentials: 'same-origin' });
+      if (res.ok) for (const r of await res.json()) workAtt[key][r.date] = r;
+      if (currentPage === 'work' || currentPage === 'profile') renderSpreadsheet();
+    } catch { delete workAtt[key]; }
+  }
+
+  // Everything the heatmap, KPIs, tooltip and day panel need for one task on one day
+  function taskDay(task, dayData) {
+    const v = dayData ? dayData[task.taskId] : undefined;
+    const has = cellContentAny(v) || !!(v && v.sectionNote);
+    const amount = achievedValue(task.type, v);
+    const pct = task.dailyTarget > 0 && amount !== null ? Math.min(100, Math.round(amount / task.dailyTarget * 100)) : null;
+    return { v, has, amount, pct, note: !!(v && (v.sectionNote || ((task.type === 'note' || task.type === 'count_note' || task.type === 'links_note') && v.text))) };
+  }
+  // Target % for a whole day = average of the targeted tasks (missing = 0), like Overview/Reports
+  function dayTargetPct(tasks, dayData) {
+    const p = tasks.filter(t => t.dailyTarget > 0).map(t => taskDay(t, dayData).pct ?? 0);
+    return p.length ? Math.round(p.reduce((a, b) => a + b, 0) / p.length) : null;
+  }
+
   function renderSpreadsheet(opts = {}) {
     if (!members.length) return;
-    const { m, month, today, mData, dates, tasks, q, onlyMissing } = spreadsheetView();
+    const { m, month, today, mData, tasks, q, onlyMissing } = spreadsheetView();
     const allTasks = m.tasks || [];
-    const pastDays = monthDays(month).filter(d => d <= today);
+    const days = monthDays(month);
+    const pastDays = days.filter(d => d <= today);
+    const att = workAtt[m.username + '|' + month];
+    if (!att) loadWorkAttendance(m.username, month);
 
     document.getElementById('m-avatar').textContent = initials(m.display);
     document.getElementById('m-name').textContent   = m.display;
-    const submitted = pastDays.filter(d => dayHasEntry(mData[d])).length;
+    const submittedDays = pastDays.filter(d => dayHasEntry(mData[d]));
     document.getElementById('m-meta').textContent = allTasks.length + (allTasks.length === 1 ? ' task · ' : ' tasks · ') +
-      submitted + '/' + pastDays.length + ' days submitted';
+      submittedDays.length + '/' + pastDays.length + ' days submitted';
+
+    // Month KPIs: expected days = weekdays so far, plus any weekend day with an entry (as in Reports)
+    const expected = pastDays.filter(d => !isWeekendISO(d) || dayHasEntry(mData[d]) || (att && att[d] && att[d].startTime));
+    const worked = pastDays.filter(d => dayHasEntry(mData[d]) || (att && att[d] && att[d].startTime));
+    const dayPcts = worked.map(d => dayTargetPct(allTasks, mData[d])).filter(p => p !== null);
+    const targeted = allTasks.filter(t => t.dailyTarget > 0);
+    let hits = 0; expected.forEach(d => targeted.forEach(t => { if (taskDay(t, mData[d]).pct === 100) hits++; }));
+    let streak = 0; for (let d = dayHasEntry(mData[today]) ? today : addDaysISO(today, -1); dayHasEntry(mData[d]); d = addDaysISO(d, -1)) streak++;
+    const hours = att ? Object.values(att).reduce((a, r) => a + (r.totalWorkingMinutes || 0), 0) : null;
+    const kpi = (label, value, sub) => '<div class="wk-kpi"><span>' + label + '</span><b>' + value + '</b><small>' + sub + '</small></div>';
+    document.getElementById('wk-kpis').innerHTML =
+      kpi('Days submitted', submittedDays.length + ' / ' + expected.length, 'weekdays so far' + (expected.length > pastDays.filter(d => !isWeekendISO(d)).length ? ' + weekend days worked' : '')) +
+      kpi('Avg target', dayPcts.length ? Math.round(dayPcts.reduce((a, b) => a + b, 0) / dayPcts.length) + '%' : '—', dayPcts.length ? 'over ' + dayPcts.length + ' working day' + (dayPcts.length === 1 ? '' : 's') : 'no targeted day yet') +
+      kpi('Targets hit', targeted.length ? hits + ' / ' + targeted.length * expected.length : '—', targeted.length ? 'task-days at 100%' : 'no daily targets set') +
+      kpi('Streak · hours', streak + 'd · ' + (hours === null ? '…' : Math.round(hours / 60) + 'h'), 'days in a row · worked this month');
 
     const wrapper = document.getElementById('table-wrapper');
-    if (!dates.length || !tasks.length) {
-      wrapper.innerHTML = '<div class="state-overlay">' + (!tasks.length
-        ? (q ? 'No task matches “' + escHtml(q) + '”.' : 'No tasks assigned.')
-        : (onlyMissing ? 'No missing days in this month — every past day has an entry.' : 'No days to show.')) + '</div>';
+    if (!tasks.length) {
+      wrapper.innerHTML = '<div class="hm-empty">' + (q ? 'No task matches “' + escHtml(q) + '”.' : 'No tasks assigned.') + '</div>';
+      return;
+    }
+    if (onlyMissing && !pastDays.some(d => !isWeekendISO(d) && !dayHasEntry(mData[d])) && !tasks.some(t => pastDays.some(d => !isWeekendISO(d) && !taskDay(t, mData[d]).has))) {
+      wrapper.innerHTML = '<div class="hm-empty">No missing entries in this month — every past weekday has every task filled.</div>';
       return;
     }
 
-    let html = '<table><thead><tr><th>Task</th>';
-    dates.forEach(d => {
-      const isToday = d === today;
-      const { dow, date } = formatHeader(d);
-      html += '<th data-date="' + d + '" class="' + (isToday ? 'today-col' : d > today ? 'future-col' : '') + '">' + dow + '<br>' + date + '</th>';
-    });
-    html += '</tr></thead><tbody>';
+    const head = days.map(d => {
+      const dt = new Date(d + 'T00:00:00Z');
+      const cls = (d === today ? ' today' : '') + (d > today ? ' future' : '') + (isWeekendISO(d) ? ' we' : '');
+      return '<button type="button" class="hm-dh' + cls + '" data-date="' + d + '"' + (d > today ? ' disabled' : ' onclick="openDayPanel(this.dataset.date)"') +
+        ' aria-label="Open ' + formatFull(d) + '"><b>' + dt.getUTCDate() + '</b>' + 'SMTWTFS'[dt.getUTCDay()] + '</button>';
+    }).join('');
 
-    tasks.forEach(task => {
-      html += '<tr><td>' + escHtml(task.name) + '</td>';
-      dates.forEach(d => {
-        const isToday  = d === today;
-        const todayCls = isToday ? ' today-col' : '';
-        const entry       = mData[d] ? mData[d][task.taskId] : undefined;
-        const cell        = cellContent(entry, task.type);
-        const noteContent = getCellNoteContent(entry, task.type);
-        const hasNote     = !!noteContent;
+    // Attendance row (WFO / WFH and hours)
+    const attTiles = days.map(d => {
+      const r = att && att[d];
+      if (d > today) return '<span class="t future"></span>';
+      if (r && r.startTime) {
+        const h = r.totalWorkingMinutes ? Math.round(r.totalWorkingMinutes / 60) + 'h' : r.workMode || '•';
+        return '<button type="button" class="t att-' + (r.workMode === 'WFH' ? 'wfh' : 'wfo') + (d === today ? ' today' : '') + '" data-date="' + d + '" data-kind="att" onclick="openDayPanel(this.dataset.date)">' + escHtml(h) + '</button>';
+      }
+      return '<span class="t ' + (isWeekendISO(d) ? 'empty' : 'miss') + (d === today ? ' today' : '') + '" data-date="' + d + '" data-kind="att"></span>';
+    }).join('');
+    const attDays = att ? Object.values(att).filter(r => r.startTime && r.date <= today).length : null;
 
-        if (cell) {
-          const l2 = cell.line2 ? '<div class="cell-line2">' + escHtml(cell.line2) + '</div>' : '';
-          const l3 = cell.line3 ? '<div class="cell-line3">' + escHtml(cell.line3) + '</div>' : '';
-          /* NOTE badge has its own click (stopProp keeps the entry panel from also opening) */
-          const noteTag = hasNote
-            ? '<div><span class="cell-note-tag" style="cursor:pointer"' +
-              ' data-note="'  + escHtml(noteContent)   + '"' +
-              ' data-task="'  + escHtml(task.name)     + '"' +
-              ' data-label="Note"' +
-              ' onclick="event.stopPropagation();showCellNote(this)">NOTE</span></div>'
-            : '';
-          /* All filled cells open the entry panel (preview first) */
-          const editAttrs =
-            ' data-username="' + escHtml(m.username)  + '"' +
-            ' data-date="'     + escHtml(d)            + '"' +
-            ' data-taskid="'   + escHtml(task.taskId)  + '"' +
-            ' data-taskname="' + escHtml(task.name)    + '"' +
-            ' data-tasktype="' + escHtml(task.type)    + '"' +
-            ' onclick="openCellModal(this)"';
-          html += '<td class="filled-cell editable-cell' + (hasNote ? ' has-note' : '') + todayCls + '"' + editAttrs + '>' +
-            '<div class="cell-line1">' + escHtml(cell.line1) + '</div>' + l2 + l3 + noteTag +
-            '</td>';
-        } else {
-          html += '<td class="' + (d > today ? 'future-cell' : 'empty-cell') + todayCls + '"><span class="cell-empty">' + (d > today ? '' : '–') + '</span></td>';
-        }
-      });
-      html += '</tr>';
-    });
+    const rows = tasks.map(t => {
+      let sum = 0, hit = 0, filled = 0;
+      const tiles = days.map(d => {
+        if (d > today) return '<span class="t future"></span>';
+        const td = taskDay(t, mData[d]);
+        const we = isWeekendISO(d);
+        if (!td.has) return '<span class="t ' + (we ? 'empty' : 'miss') + (d === today ? ' today' : '') + '" data-date="' + d + '" data-taskid="' + escHtml(t.taskId) + '"></span>';
+        filled++; if (td.amount) sum += td.amount; if (td.pct === 100) hit++;
+        const lvl = td.pct === null ? 'done' : 'l' + Math.max(1, tileLevel(td.pct));
+        const label = td.amount !== null && td.amount !== undefined && (t.type !== 'note') ? String(td.amount) : '✓';
+        return '<button type="button" class="t ' + lvl + (we ? ' wkend has' : '') + (d === today ? ' today' : '') + (td.note ? ' note' : '') + '" data-date="' + d +
+          '" data-taskid="' + escHtml(t.taskId) + '" onclick="openDayPanel(this.dataset.date, this.dataset.taskid)">' + escHtml(label) + '</button>';
+      }).join('');
+      const unit = escHtml((t.label || '').toLowerCase());
+      const sumHtml = t.type === 'note'
+        ? '<b>' + filled + '</b><small>update' + (filled === 1 ? '' : 's') + '</small>'
+        : '<b>' + sum + ' <small>' + unit + '</small></b>' + (t.dailyTarget > 0
+          ? '<span class="chip ' + (hit / Math.max(1, expected.length) >= 0.5 ? 'chip--working' : 'chip--missing') + '" style="font-size:11px">Target hit ' + hit + '/' + expected.length + '</span>'
+          : '<small>no target</small>');
+      return '<div class="hm-r" data-taskid="' + escHtml(t.taskId) + '"><div class="hm-c"><b title="' + escHtml(t.name) + '">' + escHtml(t.name) + '</b>' +
+        '<span class="type-chip type-' + t.type + '">' + (TYPE_NAME[t.type] || escHtml(t.type)) + '</span>' +
+        '<small>' + (t.dailyTarget > 0 ? 'Target ' + t.dailyTarget + ' ' + unit + '/day' : 'No daily target') + '</small></div>' +
+        '<div class="hm-days">' + tiles + '</div><div class="hm-s">' + sumHtml + '</div></div>';
+    }).join('');
 
-    /* ── Manager Note row — only shown if any date has one ── */
-    const hasAnyMgrNote = dates.some(d => mData[d] && mData[d]['_managerNote']);
-    if (hasAnyMgrNote) {
-      html += '<tr><td style="color:var(--gold);font-style:italic;font-size:10px;font-weight:700;">📋 Note for Manager</td>';
-      dates.forEach(d => {
-        const isToday  = d === today;
-        const todayCls = isToday ? ' today-col' : '';
-        const note     = mData[d] ? (mData[d]['_managerNote'] || '') : '';
-        if (note) {
-          html += '<td class="mgr-note-cell' + todayCls + '"' +
-            ' data-note="'  + escHtml(note) + '"' +
-            ' data-task="Note for Manager"' +
-            ' data-label="' + escHtml('Member Note — ' + m.display) + '"' +
-            ' onclick="showCellNote(this)">' +
-            '<div style="font-size:10px;color:var(--gold);word-break:break-word;">' +
-            escHtml(note.length > 55 ? note.slice(0, 55) + '…' : note) +
-            '</div></td>';
-        } else {
-          html += '<td class="empty-cell' + todayCls + '"><span class="cell-empty">–</span></td>';
-        }
-      });
-      html += '</tr>';
-    }
+    const mgrDays = days.filter(d => mData[d] && (mData[d]._managerNote || '').trim());
+    const mgrRow = mgrDays.length ? '<div class="hm-r"><div class="hm-c"><b>Note for Manager</b><small>written by the member</small></div><div class="hm-days">' +
+      days.map(d => (mData[d] && (mData[d]._managerNote || '').trim())
+        ? '<button type="button" class="t done note" data-date="' + d + '" data-kind="mgr" onclick="openDayPanel(this.dataset.date)">✎</button>'
+        : '<span class="t ' + (d > today ? 'future' : 'empty') + '"></span>').join('') +
+      '</div><div class="hm-s"><b>' + mgrDays.length + '</b><small>note' + (mgrDays.length === 1 ? '' : 's') + '</small></div></div>' : '';
 
-    html += '</tbody></table>';
-    wrapper.innerHTML = html;
+    wrapper.innerHTML = '<div class="hm' + (onlyMissing ? ' only-missing' : '') + '" style="--days:' + days.length + '">' +
+      '<div class="hm-r hm-h"><div class="hm-c">Task</div><div class="hm-days">' + head + '</div><div class="hm-s">This month</div></div>' +
+      '<div class="hm-r hm-att"><div class="hm-c"><b>Attendance</b><small>WFO / WFH · hours</small></div><div class="hm-days">' + attTiles + '</div>' +
+      '<div class="hm-s"><b>' + (attDays === null ? '…' : attDays) + '</b><small>days present</small></div></div>' +
+      rows + mgrRow + '</div>';
     if (opts.jump) scrollToToday();
+    if (dayPanel && dayPanel.username === m.username) renderDayPanel();
   }
+  const addDaysISO = (iso, n) => { const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 
-  /* Scroll the grid so today's column is in view (just right of the frozen task column) */
+  // Narrow screens scroll the heatmap sideways: bring today into view
   function scrollToToday() {
     const wrap = document.getElementById('table-wrapper');
-    const th = wrap.querySelector('th[data-date="' + todayISO() + '"]');
-    const first = wrap.querySelector('thead th');
+    const th = wrap.querySelector('.hm-dh[data-date="' + todayISO() + '"]');
+    const first = wrap.querySelector('.hm-h .hm-c');
     if (!th || !first) return;
-    // distance on screen from the frozen task column's right edge to today's column
-    const delta = th.getBoundingClientRect().left - first.getBoundingClientRect().right - 8;
-    wrap.scrollLeft = Math.max(0, wrap.scrollLeft + delta);
+    const delta = th.getBoundingClientRect().right - wrap.getBoundingClientRect().right + 24;
+    if (delta > 0) wrap.scrollLeft += delta;
+    th.classList.add('pulse'); setTimeout(() => th.classList.remove('pulse'), 1200);
+  }
+
+  // Hover tooltip: what was entered that day
+  function tileTipHtml(task, d, dayData) {
+    const td = taskDay(task, dayData), v = td.v || {};
+    let rows = '';
+    if (task.type === 'links' || task.type === 'layers')
+      rows = (v.rows || []).filter(r => r.client || r.value || r.links).slice(0, 6).map(r => '<div class="r"><span>' + escHtml(r.client || '(no client)') + '</span><span>' + escHtml(r.value || r.links || '') + '</span></div>').join('');
+    else if (task.type === 'links_note') rows = '<div class="r"><span>' + escHtml((v.links || '').split(/\s+/).filter(Boolean).length + ' link(s)') + '</span></div>';
+    if (v.text) rows += '<div class="r"><span>' + escHtml(String(v.text).slice(0, 80)) + '</span></div>';
+    if (v.sectionNote) rows += '<div class="r"><span>Note: ' + escHtml(String(v.sectionNote).slice(0, 80)) + '</span></div>';
+    const foot = task.dailyTarget > 0 ? '<div class="foot"><span>' + (td.amount || 0) + ' / ' + task.dailyTarget + '</span><span>' + (td.pct === 100 ? '✓ Target hit' : td.pct + '% of target') + '</span></div>'
+      : (td.amount !== null ? '<div class="foot"><span>' + td.amount + '</span></div>' : '');
+    return '<b>' + escHtml(formatFull(d)) + ' · ' + escHtml(task.name) + '</b>' + rows + foot;
+  }
+  (function wireHeatmapTips() {
+    const tip = () => document.getElementById('hm-tip');
+    document.addEventListener('mouseover', e => {
+      const t = e.target.closest && e.target.closest('#table-wrapper .t[data-date]');
+      if (!t) { if (tip() && !tip().hidden && !(e.target.closest && e.target.closest('#hm-tip'))) tip().hidden = true; return; }
+      const m = members[activeMember]; if (!m) return;
+      const d = t.dataset.date, dayData = (allData[m.username] || {})[d];
+      let html;
+      if (t.dataset.taskid) {
+        const task = (m.tasks || []).find(x => x.taskId === t.dataset.taskid);
+        html = task && taskDay(task, dayData).has ? tileTipHtml(task, d, dayData) : '<b>' + escHtml(formatFull(d)) + '</b><div class="r"><span>' + (task ? escHtml(task.name) + ' — no entry' : '') + '</span></div>';
+      } else if (t.dataset.kind === 'att') {
+        const r = (workAtt[m.username + '|' + d.slice(0, 7)] || {})[d];
+        html = '<b>' + escHtml(formatFull(d)) + ' · Attendance</b>' + (r && r.startTime
+          ? '<div class="r"><span>' + escHtml(r.workMode || '') + ' · ' + escHtml(r.startTime) + '–' + escHtml(r.endTime || 'now') + '</span><span>' + formatMins(r.totalWorkingMinutes || 0) + '</span></div>' +
+            (r.totalCheckOutMinutes ? '<div class="r"><span>Breaks</span><span>' + formatMins(r.totalCheckOutMinutes) + '</span></div>' : '')
+          : '<div class="r"><span>No attendance</span></div>');
+      } else if (t.dataset.kind === 'mgr') {
+        html = '<b>' + escHtml(formatFull(d)) + ' · Note for Manager</b><div class="r"><span>' + escHtml(String(dayData._managerNote).slice(0, 120)) + '</span></div>';
+      }
+      if (!html) return;
+      const el = tip(); el.innerHTML = html; el.hidden = false;
+      const r = t.getBoundingClientRect();
+      let left = r.left + r.width / 2 - 125, top = r.bottom + 8;
+      left = Math.max(8, Math.min(left, innerWidth - 258));
+      if (top + el.offsetHeight > innerHeight - 8) top = r.top - el.offsetHeight - 8;
+      el.style.left = left + 'px'; el.style.top = top + 'px';
+    });
+    document.addEventListener('scroll', () => { if (tip()) tip().hidden = true; }, true);
+  })();
+
+  /* ── Day panel: everything one member did on one day, with Edit per task ── */
+  let dayPanel = null;   // { username, date, focus }
+  function openDayPanel(date, focusTaskId) {
+    const m = members[activeMember]; if (!m) return;
+    document.getElementById('hm-tip').hidden = true;
+    dayPanel = { username: m.username, date, focus: focusTaskId || null };
+    document.getElementById('dp-overlay').classList.remove('hidden');
+    renderDayPanel();
+    loadWorkAttendance(m.username, date.slice(0, 7));
+  }
+  function closeDayPanel() { document.getElementById('dp-overlay').classList.add('hidden'); dayPanel = null; }
+  function shiftDayPanel(n) {
+    if (!dayPanel) return;
+    const d = addDaysISO(dayPanel.date, n);
+    if (d > todayISO()) return;
+    dayPanel.date = d; dayPanel.focus = null;
+    loadWorkAttendance(dayPanel.username, d.slice(0, 7));
+    renderDayPanel();
+  }
+  function renderDayPanel() {
+    if (!dayPanel) return;
+    const m = members.find(x => x.username === dayPanel.username); if (!m) return closeDayPanel();
+    const d = dayPanel.date, dayData = (allData[m.username] || {})[d] || {};
+    const tasks = m.tasks || [];
+    const done = tasks.filter(t => taskDay(t, dayData).has).length;
+    const pct = dayTargetPct(tasks, dayData);
+    const r = (workAtt[m.username + '|' + d.slice(0, 7)] || {})[d];
+    document.getElementById('dp-date').textContent = new Date(d + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' }) + ' · ' + m.display;
+    document.getElementById('dp-title').textContent = done + ' of ' + tasks.length + ' task' + (tasks.length === 1 ? '' : 's') + (pct === null ? '' : ' · ' + pct + '% of target');
+    document.getElementById('dp-sub').textContent = r && r.startTime
+      ? 'Worked ' + r.startTime + '–' + (r.endTime || 'now') + ' · ' + (r.workMode || '') + (r.totalWorkingMinutes ? ' · ' + formatMins(r.totalWorkingMinutes) : '') + (r.totalCheckOutMinutes ? ' · ' + formatMins(r.totalCheckOutMinutes) + ' break' : '')
+      : (isWeekendISO(d) ? 'Weekend · no attendance' : 'No attendance recorded');
+    document.getElementById('dp-next').disabled = addDaysISO(d, 1) > todayISO();
+
+    const body = tasks.map(t => {
+      const td = taskDay(t, dayData), v = td.v || {};
+      let detail = '';
+      if (td.has) {
+        if ((t.type === 'links' || t.type === 'layers') && v.rows) detail += '<div class="dp-chips">' + v.rows.filter(x => x.client || x.value || x.links).map(x => '<span class="dp-chip">' + escHtml(x.client || '(no client)') + ' · ' + escHtml(x.value || x.links || '') + '</span>').join('') + '</div>';
+        if (v.links) detail += '<div class="dp-links">' + String(v.links).split(/\s+/).filter(Boolean).slice(0, 12).map(l => '<span>' + escHtml(l) + '</span>').join('') + '</div>';
+        if (v.text) detail += '<div class="dp-text">' + escHtml(v.text) + '</div>';
+        if (v.sectionNote) detail += '<div class="dp-note">Note: ' + escHtml(v.sectionNote) + '</div>';
+      }
+      const val = !td.has ? '<span class="dp-val miss">No entry</span>'
+        : t.dailyTarget > 0 ? '<span class="dp-val">' + (td.amount || 0) + ' / ' + t.dailyTarget + ' ' + escHtml((t.label || '').toLowerCase()) + '</span>'
+        : td.amount !== null ? '<span class="dp-val">' + td.amount + ' ' + escHtml((t.label || '').toLowerCase()) + '</span>' : '<span class="dp-val">Written</span>';
+      return '<div class="dp-task' + (td.pct === 100 ? ' hit' : '') + (dayPanel.focus === t.taskId ? ' focus' : '') + '" data-taskid="' + escHtml(t.taskId) + '">' +
+        '<div class="dp-task-top"><b>' + escHtml(t.name) + '</b><span class="type-chip type-' + t.type + '">' + (TYPE_NAME[t.type] || escHtml(t.type)) + '</span>' + val + '</div>' +
+        (t.dailyTarget > 0 ? '<span class="progress-bar" style="--value:' + (td.pct || 0) + '"><span></span></span>' : '') + detail +
+        '<button type="button" class="btn btn-ghost btn-xs dp-edit" data-taskid="' + escHtml(t.taskId) + '" onclick="editFromDayPanel(this.dataset.taskid)">' + (td.has ? 'Edit' : '+ Add entry') + '</button></div>';
+    }).join('') || '<p class="page-sub">No tasks assigned.</p>';
+    const mgr = (dayData._managerNote || '').trim();
+    document.getElementById('dp-body').innerHTML = body +
+      (mgr ? '<div class="dp-mgr"><div class="dp-eyebrow">Note for Manager</div><div class="dp-text">' + escHtml(mgr) + '</div></div>' : '');
+    if (dayPanel.focus) {
+      const f = document.querySelector('#dp-body .dp-task[data-taskid="' + CSS.escape(dayPanel.focus) + '"]');
+      if (f) f.scrollIntoView({ block: 'nearest' });
+    }
+  }
+  // Edit one task of the open day in the entry panel (opens straight in edit mode, above the day panel)
+  function editFromDayPanel(taskId) {
+    if (!dayPanel) return;
+    const m = members.find(x => x.username === dayPanel.username);
+    const t = m && (m.tasks || []).find(x => x.taskId === taskId); if (!t) return;
+    const el = document.createElement('div');
+    Object.entries({ username: m.username, date: dayPanel.date, taskid: t.taskId, taskname: t.name, tasktype: t.type })
+      .forEach(([k, v]) => el.setAttribute('data-' + k, v));
+    openCellModal(el);
+    switchToEditMode();
   }
   function jumpToToday() {
     const el = document.getElementById('work-month');
