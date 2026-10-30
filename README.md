@@ -100,6 +100,22 @@ All data is in MongoDB:
 
 ---
 
+## Before promoting V2 to production
+
+The first V2 start converts old entries (keyed by task name) to task IDs, once, after
+backing up the old collections. Rehearse it on a **copy** of the production database first —
+the script only reads:
+
+```bash
+MONGODB_URI="<copy of the production database>" node scripts/migration-dry-run.js
+```
+
+It must end with "✓ Every old value maps to a task. Safe to promote." Then run
+`npm run promote` (it asks you to confirm the rehearsal passed).
+
+After launch, Settings marks accounts that still use their original password (the one that
+was written in the old code); reset those.
+
 ## What changed in V2
 
 - **Screen monitoring was removed.** There is no screen sharing, no screenshots and no

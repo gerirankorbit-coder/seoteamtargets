@@ -640,6 +640,9 @@
   .acc-actions-th { text-align: right; }
   .acc-table tr.acc-inactive .team-member-name, .acc-table tr.acc-inactive .avatar-sm { opacity: .55; }
   .settings-foot { margin-top: 12px; max-width: 760px; }
+  .pw-alert { margin-bottom: 14px; padding: 12px 16px; border-radius: var(--radius-card); font-size: 13px; line-height: 1.55;
+              background: var(--ro-warning-bg); color: var(--ro-warning-text); border: 1px solid color-mix(in srgb, var(--ro-warning-text) 25%, transparent); }
+  .pw-alert b { font-weight: 600; } .pw-alert .link-btn { color: inherit; text-decoration: underline; }
   .pw-row { display: flex; gap: 8px; } .pw-row .inp { flex: 1; font-family: var(--font-mono); }
   .mono { font-family: var(--font-mono); text-transform: none; letter-spacing: 0; }
   #dlg-body p { font-size: 13px; line-height: 1.5; color: var(--ro-text); }
@@ -1378,11 +1381,12 @@
       <div class="page-head">
         <div><h1 class="page-title">Settings</h1><p class="page-sub">Team accounts: add members, reset passwords, deactivate or remove.</p></div>
       </div>
+      <div class="pw-alert" id="pw-alert" hidden></div>
       <div class="card team-table-card">
         <div class="team-filters">
           <label class="team-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input id="acc-search" type="search" placeholder="Search by name or username" autocomplete="off" oninput="renderSettings()" aria-label="Search accounts"></label>
           <select class="inp" id="acc-status" onchange="renderSettings()" aria-label="Status">
-            <option value="">All accounts</option><option value="active">Active</option><option value="inactive">Deactivated</option>
+            <option value="">All accounts</option><option value="active">Active</option><option value="inactive">Deactivated</option><option value="default">Original password</option>
           </select>
           <span class="team-count" id="acc-count"></span>
           <button class="btn btn-primary btn-sm" id="acc-add-btn" onclick="openAddMemberModal()" hidden>&#43; Add member</button>
@@ -3278,13 +3282,22 @@
     const st = document.getElementById('acc-status').value;
     const rows = accData.filter(a =>
       (!q || a.display.toLowerCase().includes(q) || a.username.includes(q)) &&
-      (!st || (st === 'active' ? a.active : !a.active)));
+      (!st || (st === 'active' ? a.active : st === 'default' ? a.defaultPassword : !a.active)));
+    // Accounts still on the password that was written in the old code (visible in git history)
+    const stale = accData.filter(a => a.defaultPassword);
+    const alert = document.getElementById('pw-alert');
+    alert.hidden = !stale.length;
+    if (stale.length) alert.innerHTML = '<b>' + stale.length + ' account' + (stale.length === 1 ? ' still uses its' : 's still use their') + ' original password.</b> ' +
+      'Those passwords were written in the old version of the code, so anyone who can read the code history knows them. ' +
+      'Reset each one (Reset password) and share the new password privately. ' +
+      '<button type="button" class="link-btn" onclick="document.getElementById(\'acc-status\').value=\'default\';renderSettings()">Show them</button>';
     document.getElementById('acc-count').textContent = rows.length + ' of ' + accData.length;
     const me = meInfo.username;
     tbody.innerHTML = rows.map(a => {
       const locked = a.role === 'manager' || a.username === me;
       const btn = (act, label, cls = '') => '<button type="button" class="btn btn-ghost btn-xs ' + cls + '" data-act="' + act + '" data-username="' + escHtml(a.username) + '" onclick="accountAction(this.dataset.act,this.dataset.username)">' + label + '</button>';
-      const actions = locked ? '<span class="muted">' + (a.username === me ? 'You' : 'Manager') + '</span>'
+      const actions = a.username === me ? btn('password', 'Change my password')
+        : locked ? '<span class="muted">Manager</span>'
         : [isManager ? btn('edit', 'Edit') : '', btn('password', 'Reset password'),
            isManager ? (a.active ? btn('deactivate', 'Deactivate') : btn('activate', 'Activate')) : '',
            isManager ? btn('remove', 'Remove', 'btn-remove-member') : ''].join('');
@@ -3293,7 +3306,8 @@
         '<span class="team-member-name">' + escHtml(a.display) + '</span><span class="team-member-user">' + escHtml(a.username) + '</span></span></span></td>' +
         '<td>' + (ROLE_LABEL[a.role] || escHtml(a.role)) + '</td>' +
         '<td>' + (a.shift ? SHIFT_NAME[a.shift] || escHtml(a.shift) : '<span class="muted">—</span>') + '</td>' +
-        '<td>' + (a.active ? '<span class="chip chip--working">Active</span>' : '<span class="chip chip--offline">Deactivated</span>') + '</td>' +
+        '<td>' + (a.active ? '<span class="chip chip--working">Active</span>' : '<span class="chip chip--offline">Deactivated</span>') +
+          (a.defaultPassword ? ' <span class="chip chip--break" title="Still the password from the old code — reset it">Original password</span>' : '') + '</td>' +
         '<td class="muted">' + (a.role === 'member' ? timeAgo(a.lastActiveAt) : '—') + '</td>' +
         '<td><span class="acc-actions">' + actions + '</span></td></tr>';
     }).join('') || '<tr><td colspan="6" class="ov-loading">No account matches these filters.</td></tr>';
@@ -3341,8 +3355,10 @@
       msg = 'Saved ' + a.display;
     } else if (act === 'password') {
       done = await openDialog({
-        title: 'Reset password', okText: 'Update password',
-        body: '<p>New password for ' + who + '. They are signed out on every device right away.</p>' +
+        title: a.username === meInfo.username ? 'Change my password' : 'Reset password', okText: 'Update password',
+        body: (a.username === meInfo.username
+                ? '<p>Your new password. You are signed out everywhere and sign in again with it.</p>'
+                : '<p>New password for ' + who + '. They are signed out on every device right away.</p>') +
               '<div class="form-group"><label class="form-label" for="dlg-pw">New password</label>' +
               '<span class="pw-row"><input class="inp" id="dlg-pw" type="text" autocomplete="off" placeholder="Min 6 characters" spellcheck="false">' +
               '<button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById(\'dlg-pw\').value=randomPassword()">Generate</button></span></div>' +
@@ -3355,6 +3371,7 @@
         },
       });
       msg = 'Password updated for ' + a.display + ' — signed out everywhere';
+      if (done && a.username === meInfo.username) { window.location.href = '/login?reason=password_changed'; return; }
     } else if (act === 'deactivate' || act === 'activate') {
       const on = act === 'activate';
       done = await openDialog({

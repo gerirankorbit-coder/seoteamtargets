@@ -4,7 +4,8 @@
 #   npm run promote        (or: bash scripts/promote-to-prod.sh)
 #
 # What it does, in order — and it stops at the first problem:
-#   1. Asks you to type PROMOTE.
+#   1. Asks you to type PROMOTE, and to confirm the migration rehearsal passed
+#      (scripts/migration-dry-run.js on a COPY of the production database).
 #   2. Checks you are on staging-v2 with no uncommitted or untracked changes,
 #      and that staging-v2 is fully pushed to GitHub.
 #   3. Runs a quick syntax check on server.js.
@@ -28,6 +29,12 @@ cd "$(git rev-parse --show-toplevel)"
 say "This will merge '$STAGING_BRANCH' into '$PROD_BRANCH' and deploy it to the LIVE site."
 read -r -p "Type PROMOTE to continue: " answer
 [ "$answer" = "PROMOTE" ] || fail "Not confirmed — nothing was changed."
+
+say "The first V2 start converts old entries to task IDs (once). Rehearse it first on a COPY of production:"
+echo '    MONGODB_URI="<copy of the production database>" node scripts/migration-dry-run.js'
+echo '  It writes nothing and must end with "✓ Every old value maps to a task. Safe to promote."'
+read -r -p "Did the rehearsal end with 'Safe to promote'? (yes/no): " rehearsed
+[ "$rehearsed" = "yes" ] || fail "Run the migration rehearsal first — nothing was changed."
 
 say "1/5  Checking the working tree…"
 current="$(git rev-parse --abbrev-ref HEAD)"

@@ -23,7 +23,13 @@ log in with your Vercel account and the page opens.
 
 ## Test logins
 
-Password for all three: `staging-test-123`
+The password for the test accounts is the value of `STAGING_TEST_PASSWORD` (on Vercel: the
+preview environment variable; locally: `.env.staging`). If it is not set, the default in
+`lib/staging-seed.js` is used — `npm run seed:staging` also prints it. These are fake test
+accounts on the staging database only.
+
+> Stop the local staging server before `npm run seed:staging`: a running server keeps
+> accounts removed by the reset in memory until it restarts.
 
 | Username | Opens |
 |---|---|
