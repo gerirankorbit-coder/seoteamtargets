@@ -938,26 +938,24 @@
        font: 600 10.5px/1 var(--font-body); font-variant-numeric: tabular-nums; color: var(--ro-text); background: var(--ro-surface-2); cursor: pointer;
        transition: transform .12s, box-shadow .12s; }
   button.t:hover { transform: scale(1.12); box-shadow: 0 2px 8px var(--ro-shadow-color); z-index: 1; }
-  .t.l1 { background: color-mix(in srgb, var(--ro-accent) 14%, var(--ro-surface)); }
-  .t.l2 { background: color-mix(in srgb, var(--ro-accent) 34%, var(--ro-surface)); }
-  .t.l3 { background: color-mix(in srgb, var(--ro-accent) 66%, var(--ro-surface)); color: #fff; }
-  .t.l4 { background: var(--ro-accent-fill); color: #fff; }
-  .t.done { background: color-mix(in srgb, var(--ro-success) 20%, var(--ro-surface)); color: var(--ro-success); }
-  .t.miss { background: transparent; border: 1.5px dashed color-mix(in srgb, var(--ro-danger) 45%, transparent); }
+  .t.done { background: var(--ro-accent-soft); color: var(--ro-text); }
+  .t.hit  { background: var(--ro-accent-fill); color: #fff; }
+  .t.miss { background: var(--ro-surface-2); cursor: default; }
+  .hm.only-missing .t.miss { background: transparent; border: 1.5px dashed color-mix(in srgb, var(--ro-danger) 50%, transparent); }
   .t.empty { background: transparent; cursor: default; }
   .t.future { background: transparent; border: 1px dashed var(--ro-border); opacity: .45; cursor: default; }
   .t.wkend:not(.has) { opacity: .45; }
   .t.today { box-shadow: 0 0 0 2px var(--ro-surface), 0 0 0 4px var(--ro-accent); }
   .t.note::after, .wk-dot { content: ''; position: absolute; top: 2px; right: 2px; width: 5px; height: 5px; border-radius: 50%; background: #F59E0B; }
-  .t.att-wfo { background: color-mix(in srgb, var(--ro-success) 22%, var(--ro-surface)); color: var(--ro-success); font-size: 9.5px; }
-  .t.att-wfh { background: color-mix(in srgb, var(--ro-info) 20%, var(--ro-surface)); color: var(--ro-info); font-size: 9.5px; }
+  .t.att-wfo { background: color-mix(in srgb, var(--ro-success) 55%, var(--ro-surface)); }
+  .t.att-wfh { background: color-mix(in srgb, var(--ro-info) 50%, var(--ro-surface)); }
   .hm-att .hm-c b { color: var(--ro-muted); font-weight: 600; }
   .hm-att { background: var(--ro-surface-2); } .hm-att .hm-c { background: var(--ro-surface-2); }
-  .hm.only-missing .t:not(.miss):not(.future) { opacity: .18; }
+  .hm.only-missing .t:not(.miss):not(.future) { opacity: .15; }
   .wk-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; padding: 11px 18px; border-top: 1px solid var(--ro-border); background: var(--ro-surface-2); font-size: 12px; color: var(--ro-muted); }
   .wk-legend > span { display: inline-flex; align-items: center; gap: 6px; }
-  .wk-legend .t { width: 14px; height: 14px; min-height: 0; border-radius: 4px; cursor: default; }
-  .wk-scale .t { margin: 0 -3px; }
+  .wk-legend .t { width: 14px; height: 14px; min-height: 0; border-radius: 4px; cursor: default; box-shadow: inset 0 0 0 1px var(--ro-border-2); }
+  .wk-legend .t.hit { box-shadow: none; }
   .wk-dot { position: static; display: inline-block; }
   .wk-legend-hint { margin-left: auto; }
   .hm-tip { position: fixed; z-index: 950; width: 250px; padding: 11px 13px; border-radius: 10px; background: var(--ro-text); color: var(--ro-bg); font-size: 12px; line-height: 1.5; box-shadow: 0 12px 32px rgba(0,0,0,.25); pointer-events: none; }
@@ -1214,9 +1212,9 @@
       <div class="state-overlay"><div class="spinner"></div> Loading data…</div>
     </div>
     <div class="wk-legend">
-      <span class="wk-scale">Less <i class="t l1"></i><i class="t l2"></i><i class="t l3"></i><i class="t l4"></i> More of target</span>
-      <span><i class="t miss"></i> Missed</span>
-      <span><i class="t done"></i> Done (no target)</span>
+      <span><i class="t hit"></i> Target reached</span>
+      <span><i class="t done"></i> Entry below target</span>
+      <span><i class="t miss"></i> No entry</span>
       <span><i class="wk-dot"></i> Has a note</span>
       <span class="wk-legend-hint">Click a day to see everything that day and edit it</span>
     </div>
@@ -3448,7 +3446,6 @@
     }
   }
   const isWeekendISO = iso => [0, 6].includes(new Date(iso + 'T00:00:00Z').getUTCDay());
-  const tileLevel = pct => pct <= 0 ? 0 : pct < 40 ? 1 : pct < 80 ? 2 : pct < 100 ? 3 : 4;
   const workAtt = {};            // "username|YYYY-MM" → { date: attendance record }
   async function loadWorkAttendance(username, month) {
     const key = username + '|' + month;
@@ -3467,7 +3464,7 @@
     const has = cellContentAny(v) || !!(v && v.sectionNote);
     const amount = achievedValue(task.type, v);
     const pct = task.dailyTarget > 0 && amount !== null ? Math.min(100, Math.round(amount / task.dailyTarget * 100)) : null;
-    return { v, has, amount, pct, note: !!(v && (v.sectionNote || ((task.type === 'note' || task.type === 'count_note' || task.type === 'links_note') && v.text))) };
+    return { v, has, amount, pct, note: !!(v && v.sectionNote) };
   }
   // Target % for a whole day = average of the targeted tasks (missing = 0), like Overview/Reports
   function dayTargetPct(tasks, dayData) {
@@ -3487,23 +3484,20 @@
     document.getElementById('m-avatar').textContent = initials(m.display);
     document.getElementById('m-name').textContent   = m.display;
     const submittedDays = pastDays.filter(d => dayHasEntry(mData[d]));
-    document.getElementById('m-meta').textContent = allTasks.length + (allTasks.length === 1 ? ' task · ' : ' tasks · ') +
-      submittedDays.length + '/' + pastDays.length + ' days submitted';
+    document.getElementById('m-meta').textContent = allTasks.length + (allTasks.length === 1 ? ' task' : ' tasks');
 
     // Month KPIs: expected days = weekdays so far, plus any weekend day with an entry (as in Reports)
     const expected = pastDays.filter(d => !isWeekendISO(d) || dayHasEntry(mData[d]) || (att && att[d] && att[d].startTime));
     const worked = pastDays.filter(d => dayHasEntry(mData[d]) || (att && att[d] && att[d].startTime));
     const dayPcts = worked.map(d => dayTargetPct(allTasks, mData[d])).filter(p => p !== null);
-    const targeted = allTasks.filter(t => t.dailyTarget > 0);
-    let hits = 0; expected.forEach(d => targeted.forEach(t => { if (taskDay(t, mData[d]).pct === 100) hits++; }));
     let streak = 0; for (let d = dayHasEntry(mData[today]) ? today : addDaysISO(today, -1); dayHasEntry(mData[d]); d = addDaysISO(d, -1)) streak++;
     const hours = att ? Object.values(att).reduce((a, r) => a + (r.totalWorkingMinutes || 0), 0) : null;
     const kpi = (label, value, sub) => '<div class="wk-kpi"><span>' + label + '</span><b>' + value + '</b><small>' + sub + '</small></div>';
     document.getElementById('wk-kpis').innerHTML =
-      kpi('Days submitted', submittedDays.length + ' / ' + expected.length, 'weekdays so far' + (expected.length > pastDays.filter(d => !isWeekendISO(d)).length ? ' + weekend days worked' : '')) +
-      kpi('Avg target', dayPcts.length ? Math.round(dayPcts.reduce((a, b) => a + b, 0) / dayPcts.length) + '%' : '—', dayPcts.length ? 'over ' + dayPcts.length + ' working day' + (dayPcts.length === 1 ? '' : 's') : 'no targeted day yet') +
-      kpi('Targets hit', targeted.length ? hits + ' / ' + targeted.length * expected.length : '—', targeted.length ? 'task-days at 100%' : 'no daily targets set') +
-      kpi('Streak · hours', streak + 'd · ' + (hours === null ? '…' : Math.round(hours / 60) + 'h'), 'days in a row · worked this month');
+      kpi('Days submitted', submittedDays.length + ' / ' + expected.length, 'working days so far') +
+      kpi('Avg target', dayPcts.length ? Math.round(dayPcts.reduce((a, b) => a + b, 0) / dayPcts.length) + '%' : '—', 'on days worked') +
+      kpi('Hours worked', hours === null ? '…' : Math.round(hours / 60) + 'h', 'this month') +
+      kpi('Streak', streak + (streak === 1 ? ' day' : ' days'), 'in a row with an entry');
 
     const wrapper = document.getElementById('table-wrapper');
     if (!tasks.length) {
@@ -3527,8 +3521,7 @@
       const r = att && att[d];
       if (d > today) return '<span class="t future"></span>';
       if (r && r.startTime) {
-        const h = r.totalWorkingMinutes ? Math.round(r.totalWorkingMinutes / 60) + 'h' : r.workMode || '•';
-        return '<button type="button" class="t att-' + (r.workMode === 'WFH' ? 'wfh' : 'wfo') + (d === today ? ' today' : '') + '" data-date="' + d + '" data-kind="att" onclick="openDayPanel(this.dataset.date)">' + escHtml(h) + '</button>';
+        return '<button type="button" class="t att-' + (r.workMode === 'WFH' ? 'wfh' : 'wfo') + (d === today ? ' today' : '') + '" data-date="' + d + '" data-kind="att" aria-label="' + escHtml(r.workMode || 'Present') + '" onclick="openDayPanel(this.dataset.date)"></button>';
       }
       return '<span class="t ' + (isWeekendISO(d) ? 'empty' : 'miss') + (d === today ? ' today' : '') + '" data-date="' + d + '" data-kind="att"></span>';
     }).join('');
@@ -3542,7 +3535,7 @@
         const we = isWeekendISO(d);
         if (!td.has) return '<span class="t ' + (we ? 'empty' : 'miss') + (d === today ? ' today' : '') + '" data-date="' + d + '" data-taskid="' + escHtml(t.taskId) + '"></span>';
         filled++; if (td.amount) sum += td.amount; if (td.pct === 100) hit++;
-        const lvl = td.pct === null ? 'done' : 'l' + Math.max(1, tileLevel(td.pct));
+        const lvl = td.pct === 100 ? 'hit' : 'done';
         const label = td.amount !== null && td.amount !== undefined && (t.type !== 'note') ? String(td.amount) : '✓';
         return '<button type="button" class="t ' + lvl + (we ? ' wkend has' : '') + (d === today ? ' today' : '') + (td.note ? ' note' : '') + '" data-date="' + d +
           '" data-taskid="' + escHtml(t.taskId) + '" onclick="openDayPanel(this.dataset.date, this.dataset.taskid)">' + escHtml(label) + '</button>';
@@ -3550,11 +3543,9 @@
       const unit = escHtml((t.label || '').toLowerCase());
       const sumHtml = t.type === 'note'
         ? '<b>' + filled + '</b><small>update' + (filled === 1 ? '' : 's') + '</small>'
-        : '<b>' + sum + ' <small>' + unit + '</small></b>' + (t.dailyTarget > 0
-          ? '<span class="chip ' + (hit / Math.max(1, expected.length) >= 0.5 ? 'chip--working' : 'chip--missing') + '" style="font-size:11px">Target hit ' + hit + '/' + expected.length + '</span>'
-          : '<small>no target</small>');
+        : '<b>' + sum + ' <small>' + unit + '</small></b>' +
+          (t.dailyTarget > 0 ? '<small>on target ' + hit + '/' + expected.length + ' days</small>' : '<small>no target</small>');
       return '<div class="hm-r" data-taskid="' + escHtml(t.taskId) + '"><div class="hm-c"><b title="' + escHtml(t.name) + '">' + escHtml(t.name) + '</b>' +
-        '<span class="type-chip type-' + t.type + '">' + (TYPE_NAME[t.type] || escHtml(t.type)) + '</span>' +
         '<small>' + (t.dailyTarget > 0 ? 'Target ' + t.dailyTarget + ' ' + unit + '/day' : 'No daily target') + '</small></div>' +
         '<div class="hm-days">' + tiles + '</div><div class="hm-s">' + sumHtml + '</div></div>';
     }).join('');
@@ -3568,7 +3559,7 @@
 
     wrapper.innerHTML = '<div class="hm' + (onlyMissing ? ' only-missing' : '') + '" style="--days:' + days.length + '">' +
       '<div class="hm-r hm-h"><div class="hm-c">Task</div><div class="hm-days">' + head + '</div><div class="hm-s">This month</div></div>' +
-      '<div class="hm-r hm-att"><div class="hm-c"><b>Attendance</b><small>WFO / WFH · hours</small></div><div class="hm-days">' + attTiles + '</div>' +
+      '<div class="hm-r hm-att"><div class="hm-c"><b>Attendance</b><small>green WFO · blue WFH</small></div><div class="hm-days">' + attTiles + '</div>' +
       '<div class="hm-s"><b>' + (attDays === null ? '…' : attDays) + '</b><small>days present</small></div></div>' +
       rows + mgrRow + '</div>';
     if (opts.jump) scrollToToday();
