@@ -49,7 +49,7 @@ const {
   TASK_TYPES, ENTRY_VERSION, publicTask, cleanTaskInput, newTaskId, tasksForUser, tasksByUser,
   entryTasksV2, saveMemberTaskList, resetMemberTasks, setAssignees, migrateToTaskIds,
 } = require('./lib/tasks');
-const { buildOverview } = require('./lib/overview');
+const { buildOverview, localNow } = require('./lib/overview');
 const { buildTeam, buildProfile, buildMySummary } = require('./lib/team');
 const { buildReport } = require('./lib/reports');
 
@@ -679,7 +679,10 @@ app.get('/api/me', async (req, res) => {
     ]);
     // name and shift straight from the database: another instance may have just changed them
     const u = (await User.findOne({ username: req.session.username }, { _id: 0, display: 1, shift: 1 }).lean()) || getUser(req.session.username) || {};
+    const days = await memberDays(req.session.username);
     res.json({ username: req.session.username, display: u.display || req.session.display, role: req.session.role,
+               today: days.today, editableDates: days.editable,
+               timeZone: process.env.APP_TIMEZONE || 'Asia/Karachi',   // attendance times are in this zone
                shift: u.shift || null, tasks, historyTasks });
   } catch (err) {
     console.error('Me error:', err);
@@ -750,6 +753,9 @@ app.post('/api/save', async (req, res) => {
   const { date, tasks, partial } = req.body;
   if (!date || !tasks) return res.status(400).json({ error: 'Missing required fields' });
   try {
+    // Past and future days are locked for members; the manager edits those from Work
+    if (req.session.role === 'member' && !(await memberDays(req.session.username)).editable.includes(date))
+      return res.status(403).json({ error: LOCKED_MSG });
     await saveEntry(req.session.username, date, tasks, { partial: !!partial });
     res.json({ success: true });
   } catch (err) {
@@ -1153,11 +1159,6 @@ app.delete('/api/admin/members/:username', requireManagerOnly, async (req, res) 
 });
 
 // ── Attendance helpers ─────────────────────────────────────────────────────
-function currentTimeStr() {
-  const now = new Date();
-  return String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
-}
-
 function timeToMinutes(timeStr) {
   if (!timeStr) return 0;
   const [h, m] = timeStr.split(':').map(Number);
@@ -1193,16 +1194,37 @@ function recalcWorkMins(record) {
   }
 }
 
+// ── Records belong to the day they happen ──────────────────────────────────
+// Attendance times come from the SERVER clock (team time zone), never from the browser,
+// and members can only write today's records — plus yesterday's while a night shift that
+// started yesterday is still open. Older (and future) days are locked; only the manager
+// can change them.
+const addDay = (iso, n) => { const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+function shiftOpen(r) {
+  if (!r || !r.startTime) return false;
+  const sessions = r.sessions || [];
+  return sessions.length ? sessions.some(s => s.startTime && !s.endTime) : !r.endTime;
+}
+async function memberDays(username) {
+  const today = localNow().date, yesterday = addDay(today, -1);
+  const y = await Attendance.findOne({ username, date: yesterday }, { startTime: 1, endTime: 1, sessions: 1 }).lean();
+  return { today, yesterday, editable: shiftOpen(y) ? [yesterday, today] : [today], nightShiftOpen: shiftOpen(y) };
+}
+const LOCKED_MSG = 'This day is locked. Ask your manager if something needs to change.';
+
 // ── Attendance routes ──────────────────────────────────────────────────────
 
 // POST /api/attendance/start — start a working session (supports multiple sessions per day)
 app.post('/api/attendance/start', async (req, res) => {
-  const { workMode, time, date: reqDate } = req.body;
+  const { workMode, date: reqDate } = req.body;
   if (!workMode || !['WFH', 'WFO'].includes(workMode))
     return res.status(400).json({ error: 'workMode must be WFH or WFO' });
-  // Feature 3: accept date from client for night-shift support; default to today
-  const date      = (reqDate && /^\d{4}-\d{2}-\d{2}$/.test(reqDate)) ? reqDate : new Date().toISOString().split('T')[0];
-  const startTime = time || currentTimeStr();
+  // The shift's day: today, or yesterday for a night shift that began before midnight
+  const clock     = localNow();
+  const date      = reqDate || clock.date;
+  if (date !== clock.date && date !== addDay(clock.date, -1))
+    return res.status(400).json({ error: 'You can only start today (or yesterday for a night shift).' });
+  const startTime = clock.time;   // server clock — the browser's time is never used
   try {
     const existing = await Attendance.findOne({ username: req.session.username, date });
     // Allow multiple sessions — never block a new start (each session is independent)
@@ -1227,9 +1249,12 @@ app.post('/api/attendance/start', async (req, res) => {
 
 // POST /api/attendance/end — end the current active session
 app.post('/api/attendance/end', async (req, res) => {
-  const { time, date: reqDate } = req.body;
-  const date    = (reqDate && /^\d{4}-\d{2}-\d{2}$/.test(reqDate)) ? reqDate : new Date().toISOString().split('T')[0];
-  const endTime = time || currentTimeStr();
+  const { date: reqDate } = req.body;
+  const clock = localNow();
+  const date  = reqDate || clock.date;
+  if (date !== clock.date && date !== addDay(clock.date, -1))
+    return res.status(400).json({ error: LOCKED_MSG });
+  const endTime = clock.time;   // server clock
   try {
     const record = await Attendance.findOne({ username: req.session.username, date });
     if (!record) return res.status(400).json({ error: 'No attendance record found for that date' });
@@ -1267,9 +1292,12 @@ app.post('/api/attendance/end', async (req, res) => {
 // regardless of how many End/Start cycles have happened that day.
 // The only guards are: (1) must have started today, (2) not already checked out.
 app.post('/api/attendance/checkout', async (req, res) => {
-  const { time, date: reqDate } = req.body;
-  const date    = (reqDate && /^\d{4}-\d{2}-\d{2}$/.test(reqDate)) ? reqDate : new Date().toISOString().split('T')[0];
-  const outTime = time || currentTimeStr();
+  const { date: reqDate } = req.body;
+  const clock = localNow();
+  const date  = reqDate || clock.date;
+  if (date !== clock.date && date !== addDay(clock.date, -1))
+    return res.status(400).json({ error: LOCKED_MSG });
+  const outTime = clock.time;   // server clock
   try {
     const record = await Attendance.findOne({ username: req.session.username, date });
     if (!record || !record.startTime)
@@ -1292,9 +1320,12 @@ app.post('/api/attendance/checkout', async (req, res) => {
 
 // POST /api/attendance/checkin — return from break
 app.post('/api/attendance/checkin', async (req, res) => {
-  const { time, date: reqDate } = req.body;
-  const date   = (reqDate && /^\d{4}-\d{2}-\d{2}$/.test(reqDate)) ? reqDate : new Date().toISOString().split('T')[0];
-  const inTime = time || currentTimeStr();
+  const { date: reqDate } = req.body;
+  const clock = localNow();
+  const date  = reqDate || clock.date;
+  if (date !== clock.date && date !== addDay(clock.date, -1))
+    return res.status(400).json({ error: LOCKED_MSG });
+  const inTime = clock.time;   // server clock
   try {
     const record = await Attendance.findOne({ username: req.session.username, date });
     if (!record) return res.status(400).json({ error: 'No attendance record found' });
@@ -1339,8 +1370,10 @@ app.put('/api/attendance/note/:id', requireAuth, async (req, res) => {
   try {
     const record = await Attendance.findById(req.params.id);
     if (!record) return res.status(404).json({ error: 'Record not found' });
-    if (req.session.role === 'member' && record.username !== req.session.username)
-      return res.status(403).json({ error: 'Access denied' });
+    if (req.session.role === 'member') {
+      if (record.username !== req.session.username) return res.status(403).json({ error: 'Access denied' });
+      if (!(await memberDays(req.session.username)).editable.includes(record.date)) return res.status(403).json({ error: LOCKED_MSG });
+    }
     record.note = String(note).trim();
     await record.save();
     if (record.username !== req.session.username) await bumpRev(record.username);
@@ -1353,9 +1386,11 @@ app.put('/api/attendance/note/:id', requireAuth, async (req, res) => {
 
 // GET /api/attendance/today — current user's today record
 app.get('/api/attendance/today', async (req, res) => {
-  const date = new Date().toISOString().split('T')[0];
   try {
-    const record = await Attendance.findOne({ username: req.session.username, date });
+    const { today, yesterday, nightShiftOpen } = await memberDays(req.session.username);
+    const record = await Attendance.findOne({ username: req.session.username, date: today });
+    // a night shift that started yesterday and is still open is "today's" shift
+    if (!shiftOpen(record) && nightShiftOpen) return res.json(await Attendance.findOne({ username: req.session.username, date: yesterday }));
     res.json(record || null);
   } catch (err) {
     res.status(500).json({ error: 'Database error' });
@@ -1418,16 +1453,12 @@ app.put('/api/attendance/edit/:id', async (req, res) => {
   const { field, newValue } = req.body;
   if (!field || newValue === undefined)
     return res.status(400).json({ error: 'field and newValue are required' });
-  const memberEditableFields = ['startTime', 'endTime', 'checkOuts'];
+  // Attendance times are records: only the manager (or assistant) corrects them
+  if (req.session.role === 'member')
+    return res.status(403).json({ error: 'Only your manager can change attendance times.' });
   try {
     const record = await Attendance.findById(req.params.id);
     if (!record) return res.status(404).json({ error: 'Record not found' });
-    if (req.session.role === 'member') {
-      if (record.username !== req.session.username)
-        return res.status(403).json({ error: 'Access denied' });
-      if (!memberEditableFields.includes(field))
-        return res.status(403).json({ error: 'You can only edit time fields' });
-    }
     const oldValue = JSON.stringify(record[field] !== undefined ? record[field] : '');
     record.editHistory.push({
       field,

@@ -42,7 +42,14 @@ For a throw-away local copy with test data only, use the staging setup instead
   from **Settings**. Resetting a password signs that person out on every device.
 - **Assistants** use the manager dashboard and can reset member passwords, but cannot add,
   deactivate or remove accounts.
-- **Team members** use the Member Portal.
+- **Team members** use the Member Portal. Records are theirs to create, not to change:
+  - they fill and update **today's** tasks (and yesterday's while a night shift that started
+    yesterday is still open); past and future days are read-only;
+  - attendance (start, break, resume, end) is stamped with the **server clock** in the team
+    time zone (`APP_TIMEZONE`, default Asia/Karachi) — the browser's time is never used;
+  - they cannot edit attendance times or past attendance notes, nor add, rename or retarget
+    tasks, nor change their name, shift or password. The manager corrects records from the
+    dashboard (attendance edits keep an edit history).
 - A brand-new deployment can create its first accounts from the `SEED_USER_PASSWORDS`
   environment variable (see `.env.example`).
 

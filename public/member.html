@@ -126,6 +126,7 @@
   .view-row { display: flex; gap: 8px; font-size: 13.5px; } .view-row .muted { white-space: nowrap; }
   .view-text { white-space: pre-wrap; word-break: break-word; color: var(--ro-text); font-size: 13.5px; line-height: 1.5; }
   .view-note { font-size: 13px; color: var(--ro-muted); white-space: pre-wrap; }
+  .lock-note { margin: -4px 0 16px; padding: 10px 14px; border-radius: 10px; font-size: 13px; color: var(--ro-muted); background: var(--ro-surface-2); border: 1px solid var(--ro-border); }
   .empty-state { grid-column: 1 / -1; text-align: center; padding: 48px 20px; color: var(--ro-muted); background: var(--ro-surface); border: 1px dashed var(--ro-border); border-radius: var(--radius-card); }
 
   /* Note for Manager */
@@ -262,6 +263,7 @@
       </div>
     </div>
 
+    <p class="lock-note" id="lock-note" hidden>🔒 This day is locked — past days are records and can’t be changed here. Ask your manager if something needs to be corrected.</p>
     <div class="tasks-grid" id="tasks-grid"><div class="empty-state">Loading your tasks…</div></div>
 
     <section class="card mgr-note" aria-labelledby="mgr-note-title">
@@ -332,18 +334,6 @@
   </div>
 </div>
 
-<!-- Edit attendance times (own record; every change is kept in the edit history) -->
-<div class="dlg-overlay" id="mat-overlay" hidden onclick="if(event.target===this)closeAttEdit()">
-  <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="mat-title">
-    <div class="dlg-head"><h2 id="mat-title">Edit times</h2><button class="dlg-close" onclick="closeAttEdit()" aria-label="Close">&#10005;</button></div>
-    <div class="dlg-body" id="mat-body"></div>
-    <div class="dlg-foot">
-      <button class="btn btn-ghost btn-sm" onclick="closeAttEdit()">Cancel</button>
-      <button class="btn btn-primary btn-sm" id="mat-save" onclick="saveAttEdit()">Save</button>
-    </div>
-  </div>
-</div>
-
 <script>
   /* ── 401: password changed / deactivated → back to login ── */
   (function() {
@@ -371,6 +361,8 @@
   let selectedDate = todayISO();
   let currentDateData = {};    // last saved entry for selectedDate
   let editing = new Set();     // taskIds whose card is in edit mode
+  let editableDates = [];      // days the member may still write (today; yesterday during an open night shift)
+  const isLocked = d => !editableDates.includes(d);
   let summary = null;          // /api/my/summary
   let attRecord = null;        // today's attendance record
   let view = 'today';
@@ -379,6 +371,13 @@
   function todayISO() { return new Date().toISOString().split('T')[0]; }
   const pad2 = n => String(n).padStart(2, '0');
   const nowHM = () => { const n = new Date(); return pad2(n.getHours()) + ':' + pad2(n.getMinutes()); };
+  // Attendance times are written by the server in the team's time zone, so the live timer
+  // counts in that zone too (a computer set to another zone still shows the right hours).
+  function teamNow() {
+    const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: (me && me.timeZone) || 'Asia/Karachi',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }).formatToParts(new Date()).map(x => [x.type, +x.value]));
+    return { h: parts.hour, m: parts.minute, s: parts.second };
+  }
   const escHtml = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   const extractInt = str => (String(str).match(/\d+/g) || []).reduce((s, n) => s + parseInt(n, 10), 0);
   const addDays = (iso, n) => { const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
@@ -453,8 +452,8 @@
     const st = attState(r);
     if (st === 'idle') return 0;
     if (st === 'ended') return r.totalWorkingMinutes || 0;
-    const now = new Date();
-    let nowM = now.getHours() * 60 + now.getMinutes() + (withSeconds ? now.getSeconds() / 60 : 0);
+    const tn = teamNow();
+    let nowM = tn.h * 60 + tn.m + (withSeconds ? tn.s / 60 : 0);
     const start = toMin(r.startTime || (r.sessions[0] || {}).startTime);
     if (start === null) return 0;
     if (nowM < start) nowM += 1440; // past midnight (night shift)
@@ -466,7 +465,7 @@
   function breakMinutes(r) {
     let b = (r && r.totalCheckOutMinutes) || 0;
     const open = r && (r.checkOuts || []).find(c => c.outTime && !c.inTime);
-    if (open) { const n = new Date(); let nowM = n.getHours() * 60 + n.getMinutes(); const o = toMin(open.outTime); if (nowM < o) nowM += 1440; b += nowM - o; }
+    if (open) { const tn = teamNow(); let nowM = tn.h * 60 + tn.m; const o = toMin(open.outTime); if (nowM < o) nowM += 1440; b += nowM - o; }
     return b;
   }
   const clock = mins => { const s = Math.floor(mins * 60); return Math.floor(s / 3600) + ':' + pad2(Math.floor(s / 60) % 60) + ':' + pad2(s % 60); };
@@ -485,7 +484,7 @@
           '<div class="mode-choice">' +
             '<button type="button" class="mode-btn" id="start-wfh" onclick="startDay(\'WFH\')"><b>WFH</b><span>Working from home</span></button>' +
             '<button type="button" class="mode-btn" id="start-wfo" onclick="startDay(\'WFO\')"><b>WFO</b><span>Working from the office</span></button></div>' +
-          '<div class="md-date-row"><label for="start-date">Shift date</label><input type="date" class="inp" id="start-date" value="' + todayISO() + '">' +
+          '<div class="md-date-row"><label for="start-date">Shift date</label><input type="date" class="inp" id="start-date" value="' + todayISO() + '" min="' + addDays(todayISO(), -1) + '" max="' + todayISO() + '">' +
             '<span>Night shift that began yesterday? Pick that date.</span></div>' +
           '<button type="button" class="link-btn" onclick="startOpen=false;renderMyDay()">Cancel</button></div>'
         : '<div class="md-idle"><div class="md-lead">Ready when you are.</div>' +
@@ -517,7 +516,6 @@
       '<div class="md-actions">' + actions + '</div>' +
       '<div class="md-links">' +
         '<button type="button" class="link-btn" onclick="openAttNote()">' + (r.note ? 'Edit note' : 'Add note') + '</button>' +
-        '<button type="button" class="link-btn" onclick="openAttEdit(attRecord)">Edit times</button>' +
         '<span class="muted" id="md-team-break"></span></div>';
     renderBreakLine();
     if (st !== 'ended') mdTimer = setInterval(() => {
@@ -608,53 +606,6 @@
     } catch (e) { err.textContent = e.message; err.hidden = false; }
   }
 
-  /* Edit own times (start, end, breaks) — every change is kept in the edit history */
-  let matRecord = null;
-  function openAttEdit(r) {
-    if (!r) return;
-    matRecord = r;
-    const co = (r.checkOuts || []).map((c, i) =>
-      '<div class="co-row"><span class="muted" style="min-width:58px;font-size:12.5px">Break ' + (i + 1) + '</span>' +
-      '<input type="time" class="inp mat-co-out" value="' + escHtml(c.outTime || '') + '" aria-label="Break ' + (i + 1) + ' start">' +
-      '<span class="muted">→</span><input type="time" class="inp mat-co-in" value="' + escHtml(c.inTime || '') + '" aria-label="Break ' + (i + 1) + ' end"></div>').join('')
-      || '<p class="muted" style="margin:0;font-size:13px">No breaks recorded.</p>';
-    const hist = (r.editHistory || []).slice().reverse().map(h =>
-      '<div class="hist-item"><b>' + escHtml(h.field) + '</b>: ' + escHtml(String(h.oldValue)) + ' → ' + escHtml(String(h.newValue)) +
-      '<br>by ' + escHtml(h.editedBy) + ' — ' + new Date(h.editedAt).toLocaleString() + '</div>').join('')
-      || '<p class="muted" style="margin:0;font-size:12.5px">No edits yet.</p>';
-    document.getElementById('mat-title').textContent = 'Edit times — ' + formatDay(r.date);
-    document.getElementById('mat-body').innerHTML =
-      '<div class="two-col"><div class="form-group"><label class="form-label" for="mat-start">Start</label><input type="time" class="inp" id="mat-start" value="' + escHtml(r.startTime || '') + '"></div>' +
-      '<div class="form-group"><label class="form-label" for="mat-end">End</label><input type="time" class="inp" id="mat-end" value="' + escHtml(r.endTime || '') + '"></div></div>' +
-      '<div class="form-group"><span class="form-label">Breaks (out → in)</span>' + co + '</div>' +
-      '<p class="dlg-error" id="mat-error" hidden></p>' +
-      '<div><span class="form-label">Edit history</span>' + hist + '</div>';
-    document.getElementById('mat-overlay').hidden = false;
-  }
-  function closeAttEdit() { document.getElementById('mat-overlay').hidden = true; matRecord = null; }
-  async function saveAttEdit() {
-    const r = matRecord; if (!r) return;
-    const err = document.getElementById('mat-error'); err.hidden = true;
-    const changes = [];
-    const start = document.getElementById('mat-start').value, end = document.getElementById('mat-end').value;
-    if (start !== (r.startTime || '')) changes.push({ field: 'startTime', newValue: start });
-    if (end !== (r.endTime || '')) changes.push({ field: 'endTime', newValue: end });
-    const outs = [...document.querySelectorAll('.mat-co-out')], ins = [...document.querySelectorAll('.mat-co-in')];
-    const co = outs.map((o, i) => ({ outTime: o.value, inTime: ins[i] ? ins[i].value : '' }));
-    if (outs.length && JSON.stringify(co) !== JSON.stringify((r.checkOuts || []).map(c => ({ outTime: c.outTime || '', inTime: c.inTime || '' }))))
-      changes.push({ field: 'checkOuts', newValue: co });
-    if (!changes.length) { closeAttEdit(); return; }
-    const btn = document.getElementById('mat-save'); btn.disabled = true;
-    try {
-      let rec = r;
-      for (const ch of changes) rec = (await api('/api/attendance/edit/' + r._id, 'PUT', ch)).record;
-      if (attRecord && String(attRecord._id) === String(r._id)) { attRecord = rec; renderMyDay(); }
-      closeAttEdit(); showToast('Times updated.', 'success');
-      if (view === 'history') loadAttendanceHistory();
-    } catch (e) { err.textContent = e.message; err.hidden = false; }
-    finally { btn.disabled = false; }
-  }
-
   async function refreshBreakCount() {
     try { breakCount = (await api('/api/attendance/checkout-count')).count || 0; } catch { breakCount = null; }
     renderBreakLine();
@@ -667,12 +618,14 @@
     const isToday = iso === todayISO();
     document.getElementById('date-display').textContent = isToday ? 'Today · ' + formatDay(iso) : formatDay(iso, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
     document.getElementById('date-picker-input').value = iso;
+    document.getElementById('date-picker-input').max = todayISO();
+    document.querySelector('.date-nav .arrow[aria-label="Next day"]').disabled = iso >= todayISO();
     document.getElementById('today-btn').hidden = isToday;
     document.getElementById('tasks-title').textContent = isToday ? "Today's tasks" : 'Tasks — ' + formatDay(iso, { weekday: 'long', day: 'numeric', month: 'long' });
     document.getElementById('tp-title').textContent = isToday ? 'Today' : formatDay(iso);
     loadDateData();
   }
-  function shiftDate(n) { setDate(addDays(selectedDate, n)); }
+  function shiftDate(n) { const d = addDays(selectedDate, n); if (d <= todayISO()) setDate(d); }
   function openDatePicker() { const el = document.getElementById('date-picker-input'); el.showPicker ? el.showPicker() : el.click(); }
 
   // Same rules as the server (lib/overview.js): what counts as "done" and the number for the target
@@ -748,13 +701,13 @@
     return '<article class="task-card' + (hasData(t.type, d) ? ' done' : '') + '" data-idx="' + i + '" data-task-id="' + escHtml(t.taskId) + '">' +
       '<div class="tc-head"><div class="tc-head-text"><h3 class="tc-name">' + escHtml(t.name) + '</h3><span class="type-chip">' + (TYPE_NAME[t.type] || escHtml(t.type)) + '</span></div>' +
         '<span class="save-state" aria-live="polite">' + (hasData(t.type, d) && !edit ? 'Saved ✓' : '') + '</span>' +
-        (edit ? '' : '<button type="button" class="btn btn-ghost btn-sm edit-btn" data-act="edit">Edit</button>') + '</div>' +
+        '</div>' +
       targetHtml(t, d) +
       (edit
         ? '<div class="tc-body">' + bodyHtml(t, d) + '</div>' +
           '<div class="tc-foot"><button type="button" class="link-btn note-toggle" data-act="note" style="align-self:flex-start"' + (note ? ' hidden' : '') + '>+ Note</button>' +
           '<textarea class="inp inp-section-note" rows="2" placeholder="Note for this task (optional)…"' + (note ? '' : ' hidden') + ' aria-label="Note for ' + escHtml(t.name) + '">' + escHtml(note) + '</textarea></div>'
-        : '<div class="tc-view">' + viewHtml(t, d) + (note ? '<div class="view-note">Note: ' + escHtml(note) + '</div>' : '') + '</div>') +
+        : '<div class="tc-view">' + (hasData(t.type, d) ? viewHtml(t, d) : '<p class="muted" style="margin:0;font-size:13px">No entry</p>') + (note ? '<div class="view-note">Note: ' + escHtml(note) + '</div>' : '') + '</div>') +
       '</article>';
   }
   function renderTasks() {
@@ -890,13 +843,7 @@
   grid.addEventListener('click', e => {
     const btn = e.target.closest('[data-act]'); if (!btn) return;
     const card = btn.closest('.task-card'), id = card.dataset.taskId;
-    if (btn.dataset.act === 'edit') {
-      editing.add(id);
-      const t = memberTasks[+card.dataset.idx];
-      card.outerHTML = cardHtml(t, +card.dataset.idx);
-      const first = document.querySelector('.task-card[data-task-id="' + CSS.escape(id) + '"] .tc-body .inp');
-      if (first) first.focus();
-    } else if (btn.dataset.act === 'note') {
+    if (btn.dataset.act === 'note') {
       btn.hidden = true; const ta = card.querySelector('.inp-section-note'); ta.hidden = false; ta.focus();
     } else if (btn.dataset.act === 'add-row') {
       const rows = card.querySelector('.rows'); rows.insertAdjacentHTML('beforeend', rowHtml('', ''));
@@ -925,12 +872,17 @@
       const [meNow, existing] = await Promise.all([api('/api/me'), api('/api/mydata/' + date)]);
       if (date !== selectedDate) return;
       memberTasks = meNow.tasks || []; historyTasks = meNow.historyTasks || memberTasks;
+      editableDates = meNow.editableDates || [todayISO()];
       currentDateData = existing || {};
     } catch { if (date !== selectedDate) return; currentDateData = {}; }
-    // Today: every card is open for typing. Other days: saved cards open read-only with an Edit button.
-    const isToday = date === todayISO();
-    editing = new Set(memberTasks.filter(t => isToday || !hasData(t.type, currentDateData[t.taskId])).map(t => t.taskId));
-    document.getElementById('manager-note-input').value = currentDateData._managerNote || '';
+    // Today (and an open night shift's day) is open for typing; every other day is a locked record
+    const locked = isLocked(date);
+    editing = locked ? new Set() : new Set(memberTasks.map(t => t.taskId));
+    const mn = document.getElementById('manager-note-input');
+    mn.value = currentDateData._managerNote || '';
+    mn.readOnly = locked;
+    mn.placeholder = locked ? 'No note for this day.' : 'e.g. Site was down for 2 hours, so guest posts are lower today.';
+    document.getElementById('lock-note').hidden = !locked;
     setCardState(null, '', '');
     renderTasks();
     updateEntryBadge();
@@ -1026,24 +978,19 @@
     const from = addDays(todayISO(), -29);
     const recent = attHistory.filter(r => r.date >= from).sort((a, b) => b.date.localeCompare(a.date));
     box.innerHTML = recent.length
-      ? '<div class="table-wrap"><table class="hist-table"><thead><tr><th>Date</th><th>Mode</th><th>Start</th><th>End</th><th>Breaks</th><th>Worked</th><th></th></tr></thead><tbody>' +
+      ? '<div class="table-wrap"><table class="hist-table"><thead><tr><th>Date</th><th>Mode</th><th>Start</th><th>End</th><th>Breaks</th><th>Worked</th></tr></thead><tbody>' +
         recent.map(r => '<tr><td class="hist-date">' + escHtml(formatDay(r.date)) + '</td>' +
           '<td>' + (r.workMode ? '<span class="mode-pill">' + escHtml(r.workMode) + '</span>' : '–') + '</td>' +
           '<td>' + escHtml(r.startTime || '–') + '</td><td>' + escHtml(r.endTime || '–') + '</td>' +
           '<td>' + (r.totalCheckOutMinutes ? formatMins(r.totalCheckOutMinutes) : '–') + '</td>' +
-          '<td><b>' + (r.totalWorkingMinutes ? formatMins(r.totalWorkingMinutes) : '–') + '</b></td>' +
-          '<td><button type="button" class="link-btn" data-rec="' + escHtml(r._id) + '">Edit</button></td></tr>').join('') +
+          '<td><b>' + (r.totalWorkingMinutes ? formatMins(r.totalWorkingMinutes) : '–') + '</b></td></tr>').join('') +
         '</tbody></table></div>'
       : '<div class="hist-empty">No attendance in the last 30 days.</div>';
   }
-  document.getElementById('hist-attendance').addEventListener('click', e => {
-    const b = e.target.closest('button[data-rec]'); if (!b) return;
-    openAttEdit(attHistory.find(r => String(r._id) === b.dataset.rec));
-  });
 
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
-    closeEndDay(); closeAttNote(); closeAttEdit();
+    closeEndDay(); closeAttNote();
   });
 
   async function logout() {
@@ -1097,9 +1044,8 @@
       currentDateData = { ...(dayNow || {}) };
       const shown = { ...currentDateData };
       newTasks.forEach(t => { if (busy(t.taskId) && live[t.taskId]) shown[t.taskId] = live[t.taskId]; });
-      const isToday = date === todayISO();
       const oldById = Object.fromEntries(oldTasks.map(t => [t.taskId, t]));
-      newTasks.forEach(t => { if (!oldById[t.taskId] && (isToday || !hasData(t.type, currentDateData[t.taskId]))) editing.add(t.taskId); });
+      newTasks.forEach(t => { if (!oldById[t.taskId] && !isLocked(date)) editing.add(t.taskId); });
       memberTasks = newTasks; historyTasks = meNow.historyTasks || newTasks;
       const existing = new Map([...grid.querySelectorAll('.task-card')].map(c => [c.dataset.taskId, c]));
       const nodes = newTasks.map((t, i) => {
