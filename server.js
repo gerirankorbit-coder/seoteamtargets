@@ -570,18 +570,18 @@ async function requireAuth(req, res, next) {
   }
   touchLastActive(req.session);
   // Removed or deactivated from Settings: the session ends (on every instance within 30 s)
+  // Answer only once the session is gone: the browser goes to /login straight away, and a
+  // session still in the store there would bounce it back to the portal
   if (removed || (currentUser && currentUser.active === false)) {
-    req.session.destroy(() => {});
-    if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'account_deactivated' });
-    return res.redirect('/login?reason=deactivated');
+    return req.session.destroy(() => req.path.startsWith('/api/')
+      ? res.status(401).json({ error: 'account_deactivated' }) : res.redirect('/login?reason=deactivated'));
   }
   if (currentUser) {
     const currentVer = currentUser.passwordVersion || 1;
     const sessionVer = req.session.passwordVersion  || 1;
     if (sessionVer !== currentVer) {
-      req.session.destroy(() => {});
-      if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'password_changed' });
-      return res.redirect('/login?reason=password_changed');
+      return req.session.destroy(() => req.path.startsWith('/api/')
+        ? res.status(401).json({ error: 'password_changed' }) : res.redirect('/login?reason=password_changed'));
     }
   }
   next();
