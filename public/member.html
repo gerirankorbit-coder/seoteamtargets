@@ -7,7 +7,7 @@
 <script>/* Theme before first paint — see /theme.js */(function(){var d=document.documentElement;try{var s=localStorage,u=s.getItem('ro_theme_user'),t=(u&&s.getItem('ro_theme:'+u))||s.getItem('ro_theme');if(t!=='light'&&t!=='dark')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';d.setAttribute('data-theme',t)}catch(e){d.setAttribute('data-theme','light')}})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="/style.css">
 <link rel="stylesheet" href="/design-system.css">
 <script src="/theme.js"></script>
@@ -126,6 +126,33 @@
   .view-row { display: flex; gap: 8px; font-size: 13.5px; } .view-row .muted { white-space: nowrap; }
   .view-text { white-space: pre-wrap; word-break: break-word; color: var(--ro-text); font-size: 13.5px; line-height: 1.5; }
   .view-note { font-size: 13px; color: var(--ro-muted); white-space: pre-wrap; }
+
+  /* Work log: one quick-add line, then a card per task with its lines */
+  .log-add { padding: 18px 20px; display: grid; gap: 10px; margin-bottom: 16px; }
+  .log-add-row { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.5fr) 170px auto; gap: 10px; align-items: end; }
+  .fld-qty { white-space: nowrap; }
+  #tasks-grid { grid-template-columns: 1fr; gap: 10px; }
+  .log-card { padding: 16px 18px; gap: 10px; }
+  .log-card .tc-head { align-items: center; flex-wrap: wrap; }
+  .log-card .tc-foot { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding-top: 10px; }
+  .log-card .tc-foot .inp-section-note { flex-basis: 100%; }
+  .log-card .tc-foot .save-state { order: 2; margin-left: auto; }
+  .fld { display: grid; gap: 5px; min-width: 0; font-size: 12px; font-weight: 600; color: var(--ro-muted); }
+  .fld b { font-weight: 600; }
+  .log-hint { margin: 0; font-size: 12.5px; color: var(--ro-muted); min-height: 18px; }
+  .log-hint.warn { color: var(--ro-warning, #B25E09); }
+  .tc-count { font-family: var(--font-mono, ui-monospace, monospace); font-size: 13px; white-space: nowrap; color: var(--ro-text); }
+  .log-lines { display: flex; flex-wrap: wrap; gap: 6px; }
+  .log-line { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; background: var(--ro-surface-2); border: 1px solid var(--ro-border); border-radius: var(--radius-inner, 8px); padding: 3px 4px 3px 10px; font-size: 13px; }
+  .log-line > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .log-line .muted { color: var(--ro-muted); }
+  .log-line input { width: 58px; border: 1px solid transparent; background: var(--ro-surface); color: var(--ro-text); border-radius: 6px; padding: 3px 5px; text-align: right; font: 500 12.5px var(--font-mono, ui-monospace, monospace); }
+  .log-line input:focus { outline: none; border-color: var(--ro-accent); }
+  .log-line b { font: 600 12.5px var(--font-mono, ui-monospace, monospace); padding-right: 6px; }
+  .log-line .new-badge { font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--ro-warning, #B25E09); }
+  .log-empty { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; font-size: 13.5px; }
+  .task-card.empty-task { box-shadow: none; border-style: dashed; background: transparent; }
+  @media (max-width: 640px) { .log-add-row { grid-template-columns: minmax(0, 1fr) 110px; } .log-add-row .fld-task, .log-add-row .fld-client { grid-column: 1 / -1; } .log-add-row .btn { grid-column: 1 / -1; } }
   .corr-card { margin-bottom: 20px; }
   .corr-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .corr-item { padding: 12px 0; border-top: 1px solid var(--ro-border); display: flex; flex-direction: column; gap: 6px; }
@@ -273,6 +300,16 @@
 
     <p class="lock-note" id="lock-note" hidden>🔒 This day is locked — past days are records and can’t be changed here.
       <button type="button" class="link-btn" id="lock-correct-btn" onclick="openCorrection({ date: selectedDate, kind: 'task' })">Request a correction</button></p>
+    <form class="card log-add" id="log-form" autocomplete="off" hidden>
+      <div class="log-add-row">
+        <label class="fld fld-task">Task<select class="inp" id="log-task"></select></label>
+        <label class="fld fld-client">Client<input class="inp" id="log-client" list="client-list" placeholder="Start typing a client…" maxlength="80"></label>
+        <label class="fld fld-qty">How many <b id="log-unit"></b><input class="inp" id="log-qty" type="number" min="1" max="100000" inputmode="numeric" placeholder="0"></label>
+        <button type="submit" class="btn btn-primary" id="log-add-btn">Add</button>
+      </div>
+      <datalist id="client-list"></datalist>
+      <p class="log-hint" id="log-hint" aria-live="polite">Pick the task and the client, type how many, press Enter. The task stays selected for the next client.</p>
+    </form>
     <div class="tasks-grid" id="tasks-grid"><div class="empty-state">Loading your tasks…</div></div>
 
     <section class="card mgr-note" aria-labelledby="mgr-note-title">
@@ -394,7 +431,6 @@
     };
   })();
 
-  const TYPE_NAME = { links: 'Links List', layers: 'Layers List', count: 'Number', note: 'Text Note', count_note: 'Number + Note', links_note: 'Links + Note' };
   const SHIFT_NAME = { day: 'Day shift', night: 'Night shift' };
   const SAVE_DELAY = 1200; // auto-save this long after the last change
 
@@ -403,7 +439,6 @@
   let historyTasks = [];       // also inactive / former tasks (history)
   let selectedDate = todayISO();
   let currentDateData = {};    // last saved entry for selectedDate
-  let editing = new Set();     // taskIds whose card is in edit mode
   let editableDates = [];      // days the member may still write (today; yesterday during an open night shift)
   const isLocked = d => !editableDates.includes(d);
   let summary = null;          // /api/my/summary
@@ -720,11 +755,13 @@
   function shiftDate(n) { const d = addDays(selectedDate, n); if (d <= todayISO()) setDate(d); }
   function openDatePicker() { const el = document.getElementById('date-picker-input'); el.showPicker ? el.showPicker() : el.click(); }
 
-  // Same rules as the server (lib/overview.js): what counts as "done" and the number for the target
+  // Same rules as the server (lib/overview.js), shape first: a work-log day ({ rows })
+  // counts the same whatever the task's older type was.
   function hasData(type, d) {
     if (!d) return false;
+    if (Array.isArray(d.rows)) return d.rows.some(r => r.client || r.value || r.links);
     switch (type) {
-      case 'links': case 'layers': return !!(d.rows && d.rows.some(r => r.client || r.value || r.links));
+      case 'links': case 'layers': return false;
       case 'count': return d.value !== undefined && d.value !== '' && d.value !== null;
       case 'note': return !!(d.text && String(d.text).trim());
       case 'count_note': return (d.value !== undefined && d.value !== '') || !!(d.text && String(d.text).trim());
@@ -733,110 +770,124 @@
     }
   }
   function achieved(type, d) {
+    if (type === 'note') return null;
     if (!d) return 0;
-    switch (type) {
-      case 'count': case 'count_note': return extractInt(d.value ?? '');
-      case 'links': case 'layers': return typeof d.total === 'number' ? d.total : (d.rows || []).reduce((a, r) => a + extractInt(r.value ?? r.links ?? ''), 0);
-      case 'links_note': return String(d.links || '').split(/[\s,]+/).filter(Boolean).length;
-      default: return null;
-    }
+    if (Array.isArray(d.rows)) return typeof d.total === 'number' ? d.total : d.rows.reduce((a, r) => a + extractInt(r.value ?? r.links ?? ''), 0);
+    if (d.value !== undefined && d.value !== '' && type !== 'links_note') return extractInt(d.value);
+    if (type === 'links_note') return String(d.links || '').split(/[\s,]+/).filter(Boolean).length;
+    return 0;
   }
-  const unitOf = t => t.label || ({ links: 'Links', layers: 'Layers', count: 'Count', count_note: 'Count', links_note: 'Links' }[t.type] || '');
+  const unitOf = t => t.unit || 'items';
+  const isLog = t => t.type !== 'note';
+  let dayLocked = false;
 
-  function rowHtml(client, value) {
-    return '<div class="client-row"><input class="inp inp-client" placeholder="Client name" value="' + escHtml(client) + '" aria-label="Client">' +
-      '<input class="inp inp-value" placeholder="Count / links" value="' + escHtml(value) + '" aria-label="Value">' +
-      '<button type="button" class="btn-rm-row" data-act="rm-row" aria-label="Remove row">&#10005;</button></div>';
-  }
-  function bodyHtml(t, d) {
-    switch (t.type) {
-      case 'links': case 'layers': {
-        const rows = d.rows && d.rows.length ? d.rows : [{ client: '', value: '' }];
-        return '<div class="rows">' + rows.map(r => rowHtml(r.client || '', r.value !== undefined ? r.value : (r.links || ''))).join('') + '</div>' +
-          '<div class="row-footer"><button type="button" class="link-btn" data-act="add-row">+ Add client</button>' +
-          '<span class="total-label">Total <strong class="row-total">' + (achieved(t.type, d) || 0) + '</strong></span></div>';
-      }
-      case 'count': return '<input class="inp inp-count" type="number" min="0" inputmode="numeric" placeholder="0" value="' + escHtml(d.value ?? '') + '" aria-label="' + escHtml(t.name) + '">';
-      case 'note': return '<textarea class="inp inp-note" placeholder="Write what you did…" aria-label="' + escHtml(t.name) + '">' + escHtml(d.text || '') + '</textarea>';
-      case 'count_note': return '<input class="inp inp-count" type="number" min="0" inputmode="numeric" placeholder="0" value="' + escHtml(d.value ?? '') + '" aria-label="' + escHtml(t.name) + ' count">' +
-        '<textarea class="inp inp-note" placeholder="Details (optional)…" aria-label="' + escHtml(t.name) + ' note">' + escHtml(d.text || '') + '</textarea>';
-      case 'links_note': return '<textarea class="inp inp-links" rows="2" placeholder="Paste links — one per line or separated by spaces" aria-label="' + escHtml(t.name) + ' links">' + escHtml(d.links || '') + '</textarea>' +
-        '<textarea class="inp inp-note" placeholder="Notes (optional)…" aria-label="' + escHtml(t.name) + ' note">' + escHtml(d.text || '') + '</textarea>';
-      default: return '<p class="muted">Unknown task type.</p>';
-    }
-  }
-  function viewHtml(t, d) {
-    switch (t.type) {
-      case 'links': case 'layers':
-        return (d.rows || []).filter(r => r.client || r.value || r.links).map(r =>
-          '<div class="view-row"><span>' + escHtml(r.client || '(no client)') + '</span><span class="muted">→ ' + escHtml(r.value || r.links || '') + '</span></div>').join('') +
-          '<div class="total-label">Total <strong>' + achieved(t.type, d) + '</strong></div>';
-      case 'count': return '<div class="view-count">' + escHtml(d.value) + '</div>';
-      case 'note': return '<div class="view-text">' + escHtml(d.text) + '</div>';
-      case 'count_note': return '<div class="view-count">' + escHtml(d.value || 0) + '</div>' + (d.text ? '<div class="view-text">' + escHtml(d.text) + '</div>' : '');
-      case 'links_note': return (d.links ? '<div class="view-text">' + escHtml(d.links) + '</div>' : '') + (d.text ? '<div class="view-text muted">' + escHtml(d.text) + '</div>' : '');
-      default: return '';
-    }
-  }
-  function targetHtml(t, d) {
+  /* ── Work log: every piece of work is one line — task · client · how many ── */
+  // A task's lines for the shown day (an older-shaped value shows as one line without a client)
+  function linesOf(t, d) {
+    if (!d) return [];
+    if (Array.isArray(d.rows)) return d.rows.filter(r => r.client || r.value || r.links)
+      .map(r => ({ client: r.client || '', clientId: r.clientId || null, value: String(r.value ?? r.links ?? '') }));
     const v = achieved(t.type, d);
-    if (v === null) return '';
-    if (!(t.dailyTarget > 0)) return '<div class="tc-target"><div class="tc-target-row"><span>' + escHtml(unitOf(t)) + '</span><b class="tc-achieved">' + v + '</b></div></div>';
-    const pct = Math.min(100, Math.round(v / t.dailyTarget * 100));
-    return '<div class="tc-target"><div class="tc-target-row"><span>Daily target</span><b class="tc-achieved">' + v + ' / ' + t.dailyTarget + ' ' + escHtml(unitOf(t)) + '</b></div>' +
-      '<div class="progress-bar" style="--value:' + pct + '" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '" aria-label="' + escHtml(t.name) + ' target"><span></span></div></div>';
+    return v ? [{ client: '', clientId: null, value: String(v) }] : [];
   }
-  function cardHtml(t, i, source = currentDateData) {
-    const d = source[t.taskId] || {};
-    const edit = editing.has(t.taskId);
-    const note = d.sectionNote || '';
-    return '<article class="task-card' + (hasData(t.type, d) ? ' done' : '') + '" data-idx="' + i + '" data-task-id="' + escHtml(t.taskId) + '">' +
-      '<div class="tc-head"><div class="tc-head-text"><h3 class="tc-name">' + escHtml(t.name) + '</h3><span class="type-chip">' + (TYPE_NAME[t.type] || escHtml(t.type)) + '</span></div>' +
-        '<span class="save-state" aria-live="polite">' + (hasData(t.type, d) && !edit ? 'Saved ✓' : '') + '</span>' +
-        '</div>' +
-      targetHtml(t, d) +
-      (edit
-        ? '<div class="tc-body">' + bodyHtml(t, d) + '</div>' +
-          '<div class="tc-foot"><button type="button" class="link-btn note-toggle" data-act="note" style="align-self:flex-start"' + (note ? ' hidden' : '') + '>+ Note</button>' +
-          '<textarea class="inp inp-section-note" rows="2" placeholder="Note for this task (optional)…"' + (note ? '' : ' hidden') + ' aria-label="Note for ' + escHtml(t.name) + '">' + escHtml(note) + '</textarea></div>'
-        : '<div class="tc-view">' + (hasData(t.type, d) ? viewHtml(t, d) : '<p class="muted" style="margin:0;font-size:13px">No entry</p>') + (note ? '<div class="view-note">Note: ' + escHtml(note) + '</div>' : '') + '</div>') +
+  function setLines(t, lines) {
+    const d = currentDateData[t.taskId] || {};
+    currentDateData[t.taskId] = { rows: lines.map(l => ({ client: l.client, clientId: l.clientId || null, value: String(l.value) })),
+      total: lines.reduce((a, l) => a + extractInt(l.value), 0), sectionNote: d.sectionNote || '' };
+  }
+
+  let clients = [];                       // the shared client list
+  const normName = s => String(s || '').trim().replace(/\s+/g, ' ');
+  const findClient = name => clients.find(c => c.name.toLowerCase() === normName(name).toLowerCase());
+  async function loadClients() { try { clients = await api('/api/clients'); } catch {} renderClientList(); }
+  function renderClientList() {
+    // Clients used today and recently first, then the rest of the list
+    const recent = [];
+    const push = n => { n = normName(n); if (n && !recent.some(x => x.toLowerCase() === n.toLowerCase())) recent.push(n); };
+    Object.values(currentDateData).forEach(v => (v && Array.isArray(v.rows) ? v.rows : []).forEach(r => push(r.client)));
+    Object.keys(pastDays).sort().reverse().slice(0, 10).forEach(d => Object.values(pastDays[d] || {}).forEach(v => (v && Array.isArray(v.rows) ? v.rows : []).forEach(r => push(r.client))));
+    clients.forEach(c => push(c.name));
+    document.getElementById('client-list').innerHTML = recent.map(n => '<option value="' + escHtml(n) + '"></option>').join('');
+  }
+
+  // Earlier days (for "Same clients as last working day" and the client suggestions)
+  let pastDays = {}, pastLoaded = false;
+  async function loadPastDays() {
+    if (pastLoaded) return;
+    try { pastDays = await api('/api/data/' + encodeURIComponent(me.username)); pastLoaded = true; } catch { pastDays = {}; }
+    renderClientList();
+  }
+  function lastLines(t) {
+    const days = Object.keys(pastDays).filter(d => d < selectedDate).sort().reverse();
+    for (const d of days) { const l = linesOf(t, (pastDays[d] || {})[t.taskId]).filter(x => x.client); if (l.length) return l; }
+    return [];
+  }
+
+  function logCardHtml(t, d) {
+    const lines = linesOf(t, d), v = achieved(t.type, d) || 0, tgt = t.dailyTarget > 0 ? t.dailyTarget : null;
+    const pct = tgt ? Math.min(100, Math.round(v / tgt * 100)) : null;
+    const chip = tgt && v >= tgt ? '<span class="chip chip--working">Target done</span>'
+      : lines.length ? (tgt ? '<span class="chip">' + (tgt - v) + ' to go</span>' : '') : '<span class="chip">' + (dayLocked ? 'Nothing logged' : 'Not started') + '</span>';
+    const note = (d && d.sectionNote) || '';
+    let body;
+    if (lines.length) {
+      body = '<div class="log-lines">' + lines.map((l, i) => {
+        const known = !l.client || findClient(l.client), isNew = l.client && known && known.fromTeam;
+        const name = l.client ? escHtml(l.client) : '<span class="muted">No client</span>';
+        return dayLocked
+          ? '<span class="log-line"><span title="' + escHtml(l.client) + '">' + name + '</span><b>' + escHtml(l.value) + '</b></span>'
+          : '<span class="log-line"><span title="' + escHtml(l.client) + '">' + name + '</span>' + (isNew ? '<span class="new-badge">new</span>' : '') +
+            '<input type="number" min="1" inputmode="numeric" value="' + escHtml(extractInt(l.value) || '') + '" data-line="' + i + '" aria-label="How many for ' + escHtml(l.client || 'this line') + '">' +
+            '<button type="button" class="btn-rm-row" data-act="rm-line" data-line="' + i + '" aria-label="Remove ' + escHtml(l.client || 'this line') + '">&#10005;</button></span>';
+      }).join('') + '</div>';
+    } else if (dayLocked) body = '';
+    else {
+      const prev = lastLines(t);
+      body = '<div class="log-empty"><button type="button" class="link-btn" data-act="start">+ Add ' + escHtml(t.name) + '</button>' +
+        (prev.length ? '<button type="button" class="link-btn" data-act="copy">Same clients as last working day (' + prev.length + ')</button>' : '') + '</div>';
+    }
+    return '<article class="task-card log-card' + (lines.length ? ' done' : ' empty-task') + '" data-task-id="' + escHtml(t.taskId) + '">' +
+      '<div class="tc-head"><div class="tc-head-text"><h3 class="tc-name">' + escHtml(t.name) + '</h3></div>' +
+        '<span class="tc-count">' + v + (tgt ? ' / ' + tgt : '') + ' ' + escHtml(unitOf(t)) + '</span>' + chip + '</div>' +
+      (tgt ? '<div class="progress-bar" style="--value:' + pct + '" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '" aria-label="' + escHtml(t.name) + ' target"><span></span></div>' : '') +
+      body +
+      (dayLocked ? (note ? '<div class="view-note">Note: ' + escHtml(note) + '</div>' : '')
+        : '<div class="tc-foot"><span class="save-state" aria-live="polite"></span><button type="button" class="link-btn note-toggle" data-act="note" style="align-self:flex-start"' + (note ? ' hidden' : '') + '>+ Note</button>' +
+          '<textarea class="inp inp-section-note" rows="2" placeholder="Note for this task (optional)…"' + (note ? '' : ' hidden') + ' aria-label="Note for ' + escHtml(t.name) + '">' + escHtml(note) + '</textarea></div>') +
       '</article>';
   }
+  function noteCardHtml(t, d) {
+    d = d || {};
+    return '<article class="task-card' + (hasData(t.type, d) ? ' done' : '') + '" data-task-id="' + escHtml(t.taskId) + '">' +
+      '<div class="tc-head"><div class="tc-head-text"><h3 class="tc-name">' + escHtml(t.name) + '</h3></div><span class="save-state" aria-live="polite"></span></div>' +
+      (dayLocked ? '<div class="tc-view">' + (d.text ? '<div class="view-text">' + escHtml(d.text) + '</div>' : '<p class="muted" style="margin:0;font-size:13px">No entry</p>') + '</div>'
+        : '<textarea class="inp inp-note" placeholder="Write what you did…" aria-label="' + escHtml(t.name) + '">' + escHtml(d.text || '') + '</textarea>') +
+      '</article>';
+  }
+  const cardHtml = (t, source = currentDateData) => isLog(t) ? logCardHtml(t, source[t.taskId]) : noteCardHtml(t, source[t.taskId]);
+
   function renderTasks() {
     const grid = document.getElementById('tasks-grid');
-    grid.innerHTML = memberTasks.length ? memberTasks.map((t, i) => cardHtml(t, i)).join('')
-      : '<div class="empty-state">No tasks are assigned to you yet. Your manager adds them from Tasks &amp; Targets.</div>';
+    grid.innerHTML = memberTasks.length ? memberTasks.map(t => cardHtml(t)).join('')
+      : '<div class="empty-state">No tasks are assigned to you yet. Your manager gives them from Assignments.</div>';
+    renderLogForm();
     renderProgress();
   }
-
-  // Read one editable card back into data (same shapes as before)
-  function readCard(card, type) {
-    const q = s => card.querySelector(s);
-    const sectionNote = q('.inp-section-note') ? q('.inp-section-note').value.trim() : '';
-    switch (type) {
-      case 'links': case 'layers': {
-        const rows = []; let total = 0;
-        card.querySelectorAll('.client-row').forEach(r => {
-          const client = r.querySelector('.inp-client').value.trim(), value = r.querySelector('.inp-value').value.trim();
-          if (client || value) rows.push({ client, value });
-          total += extractInt(value);
-        });
-        return { rows, total, sectionNote };
-      }
-      case 'count': return { value: String(q('.inp-count').value).trim(), sectionNote };
-      case 'note': return { text: q('.inp-note').value.trim(), sectionNote };
-      case 'count_note': return { value: String(q('.inp-count').value).trim(), text: q('.inp-note').value.trim(), sectionNote };
-      case 'links_note': return { links: q('.inp-links').value.trim(), text: q('.inp-note').value.trim(), sectionNote };
-      default: return { sectionNote };
-    }
+  function renderLogForm() {
+    const form = document.getElementById('log-form'), sel = document.getElementById('log-task');
+    const logTasks = memberTasks.filter(isLog);
+    form.hidden = dayLocked || !logTasks.length;
+    const keep = sel.value;
+    sel.innerHTML = logTasks.map(t => '<option value="' + escHtml(t.taskId) + '">' + escHtml(t.name) + '</option>').join('');
+    if (logTasks.some(t => t.taskId === keep)) sel.value = keep;
+    const t = logTasks.find(x => x.taskId === sel.value);
+    document.getElementById('log-unit').textContent = t ? unitOf(t) : '';
   }
-  // Live data for the selected day: saved data, with editable cards read from the screen
+  function logHint(text, warn) { const h = document.getElementById('log-hint'); h.textContent = text; h.className = 'log-hint' + (warn ? ' warn' : ''); }
+  const DEFAULT_HINT = 'Pick the task and the client, type how many, press Enter. The task stays selected for the next client.';
+
   function liveData() {
     const out = { ...currentDateData };
-    document.querySelectorAll('#tasks-grid .task-card').forEach(card => {
-      const t = memberTasks[+card.dataset.idx];
-      if (t && editing.has(t.taskId)) out[t.taskId] = readCard(card, t.type);
-    });
     out._managerNote = document.getElementById('manager-note-input').value.trim();
     return out;
   }
@@ -854,29 +905,27 @@
     rd.style.setProperty('--value', donePct); rd.firstElementChild.textContent = donePct + '%';
     rt.style.setProperty('--value', p.target ?? 0); rt.firstElementChild.textContent = p.target === null ? '–' : p.target + '%';
     document.getElementById('tp-count').innerHTML = p.total
-      ? '<b>' + p.done + ' of ' + p.total + '</b> task' + (p.total === 1 ? '' : 's') + ' done' + (p.target === null ? ' · no targets set' : '')
+      ? '<b>' + p.done + ' of ' + p.total + '</b> task' + (p.total === 1 ? '' : 's') + ' started' + (p.target === null ? ' · no targets set' : '')
       : 'No tasks assigned yet';
     const s = summary ? summary.streak : null;
     document.getElementById('tp-streak').innerHTML = s === null ? ''
-      : s > 0 ? '🔥 ' + s + '-day streak — keep it going!' : 'Submit today to start a streak ✨';
+      : s > 0 ? '🔥 ' + s + '-day streak — keep it going!' : 'Log work today to start a streak ✨';
   }
-  function updateCardLive(card) {
-    const t = memberTasks[+card.dataset.idx];
-    if (!t) return;
-    const d = readCard(card, t.type);
-    const tot = card.querySelector('.row-total'); if (tot) tot.textContent = achieved(t.type, d);
-    const tgt = card.querySelector('.tc-target');
-    if (tgt) tgt.outerHTML = targetHtml(t, d);
-    card.classList.toggle('done', hasData(t.type, d));
+  // Re-draw one card (after a change) without touching the others
+  function redrawCard(taskId) {
+    const t = memberTasks.find(x => x.taskId === taskId), el = document.querySelector('.task-card[data-task-id="' + CSS.escape(taskId) + '"]');
+    if (!t || !el) return;
+    const tmp = document.createElement('div'); tmp.innerHTML = cardHtml(t); el.replaceWith(tmp.firstElementChild);
+    renderProgress();
   }
 
-  /* Auto-save: one save for the whole day, shortly after the last change */
+  /* Saving: what changed is sent per task (partial save), right after the change */
   let saveTimer = null, saving = null, dirtyCards = new Set(), noteDirty = false, saveAgain = false;
-  function markDirty(taskId) {
+  function markDirty(taskId, delay = SAVE_DELAY) {
     if (taskId) dirtyCards.add(taskId); else noteDirty = true;
     setCardState(taskId, '', '');
     clearTimeout(saveTimer);
-    saveTimer = setTimeout(saveNow, SAVE_DELAY);
+    saveTimer = setTimeout(saveNow, delay);
   }
   function stateEl(taskId) {
     return taskId ? document.querySelector('.task-card[data-task-id="' + CSS.escape(taskId) + '"] .save-state') : document.getElementById('mgr-note-state');
@@ -891,7 +940,6 @@
     if (!dirtyCards.size && !noteDirty) return;
     const ids = [...dirtyCards], note = noteDirty, date = selectedDate;
     dirtyCards = new Set(); noteDirty = false;
-    // Only what changed is sent: the manager may be editing other tasks of the same day
     const live = liveData(), tasks = {};
     ids.forEach(id => { if (live[id]) tasks[id] = live[id]; });
     if (note) tasks._managerNote = live._managerNote;
@@ -901,7 +949,6 @@
       try {
         await api('/api/save', 'POST', { date, tasks, partial: true });
         if (date === selectedDate) {
-          currentDateData = { ...currentDateData, ...tasks };
           const at = 'Saved ✓ ' + nowHM();
           ids.forEach(id => { if (!dirtyCards.has(id)) setCardState(id, 'saved', at); });
           if (note && !noteDirty) setCardState(null, 'saved', at);
@@ -909,41 +956,90 @@
         }
         refreshSummary();
       } catch (e) {
-        ids.forEach(id => { dirtyCards.add(id); setCardState(id, 'error', 'Not saved — retrying…'); });
+        ids.forEach(id => { dirtyCards.add(id); setCardState(id, 'error', e.message && /locked/i.test(e.message) ? e.message : 'Not saved — retrying…'); });
         if (note) { noteDirty = true; setCardState(null, 'error', 'Not saved — retrying…'); }
-        if (date === selectedDate) { clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 5000); }
+        if (date === selectedDate && !(e.message && /locked/i.test(e.message))) { clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 5000); }
       } finally { saving = null; }
       if (saveAgain) { saveAgain = false; await saveNow(); }
     })();
     return saving;
   }
   function flushSave() { if (saveTimer || dirtyCards.size || noteDirty) return saveNow(); return saving || Promise.resolve(); }
-  // Leaving the page with unsaved changes: send them anyway
   window.addEventListener('pagehide', () => {
     if (!dirtyCards.size && !noteDirty) return;
+    const live = liveData(), t = {};
+    dirtyCards.forEach(id => { if (live[id]) t[id] = live[id]; }); if (noteDirty) t._managerNote = live._managerNote;
     fetch('/api/save', { method: 'POST', keepalive: true, credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ date: selectedDate, partial: true, tasks: (live => {
-        const t = {}; dirtyCards.forEach(id => { if (live[id]) t[id] = live[id]; }); if (noteDirty) t._managerNote = live._managerNote; return t; })(liveData()) }) });
+      body: JSON.stringify({ date: selectedDate, partial: true, tasks: t }) });
+  });
+
+  // Add one line from the quick-add form
+  document.getElementById('log-task').addEventListener('change', () => { renderLogForm(); document.getElementById('log-client').focus(); });
+  document.getElementById('log-client').addEventListener('input', e => {
+    const v = normName(e.target.value);
+    if (v && !findClient(v)) logHint('"' + v + '" is not in the client list yet. It will be added, and your manager will see it marked new.', true);
+    else logHint(DEFAULT_HINT);
+  });
+  document.getElementById('log-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    if (dayLocked) return;
+    const t = memberTasks.find(x => x.taskId === document.getElementById('log-task').value);
+    const ci = document.getElementById('log-client'), qi = document.getElementById('log-qty');
+    const name = normName(ci.value), qty = parseInt(qi.value, 10);
+    if (!t) return;
+    if (!name) { logHint('Choose the client this work was for.', true); ci.focus(); return; }
+    if (!(qty > 0)) { logHint('Type how many ' + unitOf(t) + ' (1 or more).', true); qi.focus(); return; }
+    let c = findClient(name);
+    const btn = document.getElementById('log-add-btn'); btn.disabled = true;
+    try {
+      if (!c) { c = await api('/api/clients', 'POST', { name }); if (!findClient(c.name)) clients.push(c); }
+      const lines = linesOf(t, currentDateData[t.taskId]);
+      lines.push({ client: c.name, clientId: c.clientId, value: String(qty) });
+      setLines(t, lines);
+      redrawCard(t.taskId); updateEntryBadge(); renderClientList();
+      markDirty(t.taskId, 0);
+      ci.value = ''; qi.value = ''; logHint(DEFAULT_HINT); ci.focus();
+      showToast('Added ' + qty + ' ' + unitOf(t) + ' · ' + c.name, 'success');
+    } catch (err) { logHint(err.message || 'Could not add the line. Please try again.', true); }
+    finally { btn.disabled = false; }
   });
 
   // One listener for every card
   const grid = document.getElementById('tasks-grid');
   grid.addEventListener('input', e => {
-    const card = e.target.closest('.task-card'); if (!card) return;
-    updateCardLive(card); renderProgress(); markDirty(card.dataset.taskId);
+    const card = e.target.closest('.task-card'); if (!card || dayLocked) return;
+    const t = memberTasks.find(x => x.taskId === card.dataset.taskId); if (!t) return;
+    const d = currentDateData[t.taskId] || {};
+    if (e.target.classList.contains('inp-section-note')) currentDateData[t.taskId] = { ...(isLog(t) ? (Array.isArray(d.rows) ? d : { rows: linesOf(t, d), total: achieved(t.type, d) || 0 }) : d), sectionNote: e.target.value.trim() };
+    else if (e.target.classList.contains('inp-note')) { currentDateData[t.taskId] = { ...d, text: e.target.value.trim() }; card.classList.toggle('done', !!e.target.value.trim()); renderProgress(); }
+    else return;
+    markDirty(t.taskId);
+  });
+  grid.addEventListener('change', e => {
+    if (!e.target.dataset.line || e.target.tagName !== 'INPUT' || dayLocked) return;
+    const card = e.target.closest('.task-card'), t = memberTasks.find(x => x.taskId === card.dataset.taskId);
+    const qty = parseInt(e.target.value, 10), lines = linesOf(t, currentDateData[t.taskId]), l = lines[+e.target.dataset.line];
+    if (!l) return;
+    if (!(qty > 0)) { e.target.value = extractInt(l.value) || ''; showToast('Use × to remove a line; the number must be 1 or more.', 'info'); return; }
+    l.value = String(qty); setLines(t, lines); redrawCard(t.taskId); markDirty(t.taskId, 0);
   });
   grid.addEventListener('click', e => {
-    const btn = e.target.closest('[data-act]'); if (!btn) return;
-    const card = btn.closest('.task-card'), id = card.dataset.taskId;
-    if (btn.dataset.act === 'note') {
-      btn.hidden = true; const ta = card.querySelector('.inp-section-note'); ta.hidden = false; ta.focus();
-    } else if (btn.dataset.act === 'add-row') {
-      const rows = card.querySelector('.rows'); rows.insertAdjacentHTML('beforeend', rowHtml('', ''));
-      rows.lastElementChild.querySelector('.inp-client').focus();
-    } else if (btn.dataset.act === 'rm-row') {
-      const rows = card.querySelector('.rows'), row = btn.closest('.client-row');
-      if (rows.children.length > 1) row.remove(); else row.querySelectorAll('input').forEach(i => { i.value = ''; });
-      updateCardLive(card); renderProgress(); markDirty(id);
+    const btn = e.target.closest('[data-act]'); if (!btn || dayLocked) return;
+    const card = btn.closest('.task-card'), t = memberTasks.find(x => x.taskId === card.dataset.taskId); if (!t) return;
+    const act = btn.dataset.act;
+    if (act === 'note') { btn.hidden = true; const ta = card.querySelector('.inp-section-note'); ta.hidden = false; ta.focus(); }
+    else if (act === 'rm-line') {
+      const lines = linesOf(t, currentDateData[t.taskId]); const [gone] = lines.splice(+btn.dataset.line, 1);
+      setLines(t, lines); redrawCard(t.taskId); updateEntryBadge(); markDirty(t.taskId, 0);
+      showToast('Removed ' + (gone && gone.client ? gone.client : 'the line') + '.', 'info');
+    } else if (act === 'start') {
+      document.getElementById('log-task').value = t.taskId; renderLogForm();
+      document.getElementById('log-form').scrollIntoView({ block: 'center', behavior: 'smooth' }); document.getElementById('log-client').focus();
+    } else if (act === 'copy') {
+      const prev = lastLines(t); if (!prev.length) return;
+      setLines(t, [...linesOf(t, currentDateData[t.taskId]), ...prev.map(l => ({ ...l }))]);
+      redrawCard(t.taskId); updateEntryBadge(); markDirty(t.taskId, 0);
+      showToast('Copied ' + prev.length + ' clients. Change any number that is different today.', 'success');
     }
   });
   document.getElementById('manager-note-input').addEventListener('input', () => markDirty(null));
@@ -967,17 +1063,18 @@
       editableDates = meNow.editableDates || [todayISO()];
       currentDateData = existing || {};
     } catch { if (date !== selectedDate) return; currentDateData = {}; }
-    // Today (and an open night shift's day) is open for typing; every other day is a locked record
-    const locked = isLocked(date);
-    editing = locked ? new Set() : new Set(memberTasks.map(t => t.taskId));
+    // Today (and an open night shift's day) is open; every other day is a locked record
+    dayLocked = isLocked(date);
     const mn = document.getElementById('manager-note-input');
     mn.value = currentDateData._managerNote || '';
-    mn.readOnly = locked;
-    mn.placeholder = locked ? 'No note for this day.' : 'e.g. Site was down for 2 hours, so guest posts are lower today.';
-    document.getElementById('lock-note').hidden = !locked;
+    mn.readOnly = dayLocked;
+    mn.placeholder = dayLocked ? 'No note for this day.' : 'e.g. Site was down for 2 hours, so guest posts are lower today.';
+    document.getElementById('lock-note').hidden = !dayLocked;
     setCardState(null, '', '');
     renderTasks();
     updateEntryBadge();
+    renderClientList();
+    if (!pastLoaded) loadPastDays().then(() => { if (date === selectedDate && !dayLocked) renderTasks(); });
   }
 
   async function refreshSummary() {
@@ -1023,6 +1120,7 @@
 
   function histValue(v, type) {
     if (!v) return '';
+    if (Array.isArray(v.rows)) type = 'links';
     switch (type) {
       case 'links': case 'layers':
         return (v.rows || []).filter(r => r.client || r.value || r.links).map(r => r.client ? r.client + ((r.value || r.links) ? ' → ' + (r.value || r.links) : '') : (r.value || r.links)).join(' | ') + (v.total ? '  (Total: ' + v.total + ')' : '');
@@ -1099,7 +1197,6 @@
      the member is typing in or has not saved yet. */
   const SYNC_EVERY = 10000;
   let myRev = null, syncing = false;
-  const sameTask = (a, b) => a && b && a.name === b.name && a.type === b.type && a.dailyTarget === b.dailyTarget && a.label === b.label;
   async function checkRev() {
     if (document.hidden || syncing || !me) return;
     let rev;
@@ -1130,33 +1227,29 @@
 
     if (listChanged || dayChanged) {
       const grid = document.getElementById('tasks-grid');
-      const focused = document.activeElement && grid.contains(document.activeElement) ? document.activeElement : null;
-      const busy = id => dirtyCards.has(id) || (focused && focused.closest('.task-card') && focused.closest('.task-card').dataset.taskId === id);
-      const live = liveData();
-      // Saved state = the server's; what is shown keeps the member's unsaved typing
-      currentDateData = { ...(dayNow || {}) };
-      const shown = { ...currentDateData };
-      newTasks.forEach(t => { if (busy(t.taskId) && live[t.taskId]) shown[t.taskId] = live[t.taskId]; });
-      const oldById = Object.fromEntries(oldTasks.map(t => [t.taskId, t]));
-      newTasks.forEach(t => { if (!oldById[t.taskId] && !isLocked(date)) editing.add(t.taskId); });
+      // A card the member is typing in (focus) or has unsaved changes in keeps their version and stays in place
+      const active = document.activeElement, focusedCard = active && grid.contains(active) ? active.closest('.task-card') : null;
+      const busy = id => dirtyCards.has(id) || (focusedCard && focusedCard.dataset.taskId === id);
+      const shown = { ...(dayNow || {}) };
+      memberTasks.forEach(t => { if (busy(t.taskId) && currentDateData[t.taskId]) shown[t.taskId] = currentDateData[t.taskId]; });
+      currentDateData = shown;
       memberTasks = newTasks; historyTasks = meNow.historyTasks || newTasks;
       const existing = new Map([...grid.querySelectorAll('.task-card')].map(c => [c.dataset.taskId, c]));
-      const nodes = newTasks.map((t, i) => {
+      const nodes = newTasks.map(t => {
         const el = existing.get(t.taskId);
-        if (el && busy(t.taskId) && sameTask(oldById[t.taskId], t)) { el.dataset.idx = i; return el; }   // keep what they are typing
-        const tmp = document.createElement('div'); tmp.innerHTML = cardHtml(t, i, shown); return tmp.firstElementChild;
+        if (el && busy(t.taskId)) return el;
+        const tmp = document.createElement('div'); tmp.innerHTML = cardHtml(t); return tmp.firstElementChild;
       });
-      // Same tasks in the same order: swap only the cards that changed (a kept card never moves,
-      // so it keeps focus); otherwise rebuild the list.
       const current = [...grid.children];
       const sameOrder = nodes.length && current.length === nodes.length && current.every((c, i) => c.dataset && c.dataset.taskId === nodes[i].dataset.taskId);
       if (sameOrder) nodes.forEach((n, i) => { if (current[i] !== n) current[i].replaceWith(n); });
-      else grid.replaceChildren(...(nodes.length ? nodes : [Object.assign(document.createElement('div'), { className: 'empty-state', textContent: 'No tasks are assigned to you yet. Your manager adds them from Tasks & Targets.' })]));
-      if (focused && document.activeElement !== focused && focused.isConnected) focused.focus();
-      // Note for Manager: only if they are not writing it right now
+      else if (nodes.length) grid.replaceChildren(...nodes);
+      else grid.innerHTML = '<div class="empty-state">No tasks are assigned to you yet. Your manager gives them from Assignments.</div>';
+      if (active && document.activeElement !== active && active.isConnected) active.focus();
+      renderLogForm(); renderProgress();
       const mn = document.getElementById('manager-note-input');
       if (!noteDirty && document.activeElement !== mn) mn.value = currentDateData._managerNote || '';
-      renderProgress(); updateEntryBadge();
+      updateEntryBadge();
     }
 
     // Attendance (the manager corrected a time or a break)
@@ -1188,6 +1281,7 @@
     setInterval(refreshBreakCount, 30000);
     checkRev(); setInterval(checkRev, SYNC_EVERY);
     loadCorrections();
+    loadClients();
     showView(startView, { push: false });
   }
   init();

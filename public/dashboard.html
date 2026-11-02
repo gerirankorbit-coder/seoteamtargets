@@ -7,7 +7,7 @@
 <script>/* Theme before first paint — see /theme.js */(function(){var d=document.documentElement;try{var s=localStorage,u=s.getItem('ro_theme_user'),t=(u&&s.getItem('ro_theme:'+u))||s.getItem('ro_theme');if(t!=='light'&&t!=='dark')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';d.setAttribute('data-theme',t)}catch(e){d.setAttribute('data-theme','light')}})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="/style.css">
 <link rel="stylesheet" href="/design-system.css">
 <script src="/theme.js"></script>
@@ -1025,6 +1025,94 @@
     .topbar-date { display: none; }
     .app-content { padding: 16px; }
   }
+
+  /* ── Work log pages: Today (work list), Month, Assignments, Clients ── */
+  .eyebrow { margin: 0 0 4px; font-size: 11.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ro-accent); }
+  .wl-tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .wl-tools .inp { width: auto; min-width: 170px; }
+  .wl-num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .wl-bar { height: 5px; border-radius: 99px; background: var(--ro-surface-2); overflow: hidden; }
+  .wl-bar > i { display: block; height: 100%; background: var(--ro-accent-fill, var(--ro-accent)); border-radius: inherit; }
+  .wl-bar.good > i { background: var(--ro-success); } .wl-bar.warn > i { background: var(--ro-warning-text); } .wl-bar.bad > i { background: var(--ro-danger); }
+  .wl-up { color: var(--ro-success); } .wl-down { color: var(--ro-danger); } .wl-flat { color: var(--ro-muted); }
+  .wt-card { margin-top: 16px; }
+  .wt-row { display: grid; grid-template-columns: 220px minmax(0, 1fr) 70px; gap: 14px; align-items: center; padding: 14px 4px; border-top: 1px solid var(--ro-border); cursor: pointer; }
+  .wt-row:hover { background: var(--ro-surface-2); }
+  .wt-row.alert { box-shadow: inset 3px 0 0 var(--ro-danger); }
+  .wt-who { display: grid; gap: 4px; min-width: 0; padding-left: 8px; }
+  .wt-who b { font-weight: 600; }
+  .wt-who small { color: var(--ro-muted); font-size: 12px; }
+  .wt-tasks { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px 16px; min-width: 0; }
+  .wt-t { display: grid; gap: 4px; min-width: 0; }
+  .wt-t .row { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; }
+  .wt-t .row span:first-child { color: var(--ro-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wt-score { text-align: right; font-family: var(--font-display); font-size: 21px; font-weight: 700; letter-spacing: -0.03em; padding-right: 8px; }
+  .wl-table { width: 100%; min-width: 0; }
+  /* the Work spreadsheet's global table rules do not apply here */
+  .wl-table.wl-table thead th, .wl-table.wl-table tbody tr td { position: static; min-width: 0; width: auto; height: auto; border-right: 0; background: transparent;
+    font-size: 13.5px; font-weight: inherit; line-height: 1.45; text-align: left; vertical-align: middle; padding: 11px 12px; z-index: auto; }
+  .wl-table.wl-table thead th { font-size: 12px; font-weight: 500; color: var(--ro-muted); padding: 10px 12px; }
+  .wl-table.wl-table.wl-board thead th:first-child, .wl-table.wl-table.wl-board tbody tr td:first-child { position: sticky; left: 0; z-index: 2; background: var(--ro-surface); min-width: 210px; }
+  .wl-table.wl-table.wl-board tbody tr.grp td { background: var(--ro-surface-2); font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ro-muted); padding: 7px 12px; }
+  .wl-table.wl-table.wl-board th.mem { text-align: center; color: var(--ro-text); font-weight: 600; font-size: 12.5px; min-width: 104px; }
+  .wl-table.wl-table.wl-board td.cell { text-align: center; padding: 6px; }
+  .wl-table th { text-align: left; font-size: 12px; font-weight: 500; color: var(--ro-muted); padding: 10px 12px; border-bottom: 1px solid var(--ro-border); white-space: nowrap; }
+  .wl-table td { padding: 11px 12px; border-bottom: 1px solid var(--ro-border); vertical-align: middle; }
+  .wl-table tr:last-child td { border-bottom: 0; }
+  .wl-table tr.click { cursor: pointer; } .wl-table tr.click:hover td { background: var(--ro-surface-2); }
+  .wl-scorecell { display: grid; grid-template-columns: 44px minmax(80px, 1fr); gap: 10px; align-items: center; }
+  .wl-scroll { overflow-x: auto; }
+  .mo-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center; padding: 20px; }
+  .mo-score { text-align: right; } .mo-score b { display: block; font-family: var(--font-display); font-size: 42px; font-weight: 700; letter-spacing: -0.04em; line-height: 1; }
+  .mo-strip { display: flex; flex-wrap: wrap; gap: 4px; }
+  .mo-day { width: 30px; display: grid; justify-items: center; gap: 3px; font-size: 10px; color: var(--ro-dim); }
+  .mo-day i { width: 26px; height: 26px; border-radius: 6px; display: block; background: var(--ro-surface-2); }
+  .mo-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--ro-muted); margin-top: 10px; }
+  .mo-legend span { display: inline-flex; gap: 6px; align-items: center; } .mo-legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+  .h-good { background: var(--ro-success) !important; } .h-ok { background: color-mix(in srgb, var(--ro-success) 50%, var(--ro-surface-2)) !important; }
+  .h-warn { background: var(--ro-warning-text) !important; } .h-bad { background: var(--ro-danger) !important; }
+  .mo-pills { display: flex; flex-wrap: wrap; gap: 6px; } .mo-pill { font-size: 12.5px; background: var(--ro-surface-2); border-radius: 999px; padding: 3px 10px; }
+  .mo-section { padding: 18px 20px; margin-top: 16px; display: grid; gap: 10px; }
+  .unit { font-size: 11px; color: var(--ro-dim); margin-left: 4px; font-weight: 400; }
+  .wl-board-card { padding: 0; overflow: hidden; }
+  .wl-board th.mem { text-align: center; min-width: 104px; font-weight: 600; color: var(--ro-text); }
+  .wl-board td.cell { text-align: center; padding: 6px; }
+  .wl-board .grp td { background: var(--ro-surface-2); font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ro-muted); padding: 6px 12px; }
+  .wl-board .tname { white-space: nowrap; }
+  .wl-board .tname button { border: 0; background: none; padding: 0; font: inherit; font-weight: 500; color: var(--ro-text); cursor: pointer; text-align: left; }
+  .wl-board .tname button:hover { color: var(--ro-accent); text-decoration: underline; }
+  .wl-cell { width: 100%; min-width: 84px; border: 1px dashed var(--ro-border); background: none; border-radius: var(--radius-inner); padding: 6px; color: var(--ro-dim); font-size: 12px; cursor: pointer; display: grid; gap: 1px; }
+  .wl-cell.has { border: 1px solid transparent; background: var(--ro-accent-soft); color: var(--ro-accent); font-weight: 600; font-size: 13px; }
+  .wl-cell:hover { border-color: var(--ro-accent); }
+  .wl-cell small { font-size: 10.5px; font-weight: 500; color: var(--ro-muted); }
+  .wl-changes { margin-top: 16px; padding: 18px 20px; }
+  .wl-log { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 6px; font-size: 13px; }
+  .wl-log small { color: var(--ro-muted); }
+  .wl-foot { justify-content: space-between; align-items: center; gap: 8px; }
+  .wl-danger { color: var(--ro-danger) !important; }
+  .wl-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .wl-cl-grid { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 16px; align-items: start; }
+  .wl-cl-side { padding: 0; overflow: hidden; display: grid; }
+  .wl-cl-tools { padding: 12px; display: grid; gap: 8px; border-bottom: 1px solid var(--ro-border); }
+  .wl-cl-add { display: flex; gap: 6px; }
+  .wl-check { display: flex; gap: 8px; align-items: center; font-size: 12.5px; color: var(--ro-muted); }
+  .wl-cl-list { max-height: 560px; overflow: auto; display: grid; }
+  .wl-cl-item { display: flex; justify-content: space-between; gap: 8px; border: 0; border-bottom: 1px solid var(--ro-border); background: none; text-align: left; padding: 9px 14px; font: inherit; color: var(--ro-text); cursor: pointer; }
+  .wl-cl-item:hover { background: var(--ro-surface-2); }
+  .wl-cl-item.on { background: var(--ro-accent-soft); color: var(--ro-accent); }
+  .wl-cl-item .wl-num { font-size: 12px; color: var(--ro-muted); }
+  .wl-cl-item.off { color: var(--ro-dim); }
+  .wl-cl-main { padding: 0; min-width: 0; }
+  .wl-cl-head { padding: 18px 20px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid var(--ro-border); }
+  .wl-unlisted { margin-top: 16px; padding: 18px 20px; display: grid; gap: 10px; }
+  .wl-unl { display: flex; flex-wrap: wrap; gap: 6px; }
+  .wl-unl button { font: inherit; font-size: 12.5px; border: 1px dashed var(--ro-border); background: none; border-radius: 999px; padding: 3px 10px; cursor: pointer; color: var(--ro-text); }
+  .wl-unl button:hover { border-color: var(--ro-accent); color: var(--ro-accent); }
+  .wl-new { font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--ro-warning-text); margin-left: 6px; }
+  @media (max-width: 900px) {
+    .wt-row { grid-template-columns: 1fr auto; } .wt-row .wt-tasks { grid-column: 1 / -1; grid-row: 2; padding: 0 8px; }
+    .wl-cl-grid { grid-template-columns: 1fr; } .mo-head { grid-template-columns: 1fr; } .mo-score { text-align: left; }
+  }
 </style>
 </head>
 <body>
@@ -1037,11 +1125,13 @@
       <span class="brand-mark">RO</span><span class="brand-name">Rank Orbit</span>
     </a>
     <nav class="sidebar-nav">
-      <a class="sidebar-link" href="/dashboard" data-page="overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg><span>Overview</span></a>
+      <a class="sidebar-link" href="/dashboard" data-page="overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg><span>Today</span></a>
+      <a class="sidebar-link" href="/dashboard/month" data-page="month"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4M7 13h3M7 17h3M14 13h3"/></svg><span>Month</span></a>
       <a class="sidebar-link" href="/dashboard/team" data-page="team"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>Team</span></a>
       <a class="sidebar-link" href="/dashboard/work" data-page="work"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg><span>Work</span></a>
       <a class="sidebar-link" href="/dashboard/attendance" data-page="attendance"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Attendance</span></a>
-      <a class="sidebar-link" href="/dashboard/tasks" data-page="tasks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg><span>Tasks &amp; Targets</span></a>
+      <a class="sidebar-link" href="/dashboard/assignments" data-page="assign"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg><span>Assignments</span></a>
+      <a class="sidebar-link" href="/dashboard/clients" data-page="clients"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21V7l9-4 9 4v14"/><path d="M9 21v-6h6v6M8 10h.01M12 10h.01M16 10h.01"/></svg><span>Clients</span></a>
       <a class="sidebar-link" href="/dashboard/reports" data-page="reports"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg><span>Reports</span></a>
       <a class="sidebar-link" href="/dashboard/settings" data-page="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68 1.65 1.65 0 0 0 10 3.17V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Settings</span></a>
     </nav>
@@ -1091,10 +1181,11 @@
           <div class="card-head-row"><h2 class="card-heading">Needs Attention</h2><span class="chip" id="attention-count" hidden></span></div>
           <div id="attention-list"><div class="ov-loading">Loading…</div></div>
         </div>
-        <div class="card overview-panel">
-          <div class="card-head-row"><h2 class="card-heading">Team at a Glance</h2><span class="ov-hint">Target % · streak</span></div>
-          <div id="glance-list"><div class="ov-loading">Loading…</div></div>
-        </div>
+      </div>
+
+      <div class="card wt-card">
+        <div class="card-head-row"><div><h2 class="card-heading">Work today</h2><p class="page-sub">Each member's work so far, task by task, as they log it.</p></div><span class="ov-hint" id="wt-updated"></span></div>
+        <div id="wt-list"><div class="ov-loading">Loading…</div></div>
       </div>
 
       <div class="card overview-chart">
@@ -1321,6 +1412,52 @@
   </div>
 </div>
     </section>
+
+    <section class="page" id="page-month" hidden>
+      <div class="page-head">
+        <div><p class="eyebrow" id="mo-eyebrow">Team</p><h1 class="page-title" id="mo-title">Month</h1>
+          <p class="page-sub" id="mo-sub">Score = work done ÷ (daily target × days present). Each task counts up to 100%, so extra work on one task can't hide a missed one.</p></div>
+        <div class="wl-tools">
+          <button type="button" class="btn btn-ghost btn-sm" id="mo-back" hidden onclick="openMonthMember(null)">&#8249; Team</button>
+          <select class="inp" id="mo-member" aria-label="Member" hidden onchange="openMonthMember(this.value)"></select>
+          <select class="inp" id="mo-month" aria-label="Month" onchange="wl.month=this.value;renderMonthPage()"></select>
+        </div>
+      </div>
+      <div id="mo-body"><div class="ov-loading">Loading…</div></div>
+    </section>
+
+    <section class="page" id="page-assign" hidden>
+      <div class="page-head">
+        <div><p class="eyebrow">Who does what</p><h1 class="page-title">Assignments</h1>
+          <p class="page-sub">Click a box to give a task and its daily target, change it, or move it to someone else. Changes start today or later, so past months keep their own targets.</p></div>
+        <div class="wl-tools">
+          <button type="button" class="btn btn-ghost btn-sm" onclick="openCopyTasks()">Copy tasks to a teammate</button>
+          <button type="button" class="btn btn-primary btn-sm" onclick="openLibraryTask(null)">&#43; New task</button>
+        </div>
+      </div>
+      <div class="card wl-board-card"><div class="wl-scroll" id="as-board"><div class="ov-loading">Loading…</div></div></div>
+      <div class="card wl-changes"><h2 class="card-heading">Changes</h2><ul id="as-log" class="wl-log"></ul></div>
+    </section>
+
+    <section class="page" id="page-clients" hidden>
+      <div class="page-head">
+        <div><p class="eyebrow" id="cl-eyebrow">Clients</p><h1 class="page-title">Clients</h1>
+          <p class="page-sub">One shared list. The team picks from it when they log work, so each client's work adds up in one place.</p></div>
+        <div class="wl-tools"><select class="inp" id="cl-month" aria-label="Month" onchange="wl.clMonth=this.value;renderClientsPage()"></select></div>
+      </div>
+      <div class="wl-cl-grid">
+        <div class="card wl-cl-side">
+          <div class="wl-cl-tools">
+            <input class="inp" id="cl-search" type="search" placeholder="Search clients" autocomplete="off" oninput="renderClientList()" aria-label="Search clients">
+            <form class="wl-cl-add" onsubmit="event.preventDefault();addClient()" autocomplete="off"><input class="inp" id="cl-new" placeholder="New client name" maxlength="80" aria-label="New client name"><button class="btn btn-ghost btn-sm" type="submit">Add</button></form>
+            <label class="wl-check"><input type="checkbox" id="cl-only-new" onchange="renderClientList()"> Only clients added by the team</label>
+          </div>
+          <div class="wl-cl-list" id="cl-list"><div class="ov-loading">Loading…</div></div>
+        </div>
+        <div class="card wl-cl-main" id="cl-detail"><div class="ov-loading">Pick a client.</div></div>
+      </div>
+      <div class="card wl-unlisted" id="cl-unlisted" hidden></div>
+    </section>
     <section class="page" id="page-reports" hidden>
       <div class="page-head">
         <div><h1 class="page-title">Reports</h1><p class="page-sub" id="rep-sub">How the team did over a period — from entries and attendance.</p></div>
@@ -1546,6 +1683,19 @@
 </div>
 
 <!-- ── Correction request from a member ── -->
+
+<!-- ── Work log dialog (Assignments, Clients) ── -->
+<div id="wl-overlay" class="am-overlay hidden" onclick="if(event.target===this)closeWl()">
+  <form class="am-modal" role="dialog" aria-modal="true" aria-labelledby="wl-title" style="max-width:460px" id="wl-form" autocomplete="off">
+    <div class="em-header">
+      <div class="em-header-text"><div class="em-sub" id="wl-sub"></div><div class="em-title" id="wl-title"></div></div>
+      <div class="em-header-actions"><button type="button" class="em-close" onclick="closeWl()" aria-label="Close">&#10005;</button></div>
+    </div>
+    <div class="em-body" style="gap:14px" id="wl-body"></div>
+    <div class="em-footer wl-foot" style="display:flex"><span id="wl-left"></span><span><button type="button" class="btn btn-ghost btn-sm" onclick="closeWl()">Cancel</button>
+      <button type="submit" class="btn btn-primary btn-sm" id="wl-ok">Save</button></span></div>
+  </form>
+</div>
 <div id="cr-overlay" class="am-overlay hidden" onclick="if(event.target===this)closeCorrectionDialog()">
   <div class="am-modal" role="dialog" aria-modal="true" aria-labelledby="cr-title" style="max-width:520px">
     <div class="em-header">
@@ -1808,7 +1958,11 @@
     const dayTasks = (allData[username] && allData[username][date]) || {};
     const taskData = dayTasks[taskId] || {};
 
-    emState = { username, date, taskId, taskName, taskType, memberDisplay: member.display, taskData };
+    // Work-log days are rows (client · how many) whatever the task's older type; an empty day of a
+    // number-type task is edited as rows too, so it matches what the member's portal writes
+    const hasRows = Array.isArray(taskData.rows), empty = !Object.keys(taskData).some(k => k !== 'sectionNote');
+    const effType = taskType !== 'note' && (hasRows || empty) ? (taskType === 'layers' ? 'layers' : 'links') : taskType;
+    emState = { username, date, taskId, taskName, taskType: effType, memberDisplay: member.display, taskData };
 
     document.getElementById('em-sub').textContent = member.display + '  ·  ' + formatFull(date);
     document.getElementById('em-overlay').classList.remove('hidden');
@@ -2807,10 +2961,10 @@
 
   /* ── Tab scroll ── */
   /* ── Shell navigation: every sidebar page has its own URL under /dashboard ── */
-  const PAGES     = ['overview', 'team', 'work', 'attendance', 'tasks', 'reports', 'settings', 'profile'];
+  const PAGES     = ['overview', 'month', 'team', 'work', 'attendance', 'assign', 'clients', 'tasks', 'reports', 'settings', 'profile'];
   const PAGE_TAB  = { work: 'spreadsheet', reports: 'analytics', tasks: 'tasks', attendance: 'attendance' };
   const TAB_PAGE  = { spreadsheet: 'work', analytics: 'reports', tasks: 'tasks', attendance: 'attendance' };
-  const PAGE_NAME = { overview: 'Overview', team: 'Team', work: 'Work', attendance: 'Attendance',
+  const PAGE_NAME = { overview: 'Today', month: 'Month', team: 'Team', work: 'Work', attendance: 'Attendance', assign: 'Assignments', clients: 'Clients',
                       tasks: 'Tasks & Targets', reports: 'Reports', settings: 'Settings', profile: 'Profile' };
   let currentPage = null;
   let profileUser = null;   // username shown on /dashboard/team/<username>
@@ -2818,11 +2972,12 @@
   function pageFromPath(pathname) {
     const [seg, sub] = pathname.replace(/^\/dashboard\/?/, '').split('/');
     if (seg === 'team' && sub) { profileUser = decodeURIComponent(sub); return 'profile'; }
+    if (seg === 'assignments' || seg === 'tasks') return 'assign';
     return PAGES.includes(seg) && seg !== 'profile' ? seg : 'overview';
   }
   function pageUrl(page) {
     if (page === 'profile') return '/dashboard/team/' + encodeURIComponent(profileUser || '');
-    const base = page === 'overview' ? '/dashboard' : '/dashboard/' + page;
+    const base = page === 'overview' ? '/dashboard' : '/dashboard/' + (page === 'assign' ? 'assignments' : page);
     const m = members[activeMember];
     return page === 'work' && m ? base + '?member=' + encodeURIComponent(m.username) : base;
   }
@@ -2849,9 +3004,306 @@
     else if (page === 'work')       { renderMemberTabs(); renderSpreadsheet({ jump: true }); }
     else if (page === 'attendance') initAttendanceTab();
     else if (page === 'tasks')      renderTasksPage();
+    else if (page === 'month')      renderMonthPage();
+    else if (page === 'assign')     renderAssignPage();
+    else if (page === 'clients')    renderClientsPage();
     else if (page === 'reports')    renderReports();
     else if (page === 'settings')   renderSettings();
     else if (page === 'profile')    loadProfile();
+  }
+
+
+  /* ═══ Work log pages ════════════════════════════════════════════════════ */
+  const wl = { month: null, member: null, clMonth: null, client: null, clients: null, board: null };
+  async function wlApi(url, method = 'GET', body) {
+    const res = await fetch(url, { method, credentials: 'same-origin', headers: body ? { 'Content-Type': 'application/json' } : undefined, body: body ? JSON.stringify(body) : undefined });
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 401) { window.location.href = '/login'; throw new Error('Signed out'); }
+    if (!res.ok) throw new Error(data.error || 'Something went wrong — please try again.');
+    return data;
+  }
+  const wlTone = p => p === null || p === undefined ? '' : p >= 95 ? 'good' : p >= 70 ? '' : p >= 45 ? 'warn' : 'bad';
+  const wlBar = p => '<div class="wl-bar ' + wlTone(p) + '"><i style="width:' + Math.max(0, Math.min(100, p || 0)) + '%"></i></div>';
+  const wlDelta = (now, before, unit = '%', dp = 0) => {
+    if (now === null || before === null || before === undefined) return '<span class="wl-flat">—</span>';
+    const d = +(now - before).toFixed(dp);
+    if (Math.abs(d) < (dp ? 0.1 : 1)) return '<span class="wl-flat">same</span>';
+    return '<span class="' + (d > 0 ? 'wl-up' : 'wl-down') + '">' + (d > 0 ? '▲' : '▼') + ' ' + Math.abs(d).toFixed(dp) + unit + '</span>';
+  };
+  function monthOptions(sel, value) {
+    const now = todayISO().slice(0, 7), opts = [];
+    let [y, m] = now.split('-').map(Number);
+    for (let i = 0; i < 13; i++) { const ym = y + '-' + String(m).padStart(2, '0'); opts.push(ym); m--; if (!m) { m = 12; y--; } }
+    sel.innerHTML = opts.map(ym => '<option value="' + ym + '"' + (ym === value ? ' selected' : '') + '>' +
+      new Date(ym + '-01T00:00:00Z').toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' }) + (ym === now ? ' (so far)' : '') + '</option>').join('');
+  }
+
+  /* ── Today: each member's work so far (on the Overview page) ── */
+  async function loadWorkToday() {
+    const box = document.getElementById('wt-list'); if (!box) return;
+    let d;
+    try { d = await wlApi('/api/work/today'); } catch { if (!box.dataset.ok) box.innerHTML = '<div class="ov-loading">Could not load today\'s work — it will retry shortly.</div>'; return; }
+    box.dataset.ok = '1';
+    document.getElementById('wt-updated').textContent = 'Updated ' + new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    const rows = [...d.rows].sort((a, b) => (a.lines ? 1 : 0) - (b.lines ? 1 : 0) || (a.score ?? -1) - (b.score ?? -1));
+    box.innerHTML = rows.map(r => {
+      const [chipCls, chipText] = STATUS_CHIP[r.status] || STATUS_CHIP.offline;
+      const last = r.lastUpdate ? new Date(r.lastUpdate).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : null;
+      return '<div class="wt-row' + (r.lines ? '' : ' alert') + '" role="button" tabindex="0" data-username="' + escHtml(r.username) + '">' +
+        '<div class="wt-who"><b>' + escHtml(r.display) + '</b><span><span class="chip ' + chipCls + '">' + chipText + '</span></span>' +
+          '<small>' + (r.lines ? r.lines + ' entr' + (r.lines === 1 ? 'y' : 'ies') + (last ? ' · last at ' + last : '') : 'No work logged today') + '</small></div>' +
+        '<div class="wt-tasks">' + (r.tasks.length ? r.tasks.map(t => t.note
+            ? '<div class="wt-t"><div class="row"><span title="' + escHtml(t.name) + '">' + escHtml(t.name) + '</span><span class="wl-num">' + (t.lines || t.done ? 'written' : '—') + '</span></div></div>'
+            : '<div class="wt-t"><div class="row"><span title="' + escHtml(t.name) + '">' + escHtml(t.name) + '</span><span class="wl-num">' + t.done + (t.target ? '/' + t.target : '') + '</span></div>' + (t.target ? wlBar(t.pct) : '') + '</div>').join('')
+          : '<span class="ov-loading" style="padding:0">No tasks assigned</span>') + '</div>' +
+        '<div class="wt-score" style="color:var(--' + (r.score >= 95 ? 'ro-success' : r.lines ? 'ro-text' : 'ro-danger') + ')">' + (r.score === null ? '—' : r.score + '%') + '</div></div>';
+    }).join('') || '<div class="ov-loading">No team members yet.</div>';
+    box.querySelectorAll('.wt-row').forEach(el => {
+      const go = () => { wl.month = todayISO().slice(0, 7); openMonthMember(el.dataset.username, true); };
+      el.onclick = go; el.onkeydown = e => { if (e.key === 'Enter') go(); };
+    });
+  }
+
+  /* ── Month: the team, or one member in detail ── */
+  function openMonthMember(username, nav) {
+    wl.member = username || null;
+    if (nav || currentPage !== 'month') navigate('month'); else renderMonthPage();
+  }
+  async function renderMonthPage() {
+    if (!wl.month) wl.month = todayISO().slice(0, 7);
+    monthOptions(document.getElementById('mo-month'), wl.month);
+    const body = document.getElementById('mo-body'), member = wl.member;
+    const sel = document.getElementById('mo-member');
+    document.getElementById('mo-back').hidden = !member; sel.hidden = !member;
+    if (member) sel.innerHTML = members.map(m => '<option value="' + escHtml(m.username) + '"' + (m.username === member ? ' selected' : '') + '>' + escHtml(m.display) + '</option>').join('');
+    body.innerHTML = '<div class="ov-loading">Loading…</div>';
+    try {
+      if (!member) {
+        const d = await wlApi('/api/work/month?month=' + wl.month);
+        if (wl.member || currentPage !== 'month') return;
+        document.getElementById('mo-eyebrow').textContent = 'Team';
+        document.getElementById('mo-title').textContent = d.label + (d.running ? ' so far' : '');
+        body.innerHTML = '<div class="card team-table-card"><div class="wl-scroll"><table class="wl-table"><thead><tr><th>Member</th><th>Days present</th><th style="min-width:190px">Month score</th><th>vs ' + escHtml(d.prevLabel.split(' ')[0]) + '</th><th>Targets met</th><th>Needs attention</th></tr></thead><tbody>' +
+          (d.rows.length ? [...d.rows].sort((a, b) => (b.score ?? -1) - (a.score ?? -1)).map(r => '<tr class="click" data-username="' + escHtml(r.username) + '"><td><b>' + escHtml(r.display) + '</b>' + (r.active ? '' : ' <span class="chip chip--offline">Inactive</span>') + '</td>' +
+            '<td class="wl-num">' + r.present + ' / ' + r.workdays + '</td>' +
+            '<td>' + (r.score === null ? '<span class="wl-flat">No targets</span>' : '<div class="wl-scorecell"><b class="wl-num">' + r.score + '%</b>' + wlBar(r.score) + '</div>') + '</td>' +
+            '<td class="wl-num">' + wlDelta(r.score, r.prevScore, ' pts') + '</td>' +
+            '<td class="wl-num">' + (r.scoredTasks ? r.met + ' of ' + r.scoredTasks : '—') + '</td>' +
+            '<td>' + (r.weakest ? escHtml(r.weakest.name) + ' <span class="wl-num wl-flat">' + r.weakest.pct + '%</span>' : '<span class="wl-flat">Nothing</span>') + '</td></tr>').join('')
+            : '<tr><td colspan="6" class="ov-loading">No team members yet.</td></tr>') + '</tbody></table></div></div>' +
+          '<p class="page-sub" style="margin-top:10px">Click a member for their day-by-day and task-by-task report.</p>';
+        body.querySelectorAll('tr.click').forEach(tr => tr.onclick = () => openMonthMember(tr.dataset.username));
+        return;
+      }
+      const d = await wlApi('/api/work/month/' + encodeURIComponent(member) + '?month=' + wl.month);
+      if (wl.member !== member || currentPage !== 'month') return;
+      document.getElementById('mo-eyebrow').textContent = 'Member report';
+      document.getElementById('mo-title').textContent = d.member.display;
+      const heat = p => p === null ? '' : p >= 95 ? 'h-good' : p >= 70 ? 'h-ok' : p >= 45 ? 'h-warn' : 'h-bad';
+      const spark = (series, target) => {
+        if (!series.length) return '<span class="wl-flat">—</span>';
+        const w = 132, h = 30, max = Math.max((target || 0) * 1.6, ...series.map(x => x.done), 1), bw = w / series.length, y = v => h - (v / max) * (h - 2);
+        return '<svg width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '" aria-hidden="true">' + series.map((x, i) =>
+          '<rect x="' + (i * bw + .5).toFixed(1) + '" y="' + y(x.done).toFixed(1) + '" width="' + Math.max(1, bw - 1.5).toFixed(1) + '" height="' + (h - y(x.done)).toFixed(1) + '" rx="1" fill="' +
+          (x.target && x.done >= x.target ? 'var(--ro-success)' : x.done ? 'var(--ro-dim)' : 'var(--ro-border)') + '"/>').join('') +
+          (target ? '<line x1="0" x2="' + w + '" y1="' + y(target).toFixed(1) + '" y2="' + y(target).toFixed(1) + '" stroke="var(--ro-muted)" stroke-dasharray="3 3"/>' : '') + '</svg>';
+      };
+      body.innerHTML =
+        '<div class="card mo-head"><div style="display:grid;gap:6px;min-width:0"><h2 class="card-heading" style="margin:0">' + escHtml(d.label) + (d.running ? ' so far' : '') + '</h2>' +
+          '<span class="page-sub">Present ' + d.present + ' of ' + d.workdays + ' working day' + (d.workdays === 1 ? '' : 's') + (d.running ? ' so far' : '') + ' · ' + d.tasks.length + ' tasks · ' + d.clients.length + ' clients served</span>' +
+          '<span class="page-sub" style="font-size:12px">Targets as they were on each day. Changes in Assignments never rewrite past days.</span></div>' +
+          '<div class="mo-score"><span class="page-sub" style="font-size:12px">Month score</span><b class="wl-num" style="color:var(--' + (d.score === null ? 'ro-muted' : d.score >= 95 ? 'ro-success' : d.score >= 70 ? 'ro-text' : 'ro-danger') + ')">' + (d.score === null ? '—' : d.score + '%') + '</b>' +
+          '<span class="wl-num" style="font-size:12.5px">' + (d.prevScore !== null && d.score !== null ? wlDelta(d.score, d.prevScore, ' pts') + ' <span class="wl-flat">vs ' + escHtml(d.prevLabel.split(' ')[0]) + '</span>' : '') + '</span></div></div>' +
+        '<div class="card mo-section"><h3 class="card-heading" style="margin:0">Day by day</h3><div class="mo-strip">' + d.daily.map(x =>
+          '<div class="mo-day" title="' + x.date + ': ' + (x.present ? (x.pct === null ? 'present' : x.pct + '%') : 'absent') + '"><i class="' + heat(x.present ? x.pct : null) + '"></i>' + (+x.date.slice(8)) + '</div>').join('') + '</div>' +
+          '<div class="mo-legend"><span><i class="h-good"></i>95%+</span><span><i class="h-ok"></i>70–94%</span><span><i class="h-warn"></i>45–69%</span><span><i class="h-bad"></i>under 45%</span><span><i style="background:var(--ro-surface-2)"></i>absent / no target</span></div></div>' +
+        '<div class="card team-table-card" style="margin-top:16px"><div class="wl-scroll"><table class="wl-table"><thead><tr><th>Task</th><th>Daily target</th><th>Could do</th><th>Did</th><th style="min-width:160px">Score</th><th>Daily average</th><th>vs ' + escHtml(d.prevLabel.split(' ')[0]) + '</th><th>Each day <span class="unit">dashed = target</span></th></tr></thead><tbody>' +
+          (d.tasks.length ? d.tasks.map(t => '<tr><td style="white-space:nowrap;font-weight:500">' + escHtml(t.name) + '</td>' +
+            '<td class="wl-num">' + (t.target === null ? '—' : t.target + (t.targetChanged ? '*' : '')) + '<span class="unit">' + escHtml(t.unit) + '</span></td>' +
+            '<td class="wl-num">' + (t.potential || '—') + '</td><td class="wl-num"><b>' + t.done + '</b></td>' +
+            '<td>' + (t.pct === null ? '<span class="wl-flat">No target</span>' : '<div class="wl-scorecell"><span class="wl-num">' + t.pct + '%</span>' + wlBar(t.pct) + '</div>') + '</td>' +
+            '<td class="wl-num">' + (t.avg === null ? '—' : t.avg.toFixed(1)) + '</td><td class="wl-num">' + (t.prevAvg === null ? '<span class="wl-flat">new</span>' : wlDelta(t.avg, t.prevAvg, ' /day', 1)) + '</td>' +
+            '<td>' + spark(t.series, t.target) + '</td></tr>').join('') : '<tr><td colspan="8" class="ov-loading">No tasks this month.</td></tr>') +
+          '</tbody></table></div></div>' +
+          (d.tasks.some(t => t.targetChanged) ? '<p class="page-sub" style="margin-top:8px">* The target changed during the month; the average target is shown, and each day counts with its own.</p>' : '') +
+        '<div class="card mo-section"><h3 class="card-heading" style="margin:0">Clients this month</h3><div class="mo-pills">' +
+          (d.clients.length ? d.clients.map(c => '<span class="mo-pill">' + escHtml(c.name) + ' <b class="wl-num">' + c.total + '</b></span>').join('') : '<span class="wl-flat">No client work logged.</span>') + '</div></div>';
+    } catch (e) { body.innerHTML = '<div class="ov-loading">' + escHtml(e.message) + '</div>'; }
+  }
+
+  /* ── Assignments board ── */
+  const fmtDay = iso => new Date(iso + 'T00:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+  async function renderAssignPage(data) {
+    const box = document.getElementById('as-board');
+    try { wl.board = data || await wlApi('/api/assign/board'); } catch (e) { box.innerHTML = '<div class="ov-loading">' + escHtml(e.message) + '</div>'; return; }
+    const b = wl.board;
+    if (!b.library.length) { box.innerHTML = '<div class="ov-loading">No tasks yet. Add the first one with "+ New task".</div>'; }
+    else box.innerHTML = '<table class="wl-table wl-board"><thead><tr><th>Task</th>' + b.members.map(m => '<th class="mem" title="' + escHtml(m.display) + '">' + escHtml(m.display.split(' ').slice(0, 2).join(' ')) +
+      '<div class="unit" style="margin:0">' + b.library.filter(l => l.cells[m.username] && !l.cells[m.username].notYet).length + ' tasks</div></th>').join('') + '</tr></thead><tbody>' +
+      b.groups.map(g => '<tr class="grp"><td colspan="' + (b.members.length + 1) + '">' + escHtml(g) + '</td></tr>' + b.library.filter(l => l.group === g).map(l => {
+        const owners = b.members.filter(m => l.cells[m.username] && !l.cells[m.username].notYet).length;
+        return '<tr><td class="tname"><button type="button" data-lib="' + escHtml(l.key) + '" title="Rename, change unit or group, archive">' + escHtml(l.name) + '</button><span class="unit">' + escHtml(l.unit) + '</span>' +
+          (owners ? '' : ' <span class="chip chip--break">nobody</span>') + '</td>' + b.members.map(m => {
+            const c = l.cells[m.username], has = c && !c.notYet;
+            const next = c && c.next ? '<small>' + (c.next.ends ? 'ends ' + fmtDay(addDaysISO(c.next.from, -1)) : 'from ' + fmtDay(c.next.from) + ': ' + (c.next.target ?? 'no target')) + '</small>' : '';
+            return '<td class="cell"><button type="button" class="wl-cell' + (has ? ' has' : '') + '" data-cell="' + escHtml(m.username) + '|' + escHtml(l.key) + '" aria-label="' + escHtml(l.name + ' for ' + m.display) + '">' +
+              (has ? (c.target === null ? (l.note ? 'notes' : 'no target') : c.target + ' / day') : '+') + next + '</button></td>';
+          }).join('') + '</tr>';
+      }).join('')).join('') + '</tbody></table>';
+    document.getElementById('as-log').innerHTML = b.log.length ? b.log.map(l => '<li>' + escHtml(l.text) + ' <small>· ' + escHtml(l.by || '') + ', ' +
+      new Date(l.at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) + '</small></li>').join('')
+      : '<li class="wl-flat" style="list-style:none;margin-left:-18px">No changes yet. Every change is listed here with the day it starts.</li>';
+    box.querySelectorAll('[data-cell]').forEach(el => el.onclick = () => { const [u, k] = el.dataset.cell.split('|'); openAssignCell(u, k); });
+    box.querySelectorAll('[data-lib]').forEach(el => el.onclick = () => openLibraryTask(el.dataset.lib));
+  }
+  function startsField(id = 'wl-from') {
+    const t = todayISO(), tm = addDaysISO(t, 1), [y, m] = t.split('-').map(Number);
+    const nextMonth = new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10);
+    return '<div class="form-group"><label class="form-label" for="' + id + '">Starts</label><select class="inp" id="' + id + '">' +
+      '<option value="' + t + '">Today (' + fmtDay(t) + ')</option><option value="' + tm + '">Tomorrow (' + fmtDay(tm) + ')</option>' +
+      '<option value="' + nextMonth + '">Start of next month (' + fmtDay(nextMonth) + ')</option></select></div>';
+  }
+  let wlSubmit = null;
+  function openWl({ sub, title, body, ok = 'Save', left = '', onOk, danger = false }) {
+    document.getElementById('wl-sub').textContent = sub || '';
+    document.getElementById('wl-title').textContent = title;
+    document.getElementById('wl-body').innerHTML = body + '<div class="am-error" id="wl-error"></div>';
+    document.getElementById('wl-left').innerHTML = left;
+    const okBtn = document.getElementById('wl-ok'); okBtn.textContent = ok; okBtn.disabled = false;
+    okBtn.style.background = danger ? 'var(--ro-danger)' : ''; okBtn.style.borderColor = danger ? 'var(--ro-danger)' : '';
+    wlSubmit = onOk;
+    document.getElementById('wl-overlay').classList.remove('hidden');
+    const first = document.querySelector('#wl-body input, #wl-body select'); if (first) setTimeout(() => first.focus(), 30);
+  }
+  function closeWl() { document.getElementById('wl-overlay').classList.add('hidden'); wlSubmit = null; }
+  function wlError(msg) { const e = document.getElementById('wl-error'); e.textContent = msg; e.classList.add('show'); }
+  document.getElementById('wl-form').addEventListener('submit', async e => {
+    e.preventDefault(); if (!wlSubmit) return;
+    const okBtn = document.getElementById('wl-ok'); okBtn.disabled = true;
+    try { await wlSubmit(); } catch (err) { wlError(err.message); } finally { okBtn.disabled = false; }
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !document.getElementById('wl-overlay').classList.contains('hidden')) closeWl(); });
+
+  function openAssignCell(username, key) {
+    const b = wl.board, l = b.library.find(x => x.key === key), m = b.members.find(x => x.username === username);
+    const c = l.cells[username], has = c && !c.notYet;
+    const others = b.members.filter(x => x.username !== username);
+    openWl({
+      sub: m.display, title: l.name, ok: has ? 'Save' : 'Assign',
+      body: (l.note ? '<p class="page-sub" style="margin:0">A notes task: written text, no number or target.</p>' : '<div class="form-group"><label class="form-label" for="wl-target">Daily target (' + escHtml(l.unit) + ')</label>' +
+          '<input class="inp" id="wl-target" type="number" min="0" inputmode="numeric" value="' + (has && c.target !== null ? c.target : '') + '" placeholder="e.g. 10 (empty = no target)"></div>') +
+        startsField() +
+        (has ? '<div class="form-group"><label class="form-label" for="wl-move">Or move this task to</label><select class="inp" id="wl-move"><option value="">Keep with ' + escHtml(m.display) + '</option>' +
+          others.map(o => '<option value="' + escHtml(o.username) + '">' + escHtml(o.display) + '</option>').join('') + '</select></div>' : '') +
+        (c && c.next ? '<p class="page-sub" style="margin:0">Planned: ' + (c.next.ends ? 'ends after ' + fmtDay(addDaysISO(c.next.from, -1)) : 'from ' + fmtDay(c.next.from) + ', target ' + (c.next.target ?? 'none')) + '. Saving a new change replaces plans from the same day on.</p>' : ''),
+      left: has ? '<button type="button" class="btn btn-ghost btn-sm wl-danger" id="wl-remove">Remove task</button>' : '',
+      onOk: async () => {
+        const t = document.getElementById('wl-target'), mv = document.getElementById('wl-move');
+        const target = t && t.value !== '' ? Number(t.value) : null;
+        const body = { username, key, target, from: document.getElementById('wl-from').value };
+        if (mv && mv.value) body.moveTo = mv.value;
+        const d = await wlApi('/api/assign', 'PUT', body);
+        closeWl(); renderAssignPage(d); showToast(body.moveTo ? 'Task moved.' : has ? 'Saved.' : 'Task assigned.', 'success');
+      },
+    });
+    const rm = document.getElementById('wl-remove');
+    if (rm) rm.onclick = async () => {
+      try { const d = await wlApi('/api/assign', 'DELETE', { username, key, from: document.getElementById('wl-from').value }); closeWl(); renderAssignPage(d); showToast('Task removed. Past work stays in the reports.', 'success'); }
+      catch (err) { wlError(err.message); }
+    };
+  }
+  function openLibraryTask(key) {
+    const b = wl.board || { groups: [], library: [] }, l = key && b.library.find(x => x.key === key);
+    const groups = [...new Set([...(b.groups || []), 'GMB', 'Link building', 'Web 2.0 & Google', 'Website', 'Reporting'])];
+    openWl({
+      sub: l ? 'Task' : 'New task', title: l ? l.name : 'Add a task', ok: l ? 'Save' : 'Add task',
+      body: '<div class="form-group"><label class="form-label" for="wl-name">Task name</label><input class="inp" id="wl-name" maxlength="60" value="' + escHtml(l ? l.name : '') + '" placeholder="e.g. Profile Creation"></div>' +
+        '<div class="wl-row2"><div class="form-group"><label class="form-label" for="wl-unit">Counted in</label><input class="inp" id="wl-unit" maxlength="24" value="' + escHtml(l ? l.unit : 'links') + '" placeholder="links, posts, audits…"' + (l && l.note ? ' disabled' : '') + '></div>' +
+        '<div class="form-group"><label class="form-label" for="wl-group">Group</label><input class="inp" id="wl-group" list="wl-groups" maxlength="40" value="' + escHtml(l ? l.group : '') + '" placeholder="e.g. Link building"><datalist id="wl-groups">' +
+          groups.map(g => '<option value="' + escHtml(g) + '"></option>').join('') + '</datalist></div></div>' +
+        (l ? '<p class="page-sub" style="margin:0">Renaming keeps every past entry. Give the task to people from the board.</p>' : '<p class="page-sub" style="margin:0">After adding it, click the boxes in its row to give it to people with a daily target.</p>'),
+      left: l ? '<button type="button" class="btn btn-ghost btn-sm wl-danger" id="wl-archive">Archive task</button>' : '',
+      onOk: async () => {
+        const body = { name: document.getElementById('wl-name').value, group: document.getElementById('wl-group').value };
+        if (!(l && l.note)) body.unit = document.getElementById('wl-unit').value;
+        const d = l ? await wlApi('/api/library/' + encodeURIComponent(l.key), 'PATCH', body) : await wlApi('/api/library', 'POST', body);
+        closeWl(); renderAssignPage(d); showToast(l ? 'Task saved.' : 'Task added. Now give it to people on the board.', 'success');
+      },
+    });
+    const ar = document.getElementById('wl-archive');
+    if (ar) ar.onclick = () => openWl({ sub: l.name, title: 'Archive this task?', ok: 'Archive', danger: true,
+      body: '<p class="page-sub" style="margin:0">It stops for everyone from today and leaves the board. Past work and reports stay as they are.</p>',
+      onOk: async () => { const d = await wlApi('/api/library/' + encodeURIComponent(l.key), 'PATCH', { archive: true }); closeWl(); renderAssignPage(d); showToast('Task archived.', 'success'); } });
+  }
+  function openCopyTasks() {
+    const b = wl.board; if (!b) return;
+    const opts = b.members.map(m => '<option value="' + escHtml(m.username) + '">' + escHtml(m.display) + '</option>').join('');
+    openWl({ sub: 'New teammate or a role change', title: 'Copy tasks to a teammate', ok: 'Copy tasks',
+      body: '<div class="form-group"><label class="form-label" for="wl-src">Same tasks and targets as</label><select class="inp" id="wl-src">' + opts + '</select></div>' +
+        '<div class="form-group"><label class="form-label" for="wl-dst">Give them to</label><select class="inp" id="wl-dst">' + opts + '</select></div>' +
+        '<p class="page-sub" style="margin:0">Starts today. Add a new teammate first in Settings.</p>',
+      onOk: async () => {
+        const source = document.getElementById('wl-src').value, username = document.getElementById('wl-dst').value;
+        if (source === username) throw new Error('Pick two different people');
+        const d = await wlApi('/api/assign/copy', 'POST', { username, source }); closeWl(); renderAssignPage(d); showToast('Tasks copied.', 'success');
+      } });
+    const dst = document.getElementById('wl-dst'); if (dst.options.length > 1) dst.selectedIndex = dst.options.length - 1;
+  }
+
+  /* ── Clients ── */
+  async function renderClientsPage() {
+    if (!wl.clMonth) wl.clMonth = todayISO().slice(0, 7);
+    monthOptions(document.getElementById('cl-month'), wl.clMonth);
+    try { wl.clients = await wlApi('/api/clients/summary?month=' + wl.clMonth); }
+    catch (e) { document.getElementById('cl-list').innerHTML = '<div class="ov-loading">' + escHtml(e.message) + '</div>'; return; }
+    const n = wl.clients.clients.filter(c => c.active).length;
+    document.getElementById('cl-eyebrow').textContent = n + ' active client' + (n === 1 ? '' : 's');
+    renderClientList(); renderClientDetail();
+    const un = wl.clients.unlisted, box = document.getElementById('cl-unlisted');
+    box.hidden = !un.length;
+    box.innerHTML = '<h3 class="card-heading" style="margin:0">Names typed in entries that are not in the list</h3><p class="page-sub" style="margin:0">From ' + escHtml(wl.clients.label) + '. Add the real clients so their work counts under one name.</p>' +
+      '<div class="wl-unl">' + un.map(u => '<button type="button" data-name="' + escHtml(u.name) + '">+ ' + escHtml(u.name) + ' <span class="wl-num wl-flat">' + u.units + '</span></button>').join('') + '</div>';
+    box.querySelectorAll('[data-name]').forEach(bt => bt.onclick = () => addClient(bt.dataset.name));
+  }
+  function renderClientList() {
+    if (!wl.clients) return;
+    const q = document.getElementById('cl-search').value.trim().toLowerCase(), onlyNew = document.getElementById('cl-only-new').checked;
+    const list = wl.clients.clients.filter(c => (!q || c.name.toLowerCase().includes(q)) && (!onlyNew || c.fromTeam));
+    if (!wl.client || !wl.clients.clients.some(c => c.clientId === wl.client)) wl.client = (list[0] || {}).clientId || null;
+    const box = document.getElementById('cl-list');
+    box.innerHTML = list.length ? list.map(c => '<button type="button" class="wl-cl-item' + (c.clientId === wl.client ? ' on' : '') + (c.active ? '' : ' off') + '" data-id="' + escHtml(c.clientId) + '"><span>' +
+      escHtml(c.name) + (c.fromTeam ? '<span class="wl-new">new</span>' : '') + (c.active ? '' : ' <span class="unit">archived</span>') + '</span><span class="wl-num">' + c.total + '</span></button>').join('')
+      : '<div class="ov-loading">' + (wl.clients.clients.length ? 'No client matches.' : 'No clients yet. Add the first one above.') + '</div>';
+    box.querySelectorAll('[data-id]').forEach(bt => bt.onclick = () => { wl.client = bt.dataset.id; renderClientList(); renderClientDetail(); });
+  }
+  async function renderClientDetail() {
+    const box = document.getElementById('cl-detail');
+    if (!wl.client) { box.innerHTML = '<div class="ov-loading">Pick a client.</div>'; return; }
+    const id = wl.client;
+    let d; try { d = await wlApi('/api/clients/' + encodeURIComponent(id) + '/work?month=' + wl.clMonth); } catch (e) { box.innerHTML = '<div class="ov-loading">' + escHtml(e.message) + '</div>'; return; }
+    if (id !== wl.client) return;
+    const c = d.client;
+    box.innerHTML = '<div class="wl-cl-head"><div style="display:grid;gap:4px"><h2 class="card-heading" style="margin:0">' + escHtml(c.name) + (c.fromTeam ? '<span class="wl-new">new</span>' : '') + '</h2>' +
+        '<span class="page-sub">' + escHtml(d.label) + (c.fromTeam ? ' · added by ' + escHtml(c.addedBy || 'the team') : '') + '</span>' +
+        '<span class="wl-tools" style="margin-top:4px">' + (c.fromTeam ? '<button type="button" class="btn btn-ghost btn-sm" data-act="ok">Keep in the list</button>' : '') +
+        '<button type="button" class="btn btn-ghost btn-sm" data-act="rename">Rename</button><button type="button" class="btn btn-ghost btn-sm' + (c.active ? ' wl-danger' : '') + '" data-act="toggle">' + (c.active ? 'Archive' : 'Restore') + '</button></span></div>' +
+        '<div style="text-align:right"><span class="page-sub" style="font-size:12px">Units of work</span><div class="wl-num" style="font-size:26px;font-weight:700">' + d.total + '</div></div></div>' +
+      (d.rows.length ? '<div class="wl-scroll"><table class="wl-table"><thead><tr><th>Task</th><th>Done by</th><th>Amount</th><th>Days</th></tr></thead><tbody>' + d.rows.map(r =>
+        '<tr><td style="white-space:nowrap;font-weight:500">' + escHtml(r.taskName) + '</td><td>' + escHtml(r.display) + '</td><td class="wl-num"><b>' + r.units + '</b><span class="unit">' + escHtml(r.unit) + '</span></td><td class="wl-num">' + r.days + '</td></tr>').join('') + '</tbody></table></div>'
+        : '<div class="ov-loading">No work logged for this client in ' + escHtml(d.label) + '.</div>');
+    const act = async body => { try { await wlApi('/api/clients/' + encodeURIComponent(c.clientId), 'PATCH', body); renderClientsPage(); } catch (e) { showToast(e.message, 'error'); } };
+    box.querySelector('[data-act="toggle"]').onclick = () => act({ active: !c.active }).then(() => showToast(c.active ? 'Client archived. The team no longer sees it.' : 'Client restored.', 'success'));
+    const ok = box.querySelector('[data-act="ok"]'); if (ok) ok.onclick = () => act({ fromTeam: false });
+    box.querySelector('[data-act="rename"]').onclick = () => openWl({ sub: 'Client', title: 'Rename ' + c.name, ok: 'Rename',
+      body: '<div class="form-group"><label class="form-label" for="wl-cname">Name</label><input class="inp" id="wl-cname" maxlength="80" value="' + escHtml(c.name) + '"></div><p class="page-sub" style="margin:0">Past entries keep counting for this client.</p>',
+      onOk: async () => { await wlApi('/api/clients/' + encodeURIComponent(c.clientId), 'PATCH', { name: document.getElementById('wl-cname').value }); closeWl(); renderClientsPage(); showToast('Client renamed.', 'success'); } });
+  }
+  async function addClient(name) {
+    const inp = document.getElementById('cl-new'); name = (name ?? inp.value).trim();
+    if (name.length < 2) { inp.focus(); return; }
+    try { const c = await wlApi('/api/clients', 'POST', { name }); if (c.existed) showToast(c.name + ' is already in the list.', 'info'); else showToast(c.name + ' added. The team can pick it now.', 'success');
+      inp.value = ''; wl.client = c.clientId; renderClientsPage(); }
+    catch (e) { showToast(e.message, 'error'); }
   }
 
   /* ── Correction requests (from Needs Attention) ── */
@@ -3009,6 +3461,7 @@
       now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
     if (overviewData) renderOverviewData();
     loadOverview();
+    loadWorkToday();
   }
 
   async function loadOverview() {
@@ -3055,7 +3508,8 @@
       : '<div class="all-clear"><span class="all-clear-icon" aria-hidden="true">&#10003;</span><span><b>All clear</b><br>Nobody needs attention right now.</span></div>';
 
     // Team at a glance
-    document.getElementById('glance-list').innerHTML = d.team.map(t => {
+    const glance = document.getElementById('glance-list');
+    if (glance) glance.innerHTML = d.team.map(t => {
       const [chipCls, chipText] = STATUS_CHIP[t.status] || STATUS_CHIP.offline;
       const pct = t.targetPct;
       return '<a class="ov-row" href="/dashboard/team/' + encodeURIComponent(t.username) + '" data-username="' + escHtml(t.username) + '"' +
@@ -3308,7 +3762,7 @@
         '<td>' + (TYPE_NAME[t.type] || escHtml(t.type)) + '</td>' +
         '<td class="num">' + (t.dailyTarget === null ? '<span class="muted">—</span>' : t.dailyTarget) + '</td>' +
         '<td>' + (!t.assigned ? '<span class="chip chip--offline">Previously assigned</span>' : t.active ? '<span class="chip chip--working">Active</span>' : '<span class="chip chip--offline">Inactive</span>') + '</td></tr>').join('') +
-      '</tbody></table></div><p class="page-sub pf-hint">Edit names, types and targets in <a href="/dashboard/tasks" data-page="tasks">Tasks &amp; Targets</a>.</p>'
+      '</tbody></table></div><p class="page-sub pf-hint">Give tasks and change targets in <a href="/dashboard/assignments" data-page="assign">Assignments</a>.</p>'
       : '<div class="ov-loading">No tasks assigned yet.</div>';
   }
 
@@ -3518,8 +3972,11 @@
   /* ── Work: heatmap — one row per task, one tile per day; click a day → day panel ── */
   // The number a task value counts towards its daily target (same rule as the server). null = no number.
   function achievedValue(type, d) {
+    if (type === 'note') return null;
     if (!d) return 0;
     const ints = s => (String(s ?? '').match(/\d+/g) || []).reduce((a, n) => a + parseInt(n, 10), 0);
+    if (Array.isArray(d.rows)) return typeof d.total === 'number' ? d.total : d.rows.reduce((a, r) => a + ints(r.value ?? r.links), 0);
+    if (d.value !== undefined && d.value !== '' && type !== 'links_note') return ints(d.value);
     switch (type) {
       case 'count': case 'count_note': return ints(d.value);
       case 'links': case 'layers': return typeof d.total === 'number' ? d.total : (d.rows || []).reduce((a, r) => a + ints(r.value ?? r.links), 0);
@@ -4431,7 +4888,7 @@
     setInterval(async function() {
       await loadAll();
       if (activeTab === 'spreadsheet') renderSpreadsheet();
-      if (currentPage === 'overview') loadOverview();
+      if (currentPage === 'overview') { loadOverview(); loadWorkToday(); }
       if (currentPage === 'team') { teamData = null; renderTeam(); }
     }, 30000);
   }

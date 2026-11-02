@@ -50,7 +50,8 @@ const {
   entryTasksV2, saveMemberTaskList, resetMemberTasks, setAssignees, migrateToTaskIds, titleCase,
 } = require('./lib/tasks');
 const { buildOverview, localNow } = require('./lib/overview');
-const { buildTeam, buildProfile, buildMySummary } = require('./lib/team');
+const worklog = require('./lib/worklog');
+const { buildTeam, buildProfile, buildMySummary, loadMembers } = require('./lib/team');
 const { buildReport } = require('./lib/reports');
 
 const app  = express();
@@ -149,6 +150,33 @@ const CorrectionSchema = new mongoose.Schema({
 }, { timestamps: true });
 const Correction = mongoose.models.Correction || mongoose.model('Correction', CorrectionSchema);
 
+// Client — the shared client list the team picks from when logging work
+const ClientSchema = new mongoose.Schema({
+  clientId: { type: String, required: true, unique: true },
+  name:     { type: String, required: true },
+  key:      { type: String, required: true, unique: true },   // lower-case name, so "abc dental" = "ABC Dental"
+  active:   { type: Boolean, default: true },
+  fromTeam: { type: Boolean, default: false },                // added by a team member, not yet checked by the manager
+  addedBy:  { type: String },
+}, { timestamps: true });
+const Client = mongoose.models.Client || mongoose.model('Client', ClientSchema);
+
+// Assignment — one member, one task, a daily target and the days it applies (to = null: ongoing).
+// Targets are read per day from these, so changing a target never rewrites past months.
+const AssignmentSchema = new mongoose.Schema({
+  username: { type: String, required: true, index: true },
+  taskId:   { type: String, required: true, index: true },
+  target:   { type: Number, default: null },
+  from:     { type: String, required: true },
+  to:       { type: String, default: null },
+  by:       { type: String },
+}, { timestamps: true });
+const Assignment = mongoose.models.Assignment || mongoose.model('Assignment', AssignmentSchema);
+
+// The Assignments page's change list ("From 1 Dec: Guest Posting moves from … to …")
+const AssignLogSchema = new mongoose.Schema({ text: String, by: String, from: String }, { timestamps: true });
+const AssignLog = mongoose.models.AssignLog || mongoose.model('AssignLog', AssignLogSchema);
+
 // Task — one document per task; assignees are the usernames it is assigned to (one
 // task can be shared by many members). legacyKey is unique: "<username>|<original name>"
 // for tasks from the pre-V2 lists (so old name-keyed entries can be matched to them),
@@ -163,6 +191,8 @@ const TaskSchema = new mongoose.Schema({
   assignees:       { type: [String], default: [] },
   formerAssignees: { type: [String], default: [] },
   order:           { type: Number, default: 0 },
+  unit:            { type: String },               // what is counted: links, posts, audits… (work log)
+  group:           { type: String },               // library group on the Assignments page
   legacyKey:       { type: String, required: true, unique: true },
 }, { timestamps: true });
 TaskSchema.index({ assignees: 1 });
@@ -180,7 +210,7 @@ mongoose.connection.once('open', async () => {
   try {
     // Staging only: make sure the test.* accounts and TEST data exist (idempotent).
     // Unique indexes must exist before anything writes tasks (parallel cold starts).
-    await Promise.all([Task.init(), Config.init()]);
+    await Promise.all([Task.init(), Config.init(), Client.init(), Assignment.init()]);
 
     if (!IS_PRODUCTION) await require('./lib/staging-seed').seedStagingData({ User, Entry, Attendance, Config, Task });
 
@@ -669,6 +699,19 @@ if (!IS_PRODUCTION) {
 
 app.use(requireAuth);
 
+// Assignments can be dated in the future ("from 1 December"): once a day, bring every
+// task's assignee list up to date (each instance, cheap and idempotent).
+let assignSyncedFor = null;
+app.use(async (req, res, next) => {
+  const today = localNow().date;
+  if (assignSyncedFor !== today) {
+    assignSyncedFor = today;
+    try { const changed = await worklog.syncAssignees({ Task, Assignment }, today); if (changed.length) await bumpRev(changed); }
+    catch (err) { assignSyncedFor = null; console.error('Assignment sync error:', err); }
+  }
+  next();
+});
+
 // ── Protected page routes ──────────────────────────────────────────────────
 // Member portal: My Space (/member) and My History (/member/history), one page
 app.get(['/member', '/member/history'], (req, res) =>
@@ -676,7 +719,7 @@ app.get(['/member', '/member/history'], (req, res) =>
 
 // Manager shell: /dashboard is Overview; each sidebar page has its own URL and the
 // same page renders it client-side.
-const DASHBOARD_PAGES = ['team', 'work', 'attendance', 'tasks', 'reports', 'settings'];
+const DASHBOARD_PAGES = ['month', 'team', 'work', 'attendance', 'assignments', 'tasks', 'clients', 'reports', 'settings'];
 app.get(['/dashboard', '/dashboard/:page', '/dashboard/team/:username'], requireManager, (req, res, next) => {
   if (req.params.page && !DASHBOARD_PAGES.includes(req.params.page)) return next();
   res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
@@ -695,6 +738,11 @@ app.get('/api/me', async (req, res) => {
     // name and shift straight from the database: another instance may have just changed them
     const u = (await User.findOne({ username: req.session.username }, { _id: 0, display: 1, shift: 1 }).lean()) || getUser(req.session.username) || {};
     const days = await memberDays(req.session.username);
+    // The member's own daily target (from their assignment) where one is set
+    const rows = await Assignment.find({ username: req.session.username }).lean();
+    const mine = t => { const r = rows.filter(x => x.taskId === t.taskId); if (!r.length) return t;
+      const cur = r.find(x => worklog.covers(x, days.today)); return { ...t, dailyTarget: cur ? cur.target ?? null : t.dailyTarget }; };
+    tasks.splice(0, tasks.length, ...tasks.map(mine));
     res.json({ username: req.session.username, display: u.display || req.session.display, role: req.session.role,
                today: days.today, editableDates: days.editable,
                timeZone: process.env.APP_TIMEZONE || 'Asia/Karachi',   // attendance times are in this zone
@@ -708,7 +756,7 @@ app.get('/api/me', async (req, res) => {
 // My Space: the member's own streak, today and "My Week" numbers (own data only)
 app.get('/api/my/summary', async (req, res) => {
   try {
-    res.json(await buildMySummary({ Task, Entry, Attendance },
+    res.json(await buildMySummary({ Task, Entry, Attendance, Assignment },
       { username: req.session.username, date: req.query.date, time: req.query.time }));
   } catch (err) {
     console.error('My summary error:', err);
@@ -923,7 +971,7 @@ app.delete('/api/tasks/:displayName', requireManager, async (req, res) => {
 app.get('/api/overview', requireManager, async (req, res) => {
   try {
     const members = memberAccounts({ activeOnly: true });
-    const data = await buildOverview({ Task, Entry, Attendance, User }, { members, date: req.query.date, time: req.query.time });
+    const data = await buildOverview({ Task, Entry, Attendance, User, Assignment }, { members, date: req.query.date, time: req.query.time });
     // Open correction requests come first in Needs Attention
     const byName = Object.fromEntries(members.map(m => [m.username, m.display]));
     const open = await Correction.find({ status: 'open', username: { $in: members.map(m => m.username) } }).sort({ createdAt: 1 }).lean();
@@ -943,7 +991,7 @@ app.get('/api/team', requireManager, async (req, res) => {
     const members = memberAccounts();
     const users = await User.find({ username: { $in: members.map(m => m.username) } },
                                   { _id: 0, username: 1, role: 1, shift: 1, active: 1, lastActiveAt: 1 }).lean();
-    res.json(await buildTeam({ Task, Entry, Attendance }, { members, users, date: req.query.date, time: req.query.time }));
+    res.json(await buildTeam({ Task, Entry, Attendance, Assignment }, { members, users, date: req.query.date, time: req.query.time }));
   } catch (err) {
     console.error('Team error:', err);
     res.status(500).json({ error: 'Database error' });
@@ -953,7 +1001,7 @@ app.get('/api/team', requireManager, async (req, res) => {
 // Reports: per-member numbers for a period (?period=week|month|custom&from=&to=)
 app.get('/api/reports', requireManager, async (req, res) => {
   try {
-    res.json(await buildReport({ Task, Entry, Attendance }, { members: memberAccounts(), query: req.query }));
+    res.json(await buildReport({ Task, Entry, Attendance, Assignment }, { members: memberAccounts(), query: req.query }));
   } catch (err) {
     if (err.status === 400) return res.status(400).json({ error: err.message });
     console.error('Reports error:', err);
@@ -970,7 +1018,7 @@ app.get('/api/members/:username/profile', requireManager, async (req, res) => {
       User.findOne({ username: member.username }, { _id: 0, password: 0, passwordVersion: 0 }).lean(),
       MemberNote.find({ username: member.username }).sort({ createdAt: -1 }).lean(),
     ]);
-    res.json(await buildProfile({ Task, Entry, Attendance }, {
+    res.json(await buildProfile({ Task, Entry, Attendance, Assignment }, {
       member, user: user || {}, notes: notes.map(n => ({ id: String(n._id), text: n.text, author: n.author, at: n.createdAt })),
       date: req.query.date, time: req.query.time,
     }));
@@ -1059,6 +1107,376 @@ app.post('/api/admin/save', requireManager, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('Admin save error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+
+// ── Work log: clients, task library, assignments, Today and Month ─────────
+const YM_RE = /^\d{4}-\d{2}$/, DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+const cleanName = (s, max = 80) => String(s || '').trim().replace(/\s+/g, ' ').slice(0, max);
+const publicClient = c => ({ clientId: c.clientId, name: c.name, active: c.active !== false, fromTeam: !!c.fromTeam, addedBy: c.addedBy || null });
+const actor = req => req.session.display || req.session.username;
+const rowUnits = r => parseInt(String(r.value ?? r.links ?? '').replace(/\D+/g, '') || '0', 10);
+
+// Everyone signed in reads the client list (members pick from it)
+app.get('/api/clients', async (req, res) => {
+  try {
+    const q = req.session.role === 'member' ? { active: { $ne: false } } : {};
+    res.json((await Client.find(q).lean()).map(publicClient).sort((a, b) => a.name.localeCompare(b.name)));
+  } catch (err) { res.status(500).json({ error: 'Database error' }); }
+});
+
+// Add a client. A team member may add one while logging work; it is marked for the manager.
+app.post('/api/clients', async (req, res) => {
+  const name = cleanName(req.body.name);
+  if (name.length < 2) return res.status(400).json({ error: 'Write the client name (at least 2 characters)' });
+  try {
+    const key = worklog.looseName(name);
+    const found = await Client.findOne({ key }).lean();
+    if (found) {
+      if (found.active === false && req.session.role !== 'member') await Client.updateOne({ key }, { $set: { active: true } });
+      return res.json({ ...publicClient(found), active: true, existed: true });
+    }
+    const c = await Client.create({ clientId: newTaskId(), name, key, fromTeam: req.session.role === 'member', addedBy: actor(req) });
+    res.json(publicClient(c));
+  } catch (err) {
+    if (err.code === 11000) { const c = await Client.findOne({ key: worklog.looseName(name) }).lean(); return res.json({ ...publicClient(c), existed: true }); }
+    console.error('Client create error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Manager: rename, archive / restore, or accept a client a team member added
+app.patch('/api/clients/:id', requireManager, async (req, res) => {
+  try {
+    const c = await Client.findOne({ clientId: req.params.id }).lean();
+    if (!c) return res.status(404).json({ error: 'Client not found' });
+    const set = {};
+    if (req.body.name !== undefined) {
+      const name = cleanName(req.body.name);
+      if (name.length < 2) return res.status(400).json({ error: 'Write the client name (at least 2 characters)' });
+      const key = worklog.looseName(name);
+      if (key !== c.key && await Client.exists({ key })) return res.status(409).json({ error: 'Another client already has that name' });
+      Object.assign(set, { name, key });
+    }
+    if (req.body.active !== undefined) set.active = !!req.body.active;
+    if (req.body.fromTeam === false) set.fromTeam = false;
+    await Client.updateOne({ clientId: c.clientId }, { $set: set });
+    res.json(publicClient({ ...c, ...set }));
+  } catch (err) {
+    console.error('Client update error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Every line in a month (all members), resolved to a client of the list where possible
+async function monthLines(ym) {
+  const from = ym + '-01', to = worklog.monthEnd(ym);
+  const [entries, tasks, clients] = await Promise.all([
+    Entry.find({ date: { $gte: from, $lte: to } }).lean(), Task.find({}).lean(), Client.find({}).lean()]);
+  const byKey = Object.fromEntries(clients.map(c => [c.key, c])), byId = Object.fromEntries(clients.map(c => [c.clientId, c]));
+  const tasksById = Object.fromEntries(tasks.map(t => [t.taskId, t]));
+  const days = await entriesByDate(entries.map(e => ({ ...e, date: e.username + '|' + e.date })));
+  const lines = [];
+  for (const [k, day] of Object.entries(days)) {
+    const [username, date] = k.split('|');
+    for (const [taskId, v] of Object.entries(day || {})) {
+      if (taskId.startsWith('_')) continue;
+      for (const r of worklog.rowsOf(v)) {
+        const name = cleanName(r.client); if (!name) continue;
+        const c = (r.clientId && byId[r.clientId]) || byKey[worklog.looseName(name)];
+        lines.push({ username, date, taskId, task: tasksById[taskId], client: c || null, name, units: rowUnits(r) });
+      }
+    }
+  }
+  return lines;
+}
+
+// Manager: the client list with this month's totals, plus names typed in entries that are not in the list
+app.get('/api/clients/summary', requireManager, async (req, res) => {
+  const today = localNow().date, ym = YM_RE.test(req.query.month || '') ? req.query.month : today.slice(0, 7);
+  try {
+    const [clients, lines] = await Promise.all([Client.find({}).lean(), monthLines(ym)]);
+    const tot = {}, unlisted = {};
+    for (const l of lines) {
+      if (l.client) tot[l.client.clientId] = (tot[l.client.clientId] || 0) + l.units;
+      else { const k = worklog.looseName(l.name); unlisted[k] = unlisted[k] || { name: l.name, units: 0, lines: 0 }; unlisted[k].units += l.units; unlisted[k].lines++; }
+    }
+    res.json({ month: ym, label: worklog.monthLabel(ym),
+      clients: clients.map(c => ({ ...publicClient(c), total: tot[c.clientId] || 0 })).sort((a, b) => b.total - a.total || a.name.localeCompare(b.name)),
+      unlisted: Object.values(unlisted).sort((a, b) => b.units - a.units).slice(0, 50) });
+  } catch (err) {
+    console.error('Client summary error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Manager: one client's month — which task, by whom, how much
+app.get('/api/clients/:id/work', requireManager, async (req, res) => {
+  const today = localNow().date, ym = YM_RE.test(req.query.month || '') ? req.query.month : today.slice(0, 7);
+  try {
+    const c = await Client.findOne({ clientId: req.params.id }).lean();
+    if (!c) return res.status(404).json({ error: 'Client not found' });
+    const rows = {};
+    for (const l of await monthLines(ym)) {
+      if (!l.client || l.client.clientId !== c.clientId) continue;
+      const k = l.taskId + '|' + l.username;
+      const t = l.task || {};
+      rows[k] = rows[k] || { taskName: titleCase(t.name || 'Task'), unit: t.unit || worklog.unitFromLabel(t), group: t.group || 'Other',
+        username: l.username, display: (getUser(l.username) || {}).display || l.username, units: 0, days: new Set() };
+      rows[k].units += l.units; rows[k].days.add(l.date);
+    }
+    const list = Object.values(rows).map(r => ({ ...r, days: r.days.size })).sort((a, b) => a.group.localeCompare(b.group) || b.units - a.units);
+    res.json({ client: publicClient(c), month: ym, label: worklog.monthLabel(ym), total: list.reduce((a, r) => a + r.units, 0), rows: list });
+  } catch (err) {
+    console.error('Client work error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// The Assignments board: task library rows × team members, each cell the member's target today
+async function boardData() {
+  const today = localNow().date;
+  const members = memberAccounts({ activeOnly: true });
+  const [tasks, rows, log] = await Promise.all([Task.find({}).lean(), Assignment.find({}).lean(), AssignLog.find({}).sort({ createdAt: -1 }).limit(30).lean()]);
+  const idx = new Map();
+  for (const r of rows) { const k = r.username + '|' + r.taskId; if (!idx.has(k)) idx.set(k, []); idx.get(k).push(r); }
+  const library = worklog.libraryOf(tasks).filter(l => l.active).map(lib => {
+    const cells = {};
+    for (const m of members) {
+      const taskId = worklog.taskIdFor(lib, m.username), task = lib.tasks.find(t => t.taskId === taskId);
+      const mine = (idx.get(m.username + '|' + taskId) || []).sort((a, b) => a.from.localeCompare(b.from));
+      let now = null, next = null;
+      if (mine.length) {
+        const cur = mine.find(r => worklog.covers(r, today));
+        if (cur) now = { target: cur.target ?? null, since: cur.from > worklog.BEGINNING ? cur.from : null };
+        const fut = mine.find(r => r.from > today);
+        if (fut) next = { from: fut.from, target: fut.target ?? null };
+        else if (cur && cur.to) next = { from: addDay(cur.to, 1), target: null, ends: true };
+      } else if ((task.assignees || []).includes(m.username) && task.active !== false) now = { target: task.dailyTarget ?? null, since: null };
+      if (now || next) cells[m.username] = { taskId, ...(now || { target: null, notYet: true }), next };
+    }
+    return { key: lib.key, name: titleCase(lib.name), unit: lib.unit, group: lib.group, note: lib.note, cells };
+  });
+  const groups = [...new Set(library.map(l => l.group))].sort((a, b) => (a === 'Other') - (b === 'Other') || a.localeCompare(b));
+  return { today, members: members.map(m => ({ username: m.username, display: m.display })), groups, library,
+           log: log.map(l => ({ text: l.text, by: l.by, at: l.createdAt })) };
+}
+app.get('/api/assign/board', requireManager, async (req, res) => {
+  try { res.json(await boardData()); }
+  catch (err) { console.error('Board error:', err); res.status(500).json({ error: 'Database error' }); }
+});
+
+async function libraryRow(key) {
+  const tasks = await Task.find({}).lean();
+  return worklog.libraryOf(tasks).find(l => l.key === key || l.taskIds.includes(key)) || null;
+}
+const UNIT_RE = /^[\p{L}\d .&/+-]{1,24}$/u;
+
+// New task in the library (counted in units, logged as task · client · how many)
+app.post('/api/library', requireManager, async (req, res) => {
+  const name = titleCase(cleanName(req.body.name, 60)), unit = cleanName(req.body.unit || 'items', 24).toLowerCase(), group = cleanName(req.body.group || 'Other', 40);
+  if (name.length < 2) return res.status(400).json({ error: 'Write the task name' });
+  if (!UNIT_RE.test(unit)) return res.status(400).json({ error: 'Write what is counted, e.g. links, posts, audits' });
+  try {
+    const tasks = await Task.find({}).lean();
+    if (worklog.libraryOf(tasks).some(l => l.active && worklog.looseName(l.name) === worklog.looseName(name)))
+      return res.status(409).json({ error: 'A task with that name already exists' });
+    const taskId = newTaskId();
+    await Task.create({ taskId, legacyKey: `task:${taskId}`, name, type: 'links', label: unit, unit, group, dailyTarget: null, order: 500, assignees: [] });
+    await AssignLog.create({ text: `New task: ${name} (${unit}) in ${group}`, by: actor(req), from: localNow().date });
+    res.json(await boardData());
+  } catch (err) {
+    console.error('Library create error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Rename a task, change its unit or group, or archive it (archiving ends it for everyone today)
+app.patch('/api/library/:key', requireManager, async (req, res) => {
+  try {
+    const lib = await libraryRow(req.params.key);
+    if (!lib) return res.status(404).json({ error: 'Task not found' });
+    const set = {}, people = new Set();
+    lib.tasks.forEach(t => [...(t.assignees || []), ...(t.formerAssignees || [])].forEach(u => people.add(u)));
+    if (req.body.name !== undefined) {
+      const name = titleCase(cleanName(req.body.name, 60));
+      if (name.length < 2) return res.status(400).json({ error: 'Write the task name' });
+      const others = worklog.libraryOf(await Task.find({}).lean()).filter(l => l.key !== lib.key && l.active);
+      if (others.some(l => worklog.looseName(l.name) === worklog.looseName(name))) return res.status(409).json({ error: 'A task with that name already exists' });
+      set.name = name;
+    }
+    if (req.body.unit !== undefined) {
+      const unit = cleanName(req.body.unit, 24).toLowerCase();
+      if (!UNIT_RE.test(unit)) return res.status(400).json({ error: 'Write what is counted, e.g. links, posts, audits' });
+      Object.assign(set, { unit, label: unit });
+    }
+    if (req.body.group !== undefined) set.group = cleanName(req.body.group, 40) || 'Other';
+    const today = localNow().date;
+    if (req.body.archive === true) {
+      for (const t of lib.tasks) for (const u of new Set([...(t.assignees || [])]))
+        await worklog.endAssignment({ Task, Assignment }, { username: u, taskId: t.taskId, from: today, by: actor(req) });
+      await Assignment.deleteMany({ taskId: { $in: lib.taskIds }, from: { $gt: today } });
+      set.active = false;
+    }
+    if (Object.keys(set).length) await Task.updateMany({ taskId: { $in: lib.taskIds } }, { $set: set });
+    if (req.body.archive === true) {
+      for (const t of lib.tasks) await Task.updateOne({ taskId: t.taskId }, { $set: { assignees: [] }, $addToSet: { formerAssignees: { $each: t.assignees || [] } } });
+    }
+    const changed = await worklog.syncAssignees({ Task, Assignment }, today);
+    await bumpRev([...people, ...changed]);
+    const what = req.body.archive ? 'archived (history kept)' : [set.name && `renamed to ${set.name}`, set.unit && `counted in ${set.unit}`, set.group && `moved to ${set.group}`].filter(Boolean).join(', ');
+    if (what) await AssignLog.create({ text: `${titleCase(lib.name)}: ${what}`, by: actor(req), from: today });
+    res.json(await boardData());
+  } catch (err) {
+    console.error('Library update error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Give a task to a member (or change the target, or move it to someone else) from a date on.
+// body: { username, key, target, from, moveTo? }      from: today or later (past months stay as they were)
+app.put('/api/assign', requireManager, async (req, res) => {
+  const { username, key, moveTo } = req.body;
+  const today = localNow().date, from = DAY_RE.test(req.body.from || '') ? req.body.from : today;
+  const target = req.body.target === '' || req.body.target == null ? null : Number(req.body.target);
+  if (from < today) return res.status(400).json({ error: 'Changes start today or later, so past days keep their targets' });
+  if (target !== null && !(Number.isFinite(target) && target >= 0 && target <= 100000)) return res.status(400).json({ error: 'The daily target must be a number' });
+  const members = Object.fromEntries(memberAccounts({ activeOnly: true }).map(m => [m.username, m]));
+  if (!members[username] || (moveTo && !members[moveTo])) return res.status(404).json({ error: 'Member not found' });
+  try {
+    const lib = await libraryRow(key);
+    if (!lib || !lib.active) return res.status(404).json({ error: 'Task not found' });
+    const name = titleCase(lib.name), when = from === today ? 'today' : from;
+    const by = actor(req);
+    if (moveTo) {
+      await worklog.endAssignment({ Task, Assignment }, { username, taskId: worklog.taskIdFor(lib, username), from, by });
+      await worklog.setAssignment({ Task, Assignment }, { username: moveTo, taskId: worklog.taskIdFor(lib, moveTo), target, from, by });
+      await AssignLog.create({ text: `From ${when}: ${name} moves from ${members[username].display} to ${members[moveTo].display}` + (target ? ` (${target} ${lib.unit}/day)` : ''), by, from });
+    } else {
+      const taskId = worklog.taskIdFor(lib, username);
+      const had = (await Assignment.exists({ username, taskId })) || (lib.tasks.find(t => t.taskId === taskId).assignees || []).includes(username);
+      await worklog.setAssignment({ Task, Assignment }, { username, taskId, target, from, by });
+      await AssignLog.create({ text: `From ${when}: ${members[username].display} · ${name} ` + (had ? `target ${target ?? 'none'}` : `assigned` + (target ? `, ${target} ${lib.unit}/day` : '')), by, from });
+    }
+    const changed = await worklog.syncAssignees({ Task, Assignment }, today);
+    await bumpRev([username, moveTo, ...changed]);
+    res.json(await boardData());
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    console.error('Assign error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Take a task away from a member from a date on (their past work stays in the reports)
+app.delete('/api/assign', requireManager, async (req, res) => {
+  const { username, key } = req.body;
+  const today = localNow().date, from = DAY_RE.test(req.body.from || '') ? req.body.from : today;
+  if (from < today) return res.status(400).json({ error: 'Changes start today or later, so past days keep their targets' });
+  try {
+    const lib = await libraryRow(key);
+    if (!lib) return res.status(404).json({ error: 'Task not found' });
+    await worklog.endAssignment({ Task, Assignment }, { username, taskId: worklog.taskIdFor(lib, username), from, by: actor(req) });
+    const display = (getUser(username) || {}).display || username;
+    await AssignLog.create({ text: `From ${from === today ? 'today' : from}: ${titleCase(lib.name)} removed from ${display}. Past work stays in the reports.`, by: actor(req), from });
+    const changed = await worklog.syncAssignees({ Task, Assignment }, today);
+    await bumpRev([username, ...changed]);
+    res.json(await boardData());
+  } catch (err) {
+    console.error('Unassign error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// A new teammate starts with the same tasks and targets as someone else. body: { username, from: source }
+app.post('/api/assign/copy', requireManager, async (req, res) => {
+  const { username, source } = req.body;
+  const today = localNow().date;
+  const members = Object.fromEntries(memberAccounts({ activeOnly: true }).map(m => [m.username, m]));
+  if (!members[username] || !members[source] || username === source) return res.status(404).json({ error: 'Member not found' });
+  try {
+    const board = await boardData();
+    let n = 0;
+    for (const lib of board.library) {
+      const c = lib.cells[source];
+      if (!c || c.notYet) continue;
+      const full = await libraryRow(lib.key);
+      await worklog.setAssignment({ Task, Assignment }, { username, taskId: worklog.taskIdFor(full, username), target: c.target, from: today, by: actor(req) });
+      n++;
+    }
+    await AssignLog.create({ text: `From today: ${members[username].display} starts with the ${n} tasks and targets of ${members[source].display}`, by: actor(req), from: today });
+    await worklog.syncAssignees({ Task, Assignment }, today);
+    await bumpRev(username);
+    res.json(await boardData());
+  } catch (err) {
+    console.error('Assign copy error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Today: every active member's work so far (done vs target per task)
+app.get('/api/work/today', requireManager, async (req, res) => {
+  try {
+    const today = localNow().date, members = memberAccounts({ activeOnly: true });
+    const usernames = members.map(m => m.username);
+    const [{ tasksById, byUser }, docs] = await Promise.all([
+      loadMembers({ Task, Entry, Attendance, Assignment }, usernames, today, today),
+      Entry.find({ username: { $in: usernames }, date: today }, { username: 1, updatedAt: 1 }).lean()]);
+    const docBy = Object.fromEntries(docs.map(d => [d.username, d]));
+    const rows = members.map(m => { const r = worklog.todayRow(tasksById, m, byUser[m.username], today, docBy[m.username]);
+      return { ...r, tasks: r.tasks.map(t => ({ ...t, name: titleCase(t.name) })) }; });
+    res.json({ date: today, time: localNow().time, rows });
+  } catch (err) {
+    console.error('Today error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Month: the team (one row per member) or one member in detail, against the previous month
+async function monthFor(usernames, ym) {
+  const today = localNow().date, prev = worklog.prevMonth(ym);
+  const to = worklog.monthEnd(ym) < today ? worklog.monthEnd(ym) : today;
+  const { tasksById, byUser } = await loadMembers({ Task, Entry, Attendance, Assignment }, usernames, prev + '-01', to);
+  return { today, prev, tasksById, byUser };
+}
+const titled = m => m && { ...m, tasks: m.tasks.map(t => ({ ...t, name: titleCase(t.name) })) };
+app.get('/api/work/month', requireManager, async (req, res) => {
+  const today = localNow().date, ym = YM_RE.test(req.query.month || '') ? req.query.month : today.slice(0, 7);
+  if (ym > today.slice(0, 7)) return res.status(400).json({ error: 'That month has not started yet' });
+  try {
+    const members = memberAccounts();
+    const { prev, tasksById, byUser } = await monthFor(members.map(m => m.username), ym);
+    const rows = members.map(m => {
+      const cur = worklog.monthOf(tasksById, byUser[m.username], ym, today), before = worklog.monthOf(tasksById, byUser[m.username], prev, today);
+      if (!cur.present && !cur.tasks.length && m.active === false) return null;
+      const scored = cur.tasks.filter(t => t.pct !== null).sort((a, b) => a.pct - b.pct);
+      return { username: m.username, display: m.display, active: m.active !== false, present: cur.present, workdays: cur.workdays,
+        score: cur.score, prevScore: before && before.score, tasks: cur.tasks.length,
+        met: scored.filter(t => t.pct >= 100).length, scoredTasks: scored.length,
+        weakest: scored.length && scored[0].pct < 85 ? { name: titleCase(scored[0].name), pct: scored[0].pct } : null };
+    }).filter(Boolean);
+    res.json({ month: ym, label: worklog.monthLabel(ym), prevLabel: worklog.monthLabel(prev), running: ym === today.slice(0, 7), rows });
+  } catch (err) {
+    console.error('Month error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+app.get('/api/work/month/:username', requireManager, async (req, res) => {
+  const today = localNow().date, ym = YM_RE.test(req.query.month || '') ? req.query.month : today.slice(0, 7);
+  const m = memberAccounts().find(x => x.username === req.params.username);
+  if (!m) return res.status(404).json({ error: 'Member not found' });
+  if (ym > today.slice(0, 7)) return res.status(400).json({ error: 'That month has not started yet' });
+  try {
+    const { prev, tasksById, byUser } = await monthFor([m.username], ym);
+    const cur = titled(worklog.monthOf(tasksById, byUser[m.username], ym, today)), before = titled(worklog.monthOf(tasksById, byUser[m.username], prev, today));
+    const prevBy = Object.fromEntries(((before && before.tasks) || []).map(t => [t.taskId, t]));
+    cur.tasks.forEach(t => { const p = prevBy[t.taskId]; t.prevAvg = p ? p.avg : null; });
+    res.json({ member: { username: m.username, display: m.display, active: m.active !== false }, prevLabel: worklog.monthLabel(prev),
+               prevScore: before && before.score, ...cur });
+  } catch (err) {
+    console.error('Member month error:', err);
     res.status(500).json({ error: 'Database error' });
   }
 });
@@ -1242,6 +1660,10 @@ app.delete('/api/admin/members/:username', requireManagerOnly, async (req, res) 
   try {
     await User.deleteOne({ username: acc.target });
     await Config.updateOne({ key: 'removedUsers' }, { $addToSet: { value: acc.target } }, { upsert: true });
+    // Their assignments end today (yesterday was the last day); history stays
+    const today = localNow().date;
+    await Assignment.deleteMany({ username: acc.target, from: { $gte: today } });
+    await Assignment.updateMany({ username: acc.target, $or: [{ to: null }, { to: { $gte: today } }] }, { $set: { to: addDay(today, -1) } });
     await Task.updateMany({ assignees: acc.target },
       { $pull: { assignees: acc.target }, $addToSet: { formerAssignees: acc.target } });
     delete usersCache[acc.target];

@@ -14,7 +14,7 @@ Built by **Abdullah Saleem**
 | Server    | Node.js + Express (`server.js`, helpers in `lib/`)                 |
 | Database  | MongoDB (Atlas) through Mongoose; sessions stored with connect-mongo |
 | Hosting   | Vercel (`vercel.json`) — production from `main`, previews from other branches |
-| Front end | Plain HTML/CSS/JS in `public/`, Chart.js for charts, Plus Jakarta Sans + Inter fonts |
+| Front end | Plain HTML/CSS/JS in `public/`, Chart.js for charts, Inter Tight + Geist Mono fonts (monochrome look in `design-system.css`) |
 
 Passwords are hashed with bcrypt. No passwords or secrets are stored in this repository.
 
@@ -48,7 +48,8 @@ For a throw-away local copy with test data only, use the staging setup instead
   - attendance (start, break, resume, end) is stamped with the **server clock** in the team
     time zone (`APP_TIMEZONE`, default Asia/Karachi) — the browser's time is never used;
   - they cannot edit attendance times or past attendance notes, nor add, rename or retarget
-    tasks, nor change their name, shift or password. The manager corrects records from the
+    tasks or change targets, nor change their name, shift or password (they can add a
+    client while logging; it is marked new for the manager). The manager corrects records from the
     dashboard (attendance edits keep an edit history).
   - when something is wrong they press **Request a correction** (on a locked day, or under
     My Day for attendance). The request shows first in the manager's **Needs Attention**; the
@@ -65,36 +66,44 @@ For a throw-away local copy with test data only, use the staging setup instead
 |---------------------------|----------------|----------------------------------------------------------|
 | `/`                       | Everyone       | Homepage with live team numbers                          |
 | `/login`                  | Everyone       | Sign in                                                  |
-| `/member`                 | Team members   | My Space: My Day (attendance timer), today's tasks with auto-save, Note for Manager |
+| `/member`                 | Team members   | My Space: My Day (attendance timer), Log Work (task · client · how many, auto-save), Note for Manager |
 | `/member/history`         | Team members   | My History: My Week, tasks and attendance (last 30 days) |
-| `/dashboard`              | Manager, assistant | Overview: KPIs, Needs Attention, team at a glance    |
+| `/dashboard`              | Manager, assistant | Today: KPIs, Needs Attention, each member's work so far task by task |
+| `/dashboard/month`        | Manager, assistant | Month: team scores vs last month; click a member for the day-by-day and task report |
 | `/dashboard/team`         | Manager, assistant | Team table; `/dashboard/team/<username>` is a member profile |
 | `/dashboard/work`         | Manager, assistant | Monthly task grid per member, edit entries, CSV       |
 | `/dashboard/attendance`   | Manager, assistant | Day, Month and Member views, edit with history, CSV  |
-| `/dashboard/tasks`        | Manager, assistant | Tasks & Targets: per member, or all tasks with multi-assign |
+| `/dashboard/assignments`  | Manager, assistant | Assignments: task library × members; give, retarget, move or remove a task from a date |
+| `/dashboard/clients`      | Manager, assistant | Clients: the shared client list and each client's work for a month |
 | `/dashboard/reports`      | Manager, assistant | Reports for a week, month or custom range, CSV        |
 | `/dashboard/settings`     | Manager, assistant | Team accounts                                         |
 
 ---
 
-## Tasks
+## Work log: task · client · how many
 
-Every task has a permanent ID, so renaming a task never hides old entries. One task can be
-assigned to many team members, and each task can have a **daily target**, which drives the
-target % shown on Overview, Team, Reports and My Space.
+Every piece of work is one line: **which task, for which client, how many** (links, posts,
+audits… — each task has its own unit). The member picks the task and the client (typing
+searches the shared client list), types the number and presses Enter; the task stays selected
+for the next client. Lines can be changed or removed for today; "Same clients as last working
+day" copies yesterday's clients. A client that is not in the list yet is added and marked
+**new** for the manager. A notes task (no number) is a plain text box.
 
-| Type          | What the team member fills in                    |
-|---------------|--------------------------------------------------|
-| Number        | One number                                       |
-| Links List    | Rows of client + number of links (auto total)    |
-| Layers List   | Rows of client + number of layers (auto total)   |
-| Number + Note | A number and a short note                        |
-| Links + Note  | Pasted links (each link counts) and a note       |
-| Text Note     | Free text (no target)                            |
+Lines are stored in the day's entry under the task's ID, as `rows: [{ client, clientId, value }]`
+with a `total`. Older entries keep their shapes (`{ value }`, `{ links, text }` …) and every
+reader counts by shape, so old and new days add up the same way.
 
-Every task also has an optional note ("+ Note").
+**Assignments.** A task in the library (name, unit, group) is given to a member with a daily
+target, from a date: today, tomorrow or the start of next month. Changes can't start in the
+past. Each change is kept as a dated assignment row (`assignments`), so a target change or a
+task moving to someone else never rewrites earlier days. Every task has a permanent ID:
+renaming never hides old entries. "Copy tasks to a teammate" gives a new member someone's
+tasks and targets.
 
----
+**Scores.** A day's target % = the average of the member's targeted tasks, each capped at
+100%. The month score = work done ÷ (that day's target × days present), each task capped at
+100%, so extra work on one task can't hide a missed one. Tasks that aren't done every day are
+judged over the month. Month compares with the previous month (score and daily averages).
 
 ## Live updates
 
@@ -117,6 +126,9 @@ All data is in MongoDB:
 | `entries`     | One document per member per day, values keyed by task ID         |
 | `attendances` | One document per member per day: sessions, breaks, edit history  |
 | `membernotes` | The manager's private notes about a member                       |
+| `clients`     | The shared client list (`fromTeam` = added by a member, unchecked) |
+| `assignments` | Member · task · daily target · from / to dates                   |
+| `assignlogs`  | The Assignments page's change list                               |
 | `corrections` | Members' correction requests and the manager's answers           |
 | `configs`     | Small settings and one-time migration records                    |
 

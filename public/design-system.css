@@ -7,13 +7,13 @@
 
 /* ── Shared tokens ─────────────────────────────────────────────────────────── */
 :root {
-  /* Look inspired by trackcontent.ai: Geist (a clean grotesk, tight headings), royal blue */
-  --font-display: 'Geist', 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
-  --font-body:    'Geist', 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  /* Monochrome editorial look: a tight grotesk, black and white, hairlines, a red mark */
+  --font-display: 'Inter Tight', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-body:    'Inter Tight', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   --font-mono:    'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  --radius-card:  12px;
-  --radius-inner: 8px;
+  --radius-card:  4px;
+  --radius-inner: 3px;
   --radius-pill:  999px;
   --space-1: 8px;
   --space-2: 12px;
@@ -21,62 +21,64 @@
   --space-4: 24px;
 }
 
-/* ── Light (white + royal blue) ───────────────────────────────────────────── */
+/* ── Light (white + ink) ───────────────────────────────────────────── */
 :root[data-theme="light"] {
   color-scheme: light;
-  --ro-bg:           #FAFAFA;
+  --ro-bg:           #FFFFFF;
   --ro-surface:      #FFFFFF;
-  --ro-surface-2:    #F4F6F9;
-  --ro-surface-3:    #EBEEF3;
+  --ro-surface-2:    #F4F4F4;
+  --ro-surface-3:    #EAEAEA;
   --ro-sidebar:      #FFFFFF;
-  --ro-border:       #E6E9EE;
-  --ro-border-2:     #D5DAE2;
-  --ro-text:         #0A0F14;
-  --ro-muted:        #5C6470;
-  --ro-dim:          #98A0AB;
-  --ro-accent:       #1447E8;
-  --ro-accent-strong:#0F38C2;
-  --ro-accent-soft:  #EBF1FF;
-  --ro-accent-fill:  #1447E8;          /* button / logo background (white text on it) */
+  --ro-border:       #E5E5E5;
+  --ro-border-2:     #D4D4D4;
+  --ro-text:         #0A0A0A;
+  --ro-muted:        #5F5F5F;
+  --ro-dim:          #9A9A9A;
+  --ro-accent:       #0A0A0A;          /* links, active items: ink */
+  --ro-accent-strong:#000000;
+  --ro-accent-soft:  #F0F0F0;
+  --ro-accent-fill:  #0A0A0A;          /* button / logo background (white text on it) */
   --ro-on-accent:    #FFFFFF;
-  --ro-info:         #1F6FD1;          /* readable blue for text */
-  --ro-sky:          #4FA2FF;          /* light blue for fills (rings, secondary buttons) */
-  --ro-success:      #197F38;
-  --ro-danger:       #D92D20;
-  --ro-warning-bg:   #FFF6E8;
-  --ro-warning-text: #A15C07;
-  --ro-hero:         #EEF6FF;          /* the soft blue wash at the top of hero areas */
-  --ro-shadow-color: rgba(16,24,40,.06);
-  --ro-shadow:       0 1px 2px rgba(16,24,40,.04), 0 4px 16px rgba(16,24,40,.06);
+  --ro-mark:         #E10600;          /* the small red brand mark */
+  --ro-info:         #2B2B2B;
+  --ro-sky:          #9A9A9A;          /* secondary fills (second ring) */
+  --ro-success:      #0F7B4F;
+  --ro-danger:       #C8102E;
+  --ro-warning-bg:   #FBF0E1;
+  --ro-warning-text: #9A5600;
+  --ro-hero:         #FFFFFF;
+  --ro-shadow-color: rgba(0,0,0,.05);
+  --ro-shadow:       none;
 }
 
-/* ── Dark (deep navy + bright blue) ───────────────────────────────────────── */
+/* ── Dark (black + white) ───────────────────────────────────────── */
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --ro-bg:           #0A0D14;
-  --ro-surface:      #10141D;
-  --ro-surface-2:    #161B26;
-  --ro-surface-3:    #1C2230;
-  --ro-sidebar:      #0D1018;
-  --ro-border:       #232A38;
-  --ro-border-2:     #2F3849;
-  --ro-text:         #F3F5F8;
-  --ro-muted:        #9AA3B2;
-  --ro-dim:          #677083;
-  --ro-accent:       #4C7DFF;          /* links, active items, rings on dark */
-  --ro-accent-strong:#2A54DB;
-  --ro-accent-soft:  #16213D;
-  --ro-accent-fill:  #3361F0;          /* deeper than --ro-accent so white text stays readable */
-  --ro-on-accent:    #FFFFFF;
-  --ro-info:         #7DB8FF;
-  --ro-sky:          #5AA9FF;
-  --ro-success:      #3CCB7F;
-  --ro-danger:       #F97066;
-  --ro-warning-bg:   #2A1F0C;
-  --ro-warning-text: #F2B95A;
-  --ro-hero:         #0F1730;
-  --ro-shadow-color: rgba(0,0,0,.45);
-  --ro-shadow:       0 1px 2px rgba(0,0,0,.35), 0 8px 24px rgba(0,0,0,.40);
+  --ro-bg:           #050505;
+  --ro-surface:      #0D0D0D;
+  --ro-surface-2:    #171717;
+  --ro-surface-3:    #1F1F1F;
+  --ro-sidebar:      #0A0A0A;
+  --ro-border:       #262626;
+  --ro-border-2:     #333333;
+  --ro-text:         #F2F2F2;
+  --ro-muted:        #A1A1A1;
+  --ro-dim:          #6B6B6B;
+  --ro-accent:       #F2F2F2;
+  --ro-accent-strong:#FFFFFF;
+  --ro-accent-soft:  #1E1E1E;
+  --ro-accent-fill:  #F2F2F2;          /* light button with dark text on dark */
+  --ro-on-accent:    #0A0A0A;
+  --ro-mark:         #FF2A1F;
+  --ro-info:         #D4D4D4;
+  --ro-sky:          #7A7A7A;
+  --ro-success:      #3CC68A;
+  --ro-danger:       #FF5A6E;
+  --ro-warning-bg:   #2A1D0C;
+  --ro-warning-text: #F0A54A;
+  --ro-hero:         #050505;
+  --ro-shadow-color: rgba(0,0,0,.5);
+  --ro-shadow:       none;
 }
 
 /* ── Existing pages: map their variables (style.css) onto the theme ───────── */
@@ -238,3 +240,98 @@ table, .kpi-card, .tabular, time, input[type="number"],
 .theme-toggle .icon-sun  { display: none; }
 :root[data-theme="dark"] .theme-toggle .icon-sun  { display: block; }
 :root[data-theme="dark"] .theme-toggle .icon-moon { display: none; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Brand pass — the monochrome editorial look (same as the work-log mockup):
+   black and white, a tight grotesk, hairlines, square corners, mono labels,
+   a small red mark, and a black title band at the top of every screen.
+   Selectors start with :root[data-theme] so they win over the pages' own styles.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root[data-theme="light"] { --ro-ink: #0A0A0A; --ro-on-ink: #FFFFFF; --ro-ink-muted: #A3A3A3; --ro-ink-line: rgb(255 255 255 / .14); }
+:root[data-theme="dark"]  { --ro-ink: #111111; --ro-on-ink: #F5F5F5; --ro-ink-muted: #8F8F8F; --ro-ink-line: rgb(255 255 255 / .10); }
+:root[data-theme] { --radius-card: 2px; --radius-inner: 2px; --radius: 2px; --radius-sm: 2px; }
+
+:root[data-theme] body { letter-spacing: -0.005em; }
+:root[data-theme] h1, :root[data-theme] h2, :root[data-theme] h3 { font-weight: 500; letter-spacing: -0.035em; }
+
+/* Logo: a red mark instead of the "RO" tile */
+:root[data-theme] .brand-mark, :root[data-theme] .ms-logo, :root[data-theme] .logo-box {
+  background: none !important; box-shadow: none !important; border: 0 !important; font-size: 0 !important; color: transparent !important;
+  width: 24px !important; height: 24px !important; display: grid; place-items: center; }
+:root[data-theme] .brand-mark::before, :root[data-theme] .ms-logo::before, :root[data-theme] .logo-box::before {
+  content: ""; width: 20px; height: 20px; background: var(--ro-mark);
+  clip-path: polygon(0 0, 100% 0, 100% 30%, 62% 30%, 62% 100%, 38% 100%, 38% 30%, 0 30%); }
+:root[data-theme] .logo-box { width: 56px !important; height: 56px !important; }
+:root[data-theme] .logo-box::before { width: 48px; height: 48px; }
+:root[data-theme] .brand-name, :root[data-theme] .brand-text { font-weight: 600; letter-spacing: -0.03em; }
+
+/* Labels: small mono text, red dot on eyebrows */
+:root[data-theme] .eyebrow, :root[data-theme] .hello-part, :root[data-theme] .card-title:not(h1) {
+  display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-weight: 400; font-size: 11px;
+  letter-spacing: .04em; text-transform: uppercase; color: inherit; }
+:root[data-theme] .eyebrow::before, :root[data-theme] .hello-part::before, :root[data-theme] .card-title:not(h1)::before {
+  content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--ro-mark); flex-shrink: 0; }
+:root[data-theme] .card-title:not(h1) { color: var(--ro-text); }
+:root[data-theme] th, :root[data-theme] .kpi-card .kpi-label, :root[data-theme] .form-label, :root[data-theme] .fld,
+:root[data-theme] .tp-ring-label, :root[data-theme] .em-sub, :root[data-theme] .ov-hint, :root[data-theme] .overview-updated {
+  font-family: var(--font-mono); font-weight: 400; font-size: 11px; letter-spacing: .01em; }
+
+/* The title band: every screen opens on black, with a faint column grid */
+:root[data-theme] .page-head, :root[data-theme] .hello {
+  background-color: var(--ro-ink); color: var(--ro-on-ink); padding: 40px 28px 28px; margin: 0 0 20px; border-radius: 0;
+  align-items: flex-end; position: relative;
+  background-image: linear-gradient(var(--ro-ink-line), var(--ro-ink-line)), linear-gradient(var(--ro-ink-line), var(--ro-ink-line)), linear-gradient(var(--ro-ink-line), var(--ro-ink-line));
+  background-size: 1px 100%; background-repeat: no-repeat; background-position: 25% 0, 50% 0, 75% 0; }
+:root[data-theme="dark"] .page-head, :root[data-theme="dark"] .hello { border: 1px solid var(--ro-border); }
+:root[data-theme] .hello { margin-top: 24px; }
+:root[data-theme] .page-head .page-title, :root[data-theme] .hello .hello-title {
+  color: var(--ro-on-ink); font-size: clamp(32px, 5vw, 60px); line-height: .98; letter-spacing: -0.05em; font-weight: 500; }
+:root[data-theme] .page-head .page-sub, :root[data-theme] .hello .hello-meta,
+:root[data-theme] .page-head .overview-updated, :root[data-theme] .page-head .ov-hint { color: var(--ro-ink-muted); max-width: 70ch; }
+:root[data-theme] .page-head .eyebrow, :root[data-theme] .hello .hello-part { color: var(--ro-on-ink); }
+:root[data-theme] .page-head .inp, :root[data-theme] .page-head select {
+  background: transparent; color: var(--ro-on-ink); border-color: rgb(255 255 255 / .28); font-family: var(--font-mono); font-size: 12px; }
+:root[data-theme] .page-head .inp option { color: #0A0A0A; background: #FFFFFF; }
+:root[data-theme] .page-head .btn-ghost, :root[data-theme] .page-head .segmented button { color: var(--ro-on-ink); border-color: rgb(255 255 255 / .28); background: transparent; }
+:root[data-theme] .page-head .segmented { background: transparent; border-color: rgb(255 255 255 / .28); }
+:root[data-theme] .page-head .segmented button.active { background: var(--ro-on-ink); color: var(--ro-ink); }
+:root[data-theme] .page-head .btn-primary { background: var(--ro-on-ink); color: var(--ro-ink); border-color: var(--ro-on-ink); }
+:root[data-theme] .page-head .btn-primary::after { background: var(--ro-ink); color: var(--ro-on-ink); }
+:root[data-theme] .page-head .back-link, :root[data-theme] .page-head a { color: var(--ro-on-ink); }
+:root[data-theme] .page-head .shift-pill, :root[data-theme] .hello .shift-pill { color: var(--ro-on-ink); border-color: rgb(255 255 255 / .28); background: transparent; }
+
+/* Square corners and hairlines */
+:root[data-theme] .btn, :root[data-theme] .inp, :root[data-theme] .card, :root[data-theme] .kpi-card, :root[data-theme] .task-card,
+:root[data-theme] .chip, :root[data-theme] .segmented, :root[data-theme] .segmented button, :root[data-theme] .am-modal, :root[data-theme] .em-modal,
+:root[data-theme] .theme-toggle, :root[data-theme] .search-box, :root[data-theme] #search-input, :root[data-theme] .log-line,
+:root[data-theme] .mo-pill, :root[data-theme] .wl-cell, :root[data-theme] .mo-day i, :root[data-theme] .avatar-sm, :root[data-theme] .toast { border-radius: 0 !important; }
+:root[data-theme] .card, :root[data-theme] .kpi-card, :root[data-theme] .task-card { box-shadow: none !important; }
+:root[data-theme] .kpi-card .kpi-value { font-weight: 500; font-size: 34px; letter-spacing: -0.045em; }
+
+/* Buttons: ink, with the small arrow square on the main action */
+:root[data-theme] .btn-primary { background: var(--ro-accent-fill); color: var(--ro-on-accent); border-color: var(--ro-accent-fill); box-shadow: none !important; display: inline-flex; align-items: center; gap: 10px; }
+:root[data-theme] .btn-primary:hover { filter: brightness(1.15); background: var(--ro-accent-fill); }
+:root[data-theme] .btn-primary::after { content: "↗"; display: inline-grid; place-items: center; width: 17px; height: 17px; font-size: 10px; line-height: 1;
+  background: var(--ro-on-accent); color: var(--ro-accent-fill); }
+:root[data-theme] .btn-primary.btn-sm::after { width: 15px; height: 15px; }
+:root[data-theme] .link-btn, :root[data-theme] .btn-link { color: var(--ro-text); text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+:root[data-theme] .link-btn:hover, :root[data-theme] .btn-link:hover { color: var(--ro-mark); }
+:root[data-theme] .inp:focus { border-color: var(--ro-text); box-shadow: none; }
+:root[data-theme] :focus-visible { outline-color: var(--ro-mark); }
+
+/* Navigation: underline (top bar) / a red edge (sidebar) instead of filled pills */
+:root[data-theme] .ms-nav a { border-radius: 0; padding: 8px 6px; margin: 0 6px; font-weight: 500; }
+:root[data-theme] .ms-nav a:hover { background: none; }
+:root[data-theme] .ms-nav a.active { background: none; color: var(--ro-text); box-shadow: inset 0 -1.5px 0 var(--ro-text); }
+:root[data-theme] .sidebar-link { border-radius: 0; }
+:root[data-theme] .sidebar-link.active { background: var(--ro-surface-2); color: var(--ro-text); box-shadow: inset 2px 0 0 var(--ro-mark); }
+
+/* Chips, bars and rings */
+:root[data-theme] .chip { font-family: var(--font-mono); font-weight: 400; font-size: 11px; padding: 2px 8px; }
+:root[data-theme] .chip::before { border-radius: 0; width: 5px; height: 5px; }
+:root[data-theme] .progress-bar, :root[data-theme] .wl-bar, :root[data-theme] .progress-bar > span, :root[data-theme] .wl-bar > i { height: 3px; border-radius: 0; }
+:root[data-theme] .tc-count, :root[data-theme] .wl-num { font-family: var(--font-mono); }
+
+@media (max-width: 560px) {
+  :root[data-theme] .page-head, :root[data-theme] .hello { padding: 28px 18px 20px; background-image: none; }
+}
