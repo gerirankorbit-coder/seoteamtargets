@@ -139,6 +139,7 @@
   .log-card .tc-foot .save-state { order: 2; margin-left: auto; }
   .fld { display: grid; gap: 5px; min-width: 0; font-size: 12px; font-weight: 600; color: var(--ro-muted); }
   .fld b { font-weight: 600; }
+  :root[data-theme] .fld .inp { font-family: var(--font-body); font-size: 14px; letter-spacing: 0; }
   .log-hint { margin: 0; font-size: 12.5px; color: var(--ro-muted); min-height: 18px; }
   .log-hint.warn { color: var(--ro-warning, #B25E09); }
   .tc-count { font-family: var(--font-mono, ui-monospace, monospace); font-size: 13px; white-space: nowrap; color: var(--ro-text); }
@@ -304,7 +305,7 @@
       <div class="log-add-row">
         <label class="fld fld-task">Task<select class="inp" id="log-task"></select></label>
         <label class="fld fld-client">Client<input class="inp" id="log-client" list="client-list" placeholder="Start typing a client…" maxlength="80"></label>
-        <label class="fld fld-qty">How many <b id="log-unit"></b><input class="inp" id="log-qty" type="number" min="1" max="100000" inputmode="numeric" placeholder="0"></label>
+        <label class="fld fld-qty"><span>How many <b id="log-unit"></b></span><input class="inp" id="log-qty" type="number" min="1" max="100000" inputmode="numeric" placeholder="0"></label>
         <button type="submit" class="btn btn-primary" id="log-add-btn">Add</button>
       </div>
       <datalist id="client-list"></datalist>
@@ -708,10 +709,11 @@
   }
   const CORR_STATUS = { open: ['chip--break', 'Waiting for manager'], done: ['chip--working', 'Corrected'], declined: ['chip--offline', 'Declined'] };
   async function loadCorrections({ announce = false } = {}) {
+    const prev = myCorrections;          // taken before the request: another load may finish first
     let list;
     try { list = await api('/api/my/corrections'); } catch { return; }
-    if (announce && myCorrections) {
-      const before = Object.fromEntries(myCorrections.map(c => [c.id, c.status]));
+    if (announce && prev) {
+      const before = Object.fromEntries(prev.map(c => [c.id, c.status]));
       const answered = list.filter(c => before[c.id] === 'open' && c.status !== 'open');
       if (answered.length) showToast('Your manager answered ' + (answered.length === 1 ? 'your correction request' : answered.length + ' correction requests') + ' (' + answered.map(c => CORR_STATUS[c.status][1].toLowerCase()).join(', ') + ').', 'info');
     }
