@@ -50,6 +50,10 @@ For a throw-away local copy with test data only, use the staging setup instead
   - they cannot edit attendance times or past attendance notes, nor add, rename or retarget
     tasks, nor change their name, shift or password. The manager corrects records from the
     dashboard (attendance edits keep an edit history).
+  - when something is wrong they press **Request a correction** (on a locked day, or under
+    My Day for attendance). The request shows first in the manager's **Needs Attention**; the
+    manager opens that day, fixes it and marks it corrected or declined with a reply, which the
+    member sees in My History straight away. At most 10 open requests per member.
 - A brand-new deployment can create its first accounts from the `SEED_USER_PASSWORDS`
   environment variable (see `.env.example`).
 
@@ -113,6 +117,7 @@ All data is in MongoDB:
 | `entries`     | One document per member per day, values keyed by task ID         |
 | `attendances` | One document per member per day: sessions, breaks, edit history  |
 | `membernotes` | The manager's private notes about a member                       |
+| `corrections` | Members' correction requests and the manager's answers           |
 | `configs`     | Small settings and one-time migration records                    |
 
 ---
