@@ -634,7 +634,7 @@
   .card-head-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
   .settings-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
   .settings-row .inp { flex: 1; min-width: 200px; }
-  .btn-remove-member { color: var(--ro-danger) !important; }
+  .btn-remove-member, .cr-decline { color: var(--ro-danger) !important; }
   .btn-xs { padding: 4px 9px; font-size: 12px; border-radius: 8px; }
   .acc-actions { display: flex; gap: 4px; justify-content: flex-end; }
   .acc-actions-th { text-align: right; }
@@ -766,6 +766,12 @@
   .ov-row-sub  { font-size: 12.5px; color: var(--ro-muted); }
   .ov-reason-absent, .ov-reason-low_target { color: var(--ro-danger); }
   .ov-reason-no_entry, .ov-reason-no_attendance { color: var(--ro-warning-text); }
+  .ov-reason-correction { color: var(--ro-accent); }
+  .cr-facts { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 13px; margin: 0; }
+  .cr-facts dt { color: var(--ro-muted); } .cr-facts dd { margin: 0; font-weight: 500; }
+  .cr-msg { font-size: 13.5px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; background: var(--ro-surface-2); border: 1px solid var(--ro-border); border-radius: 10px; padding: 10px 12px; }
+  .cr-foot { justify-content: space-between !important; }
+  .cr-foot > span { display: inline-flex; gap: 8px; }
   .ov-row-go { color: var(--ro-muted); font-size: 18px; }
   .ov-status { font-size: 11px; padding: 1px 8px; }
   .ov-target { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; width: 92px; }
@@ -1539,6 +1545,29 @@
   </div>
 </div>
 
+<!-- ── Correction request from a member ── -->
+<div id="cr-overlay" class="am-overlay hidden" onclick="if(event.target===this)closeCorrectionDialog()">
+  <div class="am-modal" role="dialog" aria-modal="true" aria-labelledby="cr-title" style="max-width:520px">
+    <div class="em-header">
+      <div class="em-header-text"><div class="em-title" id="cr-title">Correction request</div><div class="em-sub" id="cr-sub"></div></div>
+      <div class="em-header-actions"><button class="em-close" onclick="closeCorrectionDialog()" aria-label="Close">&#10005;</button></div>
+    </div>
+    <div class="em-body" style="gap:14px">
+      <dl class="cr-facts" id="cr-facts"></dl>
+      <div class="cr-msg" id="cr-msg"></div>
+      <button type="button" class="btn btn-ghost btn-sm" id="cr-open" style="align-self:flex-start" onclick="openCorrectionTarget()">Open that day to fix it &#8250;</button>
+      <div class="form-group"><label class="form-label" for="cr-reply">Reply to the member (optional)</label>
+        <textarea class="inp" id="cr-reply" rows="2" maxlength="1000" placeholder="e.g. Fixed — break now 13:00–13:10."></textarea></div>
+      <div class="am-error" id="cr-error"></div>
+    </div>
+    <div class="em-footer cr-foot" style="display:flex">
+      <button class="btn btn-ghost btn-sm cr-decline" id="cr-decline" onclick="answerCorrection('declined')">Decline</button>
+      <span><button class="btn btn-ghost btn-sm" onclick="closeCorrectionDialog()">Later</button>
+      <button class="btn btn-primary btn-sm" id="cr-done" onclick="answerCorrection('done')">Mark as corrected</button></span>
+    </div>
+  </div>
+</div>
+
 <!-- ── Generic dialog (edit member, reset password, confirmations) ── -->
 <div id="dlg-overlay" class="am-overlay hidden" onclick="if(event.target===this)closeDialog()">
   <div class="am-modal" role="dialog" aria-modal="true" aria-labelledby="dlg-title">
@@ -2257,11 +2286,13 @@
 
   async function loadDailyAttendance() {
     if (!attDate) return;
+    const date = attDate;   // only the newest request may draw (quick day changes answer out of order)
     const wrap = document.getElementById('att-daily-table-wrap');
     wrap.innerHTML = '<div class="state-overlay"><div class="spinner"></div> Loading…</div>';
     try {
-      const res     = await fetch('/api/attendance/all/' + attDate, { credentials: 'same-origin' });
+      const res     = await fetch('/api/attendance/all/' + date, { credentials: 'same-origin' });
       const records = await res.json();
+      if (date !== attDate) return;
       attDailyRecords = records;
       renderDailyAttendance(records);
     } catch {
@@ -2823,6 +2854,56 @@
     else if (page === 'profile')    loadProfile();
   }
 
+  /* ── Correction requests (from Needs Attention) ── */
+  let crCurrent = null;
+  async function openCorrectionDialog(id) {
+    let list;
+    try { list = await (await fetch('/api/corrections?status=open', { credentials: 'same-origin' })).json(); } catch { showToast('Network error.', 'error'); return; }
+    const c = list.find(x => x.id === id);
+    if (!c) { showToast('This request was already answered.', 'info'); loadOverview(); return; }
+    crCurrent = c;
+    const m = members.find(x => x.username === c.username);
+    const kindName = { attendance: 'Attendance time', task: 'Task entry', other: 'Something else' }[c.kind];
+    document.getElementById('cr-sub').textContent = (m ? m.display : c.username) + ' · sent ' + new Date(c.createdAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    document.getElementById('cr-facts').innerHTML = '<dt>Day</dt><dd>' + escHtml(formatFull(c.date)) + '</dd><dt>About</dt><dd>' + escHtml(kindName) + (c.taskName ? ' · ' + escHtml(c.taskName) : '') + '</dd>';
+    document.getElementById('cr-msg').textContent = c.message;
+    document.getElementById('cr-open').textContent = (c.kind === 'attendance' ? 'Open attendance for that day' : 'Open that day in Work') + ' ›';
+    document.getElementById('cr-reply').value = '';
+    const err = document.getElementById('cr-error'); err.textContent = ''; err.classList.remove('show');
+    document.getElementById('cr-overlay').classList.remove('hidden');
+  }
+  function closeCorrectionDialog() { document.getElementById('cr-overlay').classList.add('hidden'); }
+  // Go to the record: attendance → Attendance Day view on that date; task / other → Work day panel
+  function openCorrectionTarget() {
+    const c = crCurrent; if (!c) return;
+    closeCorrectionDialog();
+    const idx = members.findIndex(x => x.username === c.username);
+    if (c.kind === 'attendance') {
+      attDate = c.date; navigate('attendance'); switchAttTab('daily'); setAttDate(c.date);
+    } else {
+      if (idx >= 0) activeMember = idx;
+      document.getElementById('work-month').value = c.date.slice(0, 7);
+      navigate('work');
+      openDayPanel(c.date, c.taskId || undefined);
+    }
+    showToast('Fix the record, then come back to Overview and mark the request as corrected.', 'info');
+  }
+  async function answerCorrection(status) {
+    const c = crCurrent; if (!c) return;
+    const err = document.getElementById('cr-error');
+    const btns = ['cr-done', 'cr-decline'].map(id => document.getElementById(id)); btns.forEach(b => { b.disabled = true; });
+    try {
+      const res = await fetch('/api/corrections/' + encodeURIComponent(c.id), { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
+        body: JSON.stringify({ status, reply: document.getElementById('cr-reply').value }) });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) { err.textContent = body.error || 'Could not save.'; err.classList.add('show'); return; }
+      closeCorrectionDialog();
+      showToast(status === 'done' ? 'Marked as corrected — the member sees your reply.' : 'Request declined — the member sees your reply.', 'success');
+      loadOverview();
+    } catch { err.textContent = 'Network error.'; err.classList.add('show'); }
+    finally { btns.forEach(b => { b.disabled = false; }); }
+  }
+
   function openProfile(username) {
     if (!members.some(m => m.username === username)) return;
     profileUser = username;
@@ -2965,7 +3046,8 @@
     document.getElementById('attention-list').innerHTML = d.attention.length
       ? d.attention.map(a =>
           '<a class="ov-row" href="/dashboard/team/' + encodeURIComponent(a.username) + '" data-username="' + escHtml(a.username) + '"' +
-          ' onclick="if(!event.metaKey&&!event.ctrlKey){event.preventDefault();openProfile(this.dataset.username)}">' +
+          (a.correctionId ? ' data-correction="' + escHtml(a.correctionId) + '"' : '') +
+          ' onclick="if(!event.metaKey&&!event.ctrlKey){event.preventDefault();this.dataset.correction?openCorrectionDialog(this.dataset.correction):openProfile(this.dataset.username)}">' +
           '<span class="avatar-sm">' + escHtml(initials(a.display)) + '</span>' +
           '<span class="ov-row-text"><span class="ov-row-name">' + escHtml(a.display) + '</span>' +
           '<span class="ov-row-sub ov-reason-' + escHtml(a.kind) + '">' + escHtml(a.reason) + '</span></span>' +

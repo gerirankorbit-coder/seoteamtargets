@@ -126,6 +126,14 @@
   .view-row { display: flex; gap: 8px; font-size: 13.5px; } .view-row .muted { white-space: nowrap; }
   .view-text { white-space: pre-wrap; word-break: break-word; color: var(--ro-text); font-size: 13.5px; line-height: 1.5; }
   .view-note { font-size: 13px; color: var(--ro-muted); white-space: pre-wrap; }
+  .corr-card { margin-bottom: 20px; }
+  .corr-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .corr-item { padding: 12px 0; border-top: 1px solid var(--ro-border); display: flex; flex-direction: column; gap: 6px; }
+  .corr-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 14px; }
+  .corr-top b { font-weight: 600; }
+  .corr-msg { font-size: 13.5px; white-space: pre-wrap; word-break: break-word; }
+  .corr-reply { font-size: 13px; color: var(--ro-muted); background: var(--ro-surface-2); border-radius: 8px; padding: 8px 10px; white-space: pre-wrap; }
+  .lock-note .link-btn { margin-left: 6px; }
   .lock-note { margin: -4px 0 16px; padding: 10px 14px; border-radius: 10px; font-size: 13px; color: var(--ro-muted); background: var(--ro-surface-2); border: 1px solid var(--ro-border); }
   .empty-state { grid-column: 1 / -1; text-align: center; padding: 48px 20px; color: var(--ro-muted); background: var(--ro-surface); border: 1px dashed var(--ro-border); border-radius: var(--radius-card); }
 
@@ -263,7 +271,8 @@
       </div>
     </div>
 
-    <p class="lock-note" id="lock-note" hidden>🔒 This day is locked — past days are records and can’t be changed here. Ask your manager if something needs to be corrected.</p>
+    <p class="lock-note" id="lock-note" hidden>🔒 This day is locked — past days are records and can’t be changed here.
+      <button type="button" class="link-btn" id="lock-correct-btn" onclick="openCorrection({ date: selectedDate, kind: 'task' })">Request a correction</button></p>
     <div class="tasks-grid" id="tasks-grid"><div class="empty-state">Loading your tasks…</div></div>
 
     <section class="card mgr-note" aria-labelledby="mgr-note-title">
@@ -287,6 +296,13 @@
       <div class="week-days" id="week-days"></div>
     </section>
 
+    <section class="card corr-card" aria-labelledby="corr-title">
+      <div class="corr-head"><div class="card-title" id="corr-title" style="margin:0">My correction requests</div>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="openCorrection({})">+ New request</button></div>
+      <p class="md-sub" style="margin:6px 0 12px">Past days and attendance times are records only your manager can change. Ask here and they will fix it.</p>
+      <div id="corr-list"><p class="md-sub">Loading…</p></div>
+    </section>
+
     <div class="segmented" role="tablist" aria-label="History">
       <button type="button" id="htab-tasks" class="active" onclick="switchHistoryTab('tasks')">Tasks History</button>
       <button type="button" id="htab-attendance" onclick="switchHistoryTab('attendance')">Attendance</button>
@@ -297,6 +313,33 @@
 </main>
 
 <div class="toast-container" id="toast-container"></div>
+
+<!-- Request a correction (the manager fixes locked records) -->
+<div class="dlg-overlay" id="corr-overlay" hidden onclick="if(event.target===this)closeCorrection()">
+  <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="corr-dlg-title">
+    <div class="dlg-head"><h2 id="corr-dlg-title">Request a correction</h2><button class="dlg-close" onclick="closeCorrection()" aria-label="Close">&#10005;</button></div>
+    <div class="dlg-body">
+      <p class="muted" style="margin:0;font-size:13px">Your manager sees this on their dashboard, fixes the record and replies here.</p>
+      <div class="two-col">
+        <div class="form-group"><label class="form-label" for="corr-date">Day</label><input type="date" class="inp" id="corr-date"></div>
+        <div class="form-group"><label class="form-label" for="corr-kind">What is wrong?</label>
+          <select class="inp" id="corr-kind" onchange="syncCorrectionKind()">
+            <option value="attendance">Attendance time (start, break, end)</option>
+            <option value="task">A task entry</option>
+            <option value="other">Something else</option>
+          </select></div>
+      </div>
+      <div class="form-group" id="corr-task-wrap" hidden><label class="form-label" for="corr-task">Which task?</label><select class="inp" id="corr-task"></select></div>
+      <div class="form-group"><label class="form-label" for="corr-msg">What should it be?</label>
+        <textarea class="inp" id="corr-msg" rows="3" maxlength="1000" placeholder="e.g. I pressed Break by mistake at 13:00 — I was working until 13:40."></textarea></div>
+      <p class="dlg-error" id="corr-error" hidden></p>
+    </div>
+    <div class="dlg-foot">
+      <button class="btn btn-ghost btn-sm" onclick="closeCorrection()">Cancel</button>
+      <button class="btn btn-primary btn-sm" id="corr-send" onclick="sendCorrection()">Send request</button>
+    </div>
+  </div>
+</div>
 
 <!-- End of day summary -->
 <div class="dlg-overlay" id="end-overlay" hidden onclick="if(event.target===this)closeEndDay()">
@@ -516,6 +559,7 @@
       '<div class="md-actions">' + actions + '</div>' +
       '<div class="md-links">' +
         '<button type="button" class="link-btn" onclick="openAttNote()">' + (r.note ? 'Edit note' : 'Add note') + '</button>' +
+        '<button type="button" class="link-btn" id="att-correct-btn" onclick="openCorrection({ date: recDate(), kind: \'attendance\' })">Request a correction</button>' +
         '<span class="muted" id="md-team-break"></span></div>';
     renderBreakLine();
     if (st !== 'ended') mdTimer = setInterval(() => {
@@ -597,6 +641,54 @@
     setTimeout(() => document.getElementById('att-note-input').focus(), 30);
   }
   function closeAttNote() { document.getElementById('note-overlay').hidden = true; }
+
+  /* ── Correction requests: the member asks, the manager fixes the record ── */
+  let myCorrections = null;      // last list seen (to notice the manager's answers)
+  function openCorrection({ date, kind, taskId } = {}) {
+    const d = document.getElementById('corr-date');
+    d.max = todayISO(); d.value = date && date <= todayISO() ? date : todayISO();
+    document.getElementById('corr-kind').value = kind || 'attendance';
+    const tasks = (historyTasks && historyTasks.length ? historyTasks : memberTasks);
+    document.getElementById('corr-task').innerHTML = tasks.map(t => '<option value="' + escHtml(t.taskId) + '"' + (t.taskId === taskId ? ' selected' : '') + '>' + escHtml(t.name) + '</option>').join('');
+    document.getElementById('corr-msg').value = '';
+    document.getElementById('corr-error').hidden = true;
+    syncCorrectionKind();
+    document.getElementById('corr-overlay').hidden = false;
+    setTimeout(() => document.getElementById('corr-msg').focus(), 30);
+  }
+  function syncCorrectionKind() { document.getElementById('corr-task-wrap').hidden = document.getElementById('corr-kind').value !== 'task'; }
+  function closeCorrection() { document.getElementById('corr-overlay').hidden = true; }
+  async function sendCorrection() {
+    const err = document.getElementById('corr-error'), btn = document.getElementById('corr-send');
+    const kind = document.getElementById('corr-kind').value;
+    btn.disabled = true; err.hidden = true;
+    try {
+      await api('/api/corrections', 'POST', { date: document.getElementById('corr-date').value, kind,
+        taskId: kind === 'task' ? document.getElementById('corr-task').value : undefined, message: document.getElementById('corr-msg').value });
+      closeCorrection();
+      showToast('Request sent — your manager will fix it and reply.', 'success');
+      loadCorrections();
+    } catch (e) { err.textContent = e.message; err.hidden = false; }
+    finally { btn.disabled = false; }
+  }
+  const CORR_STATUS = { open: ['chip--break', 'Waiting for manager'], done: ['chip--working', 'Corrected'], declined: ['chip--offline', 'Declined'] };
+  async function loadCorrections({ announce = false } = {}) {
+    let list;
+    try { list = await api('/api/my/corrections'); } catch { return; }
+    if (announce && myCorrections) {
+      const before = Object.fromEntries(myCorrections.map(c => [c.id, c.status]));
+      const answered = list.filter(c => before[c.id] === 'open' && c.status !== 'open');
+      if (answered.length) showToast('Your manager answered ' + (answered.length === 1 ? 'your correction request' : answered.length + ' correction requests') + ' (' + answered.map(c => CORR_STATUS[c.status][1].toLowerCase()).join(', ') + ').', 'info');
+    }
+    myCorrections = list;
+    const box = document.getElementById('corr-list');
+    box.innerHTML = list.length ? list.map(c => '<div class="corr-item" data-id="' + escHtml(c.id) + '">' +
+        '<div class="corr-top"><b>' + escHtml(formatDay(c.date)) + ' · ' + (c.kind === 'task' ? escHtml(c.taskName || 'Task') : c.kind === 'attendance' ? 'Attendance' : 'Other') + '</b>' +
+        '<span class="chip ' + CORR_STATUS[c.status][0] + '">' + CORR_STATUS[c.status][1] + '</span></div>' +
+        '<div class="corr-msg">' + escHtml(c.message) + '</div>' +
+        (c.reply ? '<div class="corr-reply"><b>' + escHtml(c.resolvedBy || 'Manager') + ':</b> ' + escHtml(c.reply) + '</div>' : '') + '</div>').join('')
+      : '<p class="md-sub" style="margin:0">No requests yet.</p>';
+  }
   async function saveAttNote() {
     const note = document.getElementById('att-note-input').value.trim();
     const err = document.getElementById('att-note-error');
@@ -906,6 +998,7 @@
   }
   async function loadHistoryView() {
     await saving;
+    loadCorrections();
     refreshSummary().then(renderWeek);
     switchHistoryTab(histTab);
   }
@@ -990,7 +1083,7 @@
 
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
-    closeEndDay(); closeAttNote();
+    closeEndDay(); closeAttNote(); closeCorrection();
   });
 
   async function logout() {
@@ -1071,6 +1164,7 @@
     if (attKey(attNow) !== attKey(attRecord)) { attRecord = attNow; renderMyDay(); notes.push('your attendance'); }
 
     refreshSummary();
+    loadCorrections({ announce: true });
     if (view === 'history') loadHistoryView();
     if (notes.length) showToast('Your manager updated ' + notes.join(' and ') + '.', 'info');
     return true;
@@ -1093,6 +1187,7 @@
     refreshBreakCount();
     setInterval(refreshBreakCount, 30000);
     checkRev(); setInterval(checkRev, SYNC_EVERY);
+    loadCorrections();
     showView(startView, { push: false });
   }
   init();

@@ -47,7 +47,7 @@ const os       = require('os');
 const { isHash, hashPassword, verifyPassword, migratePlainPasswords } = require('./lib/passwords');
 const {
   TASK_TYPES, ENTRY_VERSION, publicTask, cleanTaskInput, newTaskId, tasksForUser, tasksByUser,
-  entryTasksV2, saveMemberTaskList, resetMemberTasks, setAssignees, migrateToTaskIds,
+  entryTasksV2, saveMemberTaskList, resetMemberTasks, setAssignees, migrateToTaskIds, titleCase,
 } = require('./lib/tasks');
 const { buildOverview, localNow } = require('./lib/overview');
 const { buildTeam, buildProfile, buildMySummary } = require('./lib/team');
@@ -133,6 +133,21 @@ const MemberNoteSchema = new mongoose.Schema({
   author:   { type: String, required: true },
 }, { timestamps: true });
 const MemberNote = mongoose.models.MemberNote || mongoose.model('MemberNote', MemberNoteSchema);
+
+// A member asking the manager to correct a locked record (attendance time, a task entry…)
+const CorrectionSchema = new mongoose.Schema({
+  username:   { type: String, required: true, index: true },
+  date:       { type: String, required: true },              // the day to correct (YYYY-MM-DD)
+  kind:       { type: String, enum: ['attendance', 'task', 'other'], required: true },
+  taskId:     { type: String },
+  taskName:   { type: String },
+  message:    { type: String, required: true },
+  status:     { type: String, enum: ['open', 'done', 'declined'], default: 'open', index: true },
+  reply:      { type: String, default: '' },
+  resolvedBy: { type: String },
+  resolvedAt: { type: Date },
+}, { timestamps: true });
+const Correction = mongoose.models.Correction || mongoose.model('Correction', CorrectionSchema);
 
 // Task — one document per task; assignees are the usernames it is assigned to (one
 // task can be shared by many members). legacyKey is unique: "<username>|<original name>"
@@ -907,8 +922,15 @@ app.delete('/api/tasks/:displayName', requireManager, async (req, res) => {
 // manager's local clock (HH:MM) for the time-of-day rules.
 app.get('/api/overview', requireManager, async (req, res) => {
   try {
-    res.json(await buildOverview({ Task, Entry, Attendance, User },
-      { members: memberAccounts({ activeOnly: true }), date: req.query.date, time: req.query.time }));
+    const members = memberAccounts({ activeOnly: true });
+    const data = await buildOverview({ Task, Entry, Attendance, User }, { members, date: req.query.date, time: req.query.time });
+    // Open correction requests come first in Needs Attention
+    const byName = Object.fromEntries(members.map(m => [m.username, m.display]));
+    const open = await Correction.find({ status: 'open', username: { $in: members.map(m => m.username) } }).sort({ createdAt: 1 }).lean();
+    data.attention = [...open.map(c => ({ username: c.username, display: byName[c.username], kind: 'correction', correctionId: String(c._id),
+      reason: 'Asks for a correction · ' + c.date + (c.taskName ? ' · ' + c.taskName : c.kind === 'attendance' ? ' · attendance' : '') + ' — “' + c.message.slice(0, 80) + (c.message.length > 80 ? '…' : '') + '”' })),
+      ...data.attention];
+    res.json(data);
   } catch (err) {
     console.error('Overview error:', err);
     res.status(500).json({ error: 'Database error' });
@@ -1037,6 +1059,78 @@ app.post('/api/admin/save', requireManager, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('Admin save error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// ── Correction requests ───────────────────────────────────────────────────
+const publicCorrection = c => ({ id: String(c._id), username: c.username, date: c.date, kind: c.kind, taskId: c.taskId || null, taskName: c.taskName || null,
+  message: c.message, status: c.status, reply: c.reply || '', resolvedBy: c.resolvedBy || null, resolvedAt: c.resolvedAt || null, createdAt: c.createdAt });
+const MAX_OPEN_CORRECTIONS = 10;
+
+// Member: ask for a correction. body: { date, kind: attendance|task|other, taskId?, message }
+app.post('/api/corrections', async (req, res) => {
+  if (req.session.role !== 'member') return res.status(403).json({ error: 'Only team members send correction requests' });
+  const { date, kind, taskId } = req.body;
+  const message = String(req.body.message || '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '')) return res.status(400).json({ error: 'Pick the day to correct' });
+  if (date > localNow().date) return res.status(400).json({ error: 'That day has not happened yet' });
+  if (!['attendance', 'task', 'other'].includes(kind)) return res.status(400).json({ error: 'Choose what needs correcting' });
+  if (message.length < 5) return res.status(400).json({ error: 'Write what should be corrected (at least 5 characters)' });
+  if (message.length > 1000) return res.status(400).json({ error: 'Please keep it under 1000 characters' });
+  try {
+    let taskName;
+    if (kind === 'task') {
+      const t = taskId && await Task.findOne({ taskId, $or: [{ assignees: req.session.username }, { formerAssignees: req.session.username }] }).lean();
+      if (!t) return res.status(400).json({ error: 'Choose which task' });
+      taskName = titleCase(t.name);
+    }
+    if (await Correction.countDocuments({ username: req.session.username, status: 'open' }) >= MAX_OPEN_CORRECTIONS)
+      return res.status(429).json({ error: 'You already have ' + MAX_OPEN_CORRECTIONS + ' open requests — wait for your manager to answer them' });
+    const c = await Correction.create({ username: req.session.username, date, kind, taskId: kind === 'task' ? taskId : undefined, taskName, message });
+    res.json({ success: true, correction: publicCorrection(c) });
+  } catch (err) {
+    console.error('Correction create error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Member: own requests (newest first)
+app.get('/api/my/corrections', async (req, res) => {
+  try {
+    const list = await Correction.find({ username: req.session.username }).sort({ createdAt: -1 }).limit(50).lean();
+    res.json(list.map(publicCorrection));
+  } catch (err) { res.status(500).json({ error: 'Database error' }); }
+});
+
+// Manager: requests (?status=open|done|declined|all, ?username=)
+app.get('/api/corrections', requireManager, async (req, res) => {
+  const q = {};
+  if (['open', 'done', 'declined'].includes(req.query.status)) q.status = req.query.status;
+  if (req.query.username) q.username = String(req.query.username);
+  try {
+    const list = await Correction.find(q).sort({ createdAt: -1 }).limit(200).lean();
+    res.json(list.map(publicCorrection));
+  } catch (err) { res.status(500).json({ error: 'Database error' }); }
+});
+
+// Manager: close a request. body: { status: done|declined, reply? }
+app.patch('/api/corrections/:id', requireManager, async (req, res) => {
+  const { status } = req.body;
+  if (!['done', 'declined'].includes(status)) return res.status(400).json({ error: 'status must be done or declined' });
+  const reply = String(req.body.reply || '').trim().slice(0, 1000);
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ error: 'Request not found' });
+    // Only an open request can be answered — atomically, so two managers can't both answer it
+    const c = await Correction.findOneAndUpdate({ _id: req.params.id, status: 'open' },
+      { $set: { status, reply, resolvedBy: req.session.display || req.session.username, resolvedAt: new Date() } }, { new: true });
+    if (!c) return (await Correction.exists({ _id: req.params.id }))
+      ? res.status(409).json({ error: 'This request was already answered' })
+      : res.status(404).json({ error: 'Request not found' });
+    await bumpRev(c.username);    // the member's open page shows the answer
+    res.json({ success: true, correction: publicCorrection(c) });
+  } catch (err) {
+    console.error('Correction update error:', err);
     res.status(500).json({ error: 'Database error' });
   }
 });
