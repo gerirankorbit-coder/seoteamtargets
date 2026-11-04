@@ -1188,6 +1188,7 @@
   .ps-tg small { display: block; margin-top: 4px; }
   .ps-pill { font-family: var(--font-mono); font-size: 11px; padding: 2px 7px; background: var(--ro-warning-bg); color: var(--ro-warning-text); }
   .ps-acts { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .pp-attn { margin-bottom: 16px; }
   .st-links { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
   .st-links .card-heading { margin: 0 0 4px; }
   @media (max-width: 760px) {
@@ -1253,6 +1254,10 @@
         <input class="inp pp-search" id="pp-search" type="search" placeholder="Find a person&hellip;" autocomplete="off" aria-label="Find a person">
         <div class="pp-chips" id="pp-chips"></div>
         <span class="pp-summary" id="pp-summary"></span>
+      </div>
+      <div class="card pp-attn" id="pp-attn" hidden>
+        <div class="card-head-row"><h2 class="card-heading">Needs attention</h2><span class="chip chip--missing" id="pp-attn-count"></span></div>
+        <div id="pp-attn-list"></div>
       </div>
       <div class="pp-grid" id="pp-grid"><div class="ov-loading">Loading&hellip;</div></div>
     </section>
@@ -3168,7 +3173,7 @@
   }
 
   /* ═══ Team (home): one card per person; a person's page with Today, Month, Tasks, Clients ═══ */
-  const pp = { mode: 'today', filter: 'all', q: '', today: null, month: null, monthYm: null, tab: 'today', board: null, monthData: null, personYm: null };
+  const pp = { attention: null, mode: 'today', filter: 'all', q: '', today: null, month: null, monthYm: null, tab: 'today', board: null, monthData: null, personYm: null };
   const ppUnit = u => u && u !== 'items' ? u : '';
   const ppTime = iso => iso ? new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : null;
   // Today, one person: which tasks are met, and how the card is coloured
@@ -3199,7 +3204,12 @@
     document.querySelectorAll('[data-pp-mode]').forEach(b => b.classList.toggle('active', b.dataset.ppMode === pp.mode));
     if (!quiet && !(pp.mode === 'today' ? pp.today : pp.month)) grid.innerHTML = '<div class="ov-loading">Loading&hellip;</div>';
     try {
-      if (pp.mode === 'today') pp.today = await wlApi('/api/work/today');
+      if (pp.mode === 'today') {
+        const now = new Date();
+        const [t, ov] = await Promise.all([wlApi('/api/work/today'),
+          wlApi('/api/overview?date=' + localDate(now) + '&time=' + pad2(now.getHours()) + ':' + pad2(now.getMinutes())).catch(() => null)]);
+        pp.today = t; if (ov) pp.attention = ov.attention;
+      }
       else { pp.monthYm = todayISO().slice(0, 7); pp.month = await wlApi('/api/work/month?month=' + pp.monthYm); }
     } catch (e) { if (!quiet) grid.innerHTML = '<div class="ov-loading">' + escHtml(e.message) + '</div>'; return; }
     if (currentPage === 'people') drawPeople();
@@ -3228,6 +3238,10 @@
     const q = pp.q.trim().toLowerCase();
     const rank = x => today ? ({ none: 0, bad: 1, warn: 2, good: 3, idle: 4 }[x.d.st] * 1000 + (x.d.avg ?? 0)) : (x.r.score ?? 1000);
     const list = all.filter(groups[pp.filter]).filter(x => !q || x.r.display.toLowerCase().includes(q) || x.r.username.includes(q)).sort((a, b) => rank(a) - rank(b) || a.r.display.localeCompare(b.r.display));
+    const at = today && pp.attention ? pp.attention : [], box = document.getElementById('pp-attn');
+    box.hidden = !at.length;
+    document.getElementById('pp-attn-count').textContent = at.length + (at.length === 1 ? ' item' : ' items');
+    document.getElementById('pp-attn-list').innerHTML = attentionRows(at);
     grid.innerHTML = list.map(x => today ? ppCardToday(x) : ppCardMonth(x)).join('') || '<div class="ov-loading">' + (all.length ? 'No one matches.' : 'No team members yet. Add them in Settings.') + '</div>';
   }
   function ppCardToday({ r, d }) {
@@ -3716,7 +3730,7 @@
     let list;
     try { list = await (await fetch('/api/corrections?status=open', { credentials: 'same-origin' })).json(); } catch { showToast('Network error.', 'error'); return; }
     const c = list.find(x => x.id === id);
-    if (!c) { showToast('This request was already answered.', 'info'); loadOverview(); return; }
+    if (!c) { showToast('This request was already answered.', 'info'); refreshAttention(); return; }
     crCurrent = c;
     const m = members.find(x => x.username === c.username);
     const kindName = { attendance: 'Attendance time', task: 'Task entry', other: 'Something else' }[c.kind];
@@ -3728,6 +3742,7 @@
     const err = document.getElementById('cr-error'); err.textContent = ''; err.classList.remove('show');
     document.getElementById('cr-overlay').classList.remove('hidden');
   }
+  function refreshAttention() { if (currentPage === 'people') renderPeople({ quiet: true }); else loadOverview(); }
   function closeCorrectionDialog() { document.getElementById('cr-overlay').classList.add('hidden'); }
   // Go to the record: attendance → Attendance Day view on that date; task / other → Work day panel
   function openCorrectionTarget() {
@@ -3742,7 +3757,7 @@
       navigate('work');
       openDayPanel(c.date, c.taskId || undefined);
     }
-    showToast('Fix the record, then come back to Overview and mark the request as corrected.', 'info');
+    showToast('Fix the record, then come back to Team and mark the request as corrected.', 'info');
   }
   async function answerCorrection(status) {
     const c = crCurrent; if (!c) return;
@@ -3755,7 +3770,7 @@
       if (!res.ok) { err.textContent = body.error || 'Could not save.'; err.classList.add('show'); return; }
       closeCorrectionDialog();
       showToast(status === 'done' ? 'Marked as corrected — the member sees your reply.' : 'Request declined — the member sees your reply.', 'success');
-      loadOverview();
+      refreshAttention();
     } catch { err.textContent = 'Network error.'; err.classList.add('show'); }
     finally { btns.forEach(b => { b.disabled = false; }); }
   }
@@ -3891,6 +3906,16 @@
     }
   }
 
+  function attentionRows(list) {
+    return list.map(a =>
+          '<a class="ov-row" href="/dashboard/team/' + encodeURIComponent(a.username) + '" data-username="' + escHtml(a.username) + '"' +
+          (a.correctionId ? ' data-correction="' + escHtml(a.correctionId) + '"' : '') +
+          ' onclick="if(!event.metaKey&&!event.ctrlKey){event.preventDefault();this.dataset.correction?openCorrectionDialog(this.dataset.correction):openProfile(this.dataset.username)}">' +
+          '<span class="avatar-sm">' + escHtml(initials(a.display)) + '</span>' +
+          '<span class="ov-row-text"><span class="ov-row-name">' + escHtml(a.display) + '</span>' +
+          '<span class="ov-row-sub ov-reason-' + escHtml(a.kind) + '">' + escHtml(a.reason) + '</span></span>' +
+          '<span class="ov-row-go" aria-hidden="true">&#8250;</span></a>').join('');
+  }
   function renderOverviewData() {
     const d = overviewData, k = d.kpis, total = k.totalMembers;
     const set = (id, v) => { document.getElementById(id).textContent = v; };
@@ -3910,14 +3935,7 @@
     cnt.className = 'chip chip--missing';
     cnt.textContent = d.attention.length + (d.attention.length === 1 ? ' item' : ' items');
     document.getElementById('attention-list').innerHTML = d.attention.length
-      ? d.attention.map(a =>
-          '<a class="ov-row" href="/dashboard/team/' + encodeURIComponent(a.username) + '" data-username="' + escHtml(a.username) + '"' +
-          (a.correctionId ? ' data-correction="' + escHtml(a.correctionId) + '"' : '') +
-          ' onclick="if(!event.metaKey&&!event.ctrlKey){event.preventDefault();this.dataset.correction?openCorrectionDialog(this.dataset.correction):openProfile(this.dataset.username)}">' +
-          '<span class="avatar-sm">' + escHtml(initials(a.display)) + '</span>' +
-          '<span class="ov-row-text"><span class="ov-row-name">' + escHtml(a.display) + '</span>' +
-          '<span class="ov-row-sub ov-reason-' + escHtml(a.kind) + '">' + escHtml(a.reason) + '</span></span>' +
-          '<span class="ov-row-go" aria-hidden="true">&#8250;</span></a>').join('')
+      ? attentionRows(d.attention)
       : '<div class="all-clear"><span class="all-clear-icon" aria-hidden="true">&#10003;</span><span><b>All clear</b><br>Nobody needs attention right now.</span></div>';
 
     // Team at a glance
