@@ -1114,6 +1114,89 @@
     .wt-row { grid-template-columns: 1fr auto; } .wt-row .wt-tasks { grid-column: 1 / -1; grid-row: 2; padding: 0 8px; }
     .wl-cl-grid { grid-template-columns: 1fr; } .mo-head { grid-template-columns: 1fr; } .mo-score { text-align: left; }
   }
+
+  /* ── Team (home) and one person ── */
+  .pp-ctrl { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin-bottom: 16px; }
+  .pp-search { width: 260px; max-width: 100%; }
+  .pp-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .pp-chip { border: 1px solid var(--ro-border-2); background: var(--ro-surface); color: var(--ro-text); padding: 6px 12px; font-size: 13px; display: inline-flex; gap: 6px; align-items: center; cursor: pointer; border-radius: 0; }
+  .pp-chip b { font-family: var(--font-mono); font-weight: 500; font-size: 12px; }
+  .pp-chip:hover { border-color: var(--ro-text); }
+  .pp-chip.on { background: var(--ro-text); color: var(--ro-bg); border-color: var(--ro-text); }
+  .pp-summary { margin-left: auto; color: var(--ro-muted); font-size: 13px; }
+  .pp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 14px; }
+  .pp-grid > .ov-loading { grid-column: 1 / -1; }
+  .pp-card { border: 1px solid var(--ro-border); border-top: 3px solid var(--ro-border-2); background: var(--ro-surface); color: var(--ro-text); text-align: left; padding: 0; display: grid; grid-template-rows: auto 1fr auto; cursor: pointer; width: 100%; font: inherit; border-radius: 0; }
+  .pp-card:hover { border-color: var(--ro-text); }
+  .pp-card.st-bad, .pp-card.st-none { border-top-color: var(--ro-danger); } .pp-card.st-warn { border-top-color: var(--ro-warning-text); } .pp-card.st-good { border-top-color: var(--ro-success); }
+  .pp-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: 14px 16px 10px; }
+  .pp-head > div:first-child { display: grid; gap: 2px; min-width: 0; justify-items: start; }
+  .pp-head b { font-size: 16px; font-weight: 600; letter-spacing: -.01em; }
+  .pp-head small { color: var(--ro-muted); font-size: 12px; }
+  .pp-big { font-size: 26px; font-weight: 600; letter-spacing: -.03em; line-height: 1; text-align: right; white-space: nowrap; }
+  .pp-big small { display: block; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .04em; text-transform: uppercase; font-weight: 400; margin-top: 4px; }
+  .pp-status { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase; padding: 3px 7px; margin-top: 6px; background: var(--ro-surface-2); color: var(--ro-muted); }
+  .pp-status.good { color: var(--ro-success); background: color-mix(in srgb, var(--ro-success) 12%, transparent); }
+  .pp-status.warn { color: var(--ro-warning-text); background: var(--ro-warning-bg); }
+  .pp-status.bad { color: var(--ro-danger); background: color-mix(in srgb, var(--ro-danger) 11%, transparent); }
+  .pp-rows { border-top: 1px solid var(--ro-border); align-content: start; display: grid; }
+  .pp-row { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; gap: 9px; align-items: center; padding: 8px 16px; border-bottom: 1px solid var(--ro-border); font-size: 13.5px; }
+  .pp-row:last-child { border-bottom: 0; }
+  .pp-row .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pp-row .v { font-family: var(--font-mono); font-size: 12.5px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .pp-row .v em, .ps-tot small { font-style: normal; color: var(--ro-muted); }
+  .pp-ic { width: 16px; height: 16px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; font-weight: 700; box-sizing: border-box; }
+  .pp-ic.ok { background: var(--ro-success); color: var(--ro-bg); }
+  .pp-ic.part { border: 2px solid var(--ro-warning-text); }
+  .pp-ic.zero { border: 2px solid var(--ro-danger); }
+  .pp-ic.na { border: 2px dashed var(--ro-border-2); }
+  .pp-foot { display: flex; justify-content: space-between; gap: 10px; padding: 10px 16px; font-size: 12px; color: var(--ro-muted); border-top: 1px solid var(--ro-border); background: var(--ro-surface-2); }
+  .pp-foot > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pp-foot .go { color: var(--ro-text); font-weight: 500; white-space: nowrap; }
+  .pp-left { color: var(--ro-danger); }
+  .pp-bar { height: 5px; background: var(--ro-surface-2); margin-top: 6px; }
+  .pp-bar i { display: block; height: 100%; background: var(--ro-text); }
+  .pp-bar i.good { background: var(--ro-success); } .pp-bar i.warn { background: var(--ro-warning-text); } .pp-bar i.bad { background: var(--ro-danger); }
+  .pp-back { display: block; width: fit-content; margin-bottom: 10px; font-size: 13px; border: 1px solid rgb(255 255 255 / .28); padding: 5px 11px; text-decoration: none; }
+  .ps-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; border-bottom: 1px solid var(--ro-border); margin-bottom: 16px; flex-wrap: wrap; }
+  .ps-tabs { display: flex; overflow-x: auto; }
+  .ps-tabs button { border: 0; background: none; padding: 12px 18px; border-bottom: 2px solid transparent; color: var(--ro-muted); font: inherit; font-weight: 500; white-space: nowrap; cursor: pointer; }
+  .ps-tabs button:hover { color: var(--ro-text); }
+  .ps-tabs button.active { color: var(--ro-text); border-bottom-color: var(--ro-mark); }
+  .ps-month { width: auto; margin-bottom: 6px; }
+  #ps-body { display: grid; gap: 16px; }
+  .ps-say { padding: 16px 18px; font-size: 15px; line-height: 1.6; margin: 0; }
+  .ps-say b { font-weight: 600; }
+  .ps-say .chip { margin-left: 6px; vertical-align: 2px; }
+  .ps-box { padding: 0; margin: 0; }
+  .ps-box-h { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--ro-border); flex-wrap: wrap; }
+  .ps-box-h .card-heading { margin: 0; }
+  .ps-pad { padding: 14px 18px 16px; }
+  .ps-item { display: grid; grid-template-columns: 16px minmax(150px, 1fr) minmax(0, 2.2fr) 110px; gap: 14px; align-items: start; padding: 14px 18px; border-bottom: 1px solid var(--ro-border); }
+  .ps-item:last-child, .ps-asg:last-child { border-bottom: 0; }
+  .ps-item .pp-ic { margin-top: 3px; }
+  .ps-item h3, .ps-asg h3 { font-size: 15px; font-weight: 600; margin: 0; }
+  .ps-item .sub, .ps-asg .sub { font-size: 12px; color: var(--ro-muted); }
+  .ps-lines { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+  .ps-ln { background: var(--ro-surface-2); padding: 3px 9px; font-size: 13px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+  .ps-ln b { font-family: var(--font-mono); font-weight: 500; margin-left: 6px; }
+  .ps-note { font-size: 13px; color: var(--ro-muted); font-style: italic; flex-basis: 100%; overflow-wrap: anywhere; }
+  .ps-tot { text-align: right; font-size: 14px; }
+  .ps-tot small { display: block; font-size: 11px; }
+  .ps-asg { display: grid; grid-template-columns: minmax(0, 1fr) 160px auto; gap: 14px; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--ro-border); }
+  .ps-tg { font-size: 15px; }
+  .ps-tg small { display: block; margin-top: 4px; }
+  .ps-pill { font-family: var(--font-mono); font-size: 11px; padding: 2px 7px; background: var(--ro-warning-bg); color: var(--ro-warning-text); }
+  .ps-acts { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .st-links { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+  .st-links .card-heading { margin: 0 0 4px; }
+  @media (max-width: 760px) {
+    .pp-summary { margin-left: 0; }
+    .ps-item { grid-template-columns: 16px minmax(0, 1fr) 90px; }
+    .ps-item .ps-lines { grid-column: 2 / -1; grid-row: 2; }
+    .ps-asg { grid-template-columns: minmax(0, 1fr) auto; }
+    .ps-asg .ps-acts { grid-column: 1 / -1; justify-content: flex-start; }
+  }
 </style>
 </head>
 <body>
@@ -1122,17 +1205,13 @@
 <div class="app-shell">
   <!-- ── Sidebar ── -->
   <aside class="sidebar" id="sidebar" aria-label="Main navigation">
-    <a class="sidebar-brand" href="/dashboard" data-page="overview">
+    <a class="sidebar-brand" href="/dashboard" data-page="people">
       <span class="brand-mark">RO</span><span class="brand-name">Rank Orbit</span>
     </a>
     <nav class="sidebar-nav">
-      <a class="sidebar-link" href="/dashboard" data-page="overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg><span>Today</span></a>
-      <a class="sidebar-link" href="/dashboard/month" data-page="month"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4M7 13h3M7 17h3M14 13h3"/></svg><span>Month</span></a>
-      <a class="sidebar-link" href="/dashboard/team" data-page="team"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>Team</span></a>
-      <a class="sidebar-link" href="/dashboard/work" data-page="work"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg><span>Work</span></a>
-      <a class="sidebar-link" href="/dashboard/attendance" data-page="attendance"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Attendance</span></a>
-      <a class="sidebar-link" href="/dashboard/assignments" data-page="assign"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg><span>Assignments</span></a>
+      <a class="sidebar-link" href="/dashboard" data-page="people"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>Team</span></a>
       <a class="sidebar-link" href="/dashboard/clients" data-page="clients"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21V7l9-4 9 4v14"/><path d="M9 21v-6h6v6M8 10h.01M12 10h.01M16 10h.01"/></svg><span>Clients</span></a>
+      <a class="sidebar-link" href="/dashboard/attendance" data-page="attendance"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Attendance</span></a>
       <a class="sidebar-link" href="/dashboard/reports" data-page="reports"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg><span>Reports</span></a>
       <a class="sidebar-link" href="/dashboard/settings" data-page="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68 1.65 1.65 0 0 0 10 3.17V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Settings</span></a>
     </nav>
@@ -1164,6 +1243,40 @@
     </header>
 
     <main class="app-content">
+    <section class="page" id="page-people" hidden>
+      <div class="page-head">
+        <div><p class="eyebrow" id="pp-eyebrow">Today</p><h1 class="page-title">Team</h1><p class="page-sub" id="pp-sub">Everyone&rsquo;s tasks for today. People who are behind come first.</p></div>
+        <div class="wl-tools"><div class="segmented" role="group" aria-label="Period">
+          <button type="button" data-pp-mode="today" class="active">Today</button><button type="button" data-pp-mode="month">This month</button></div></div>
+      </div>
+      <div class="pp-ctrl">
+        <input class="inp pp-search" id="pp-search" type="search" placeholder="Find a person&hellip;" autocomplete="off" aria-label="Find a person">
+        <div class="pp-chips" id="pp-chips"></div>
+        <span class="pp-summary" id="pp-summary"></span>
+      </div>
+      <div class="pp-grid" id="pp-grid"><div class="ov-loading">Loading&hellip;</div></div>
+    </section>
+
+    <section class="page" id="page-person" hidden>
+      <div class="page-head">
+        <div><a class="back-link pp-back" href="/dashboard" data-page="people">&#8249; Team</a><p class="eyebrow" id="ps-eyebrow">&nbsp;</p><h1 class="page-title" id="ps-name">&hellip;</h1></div>
+        <div class="wl-tools">
+          <button type="button" class="btn btn-ghost btn-sm" id="ps-edit">Edit past days</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="ps-more">Attendance &amp; notes</button>
+        </div>
+      </div>
+      <div class="ps-bar">
+        <nav class="ps-tabs" role="tablist" aria-label="Sections">
+          <button type="button" role="tab" data-ps-tab="today" class="active">Today</button>
+          <button type="button" role="tab" data-ps-tab="month">This month</button>
+          <button type="button" role="tab" data-ps-tab="tasks">Tasks &amp; targets</button>
+          <button type="button" role="tab" data-ps-tab="clients">Clients</button>
+        </nav>
+        <select class="inp ps-month" id="ps-month" aria-label="Month" hidden></select>
+      </div>
+      <div id="ps-body"><div class="ov-loading">Loading&hellip;</div></div>
+    </section>
+
     <section class="page" id="page-overview" hidden>
       <div class="page-head">
         <div><h1 class="page-title" id="overview-greeting">Welcome</h1><p class="page-sub" id="overview-date"></p></div>
@@ -1236,7 +1349,7 @@
     </section>
 
     <section class="page" id="page-profile" hidden>
-      <a class="back-link" href="/dashboard/team" data-page="team">&#8249; Team</a>
+      <a class="back-link" href="/dashboard" data-page="person" id="pf-back">&#8249; Back</a>
       <div class="card profile-header">
         <span class="avatar-lg" id="pf-avatar">–</span>
         <div class="profile-header-main">
@@ -1522,6 +1635,10 @@
     <section class="page" id="page-settings" hidden>
       <div class="page-head">
         <div><h1 class="page-title">Settings</h1><p class="page-sub">Team accounts: add members, reset passwords, deactivate or remove.</p></div>
+      </div>
+      <div class="card st-links">
+        <div><h2 class="card-heading">All tasks at once</h2><p class="page-sub">The full table of who does which task, with every target. For day-to-day changes, open a person on the Team page instead.</p></div>
+        <a class="btn btn-ghost btn-sm" href="/dashboard/assignments" data-page="assign">Open the table &#8250;</a>
       </div>
       <div class="pw-alert" id="pw-alert" hidden></div>
       <div class="card team-table-card">
@@ -2962,45 +3079,56 @@
 
   /* ── Tab scroll ── */
   /* ── Shell navigation: every sidebar page has its own URL under /dashboard ── */
-  const PAGES     = ['overview', 'month', 'team', 'work', 'attendance', 'assign', 'clients', 'tasks', 'reports', 'settings', 'profile'];
+  const PAGES     = ['people', 'person', 'overview', 'month', 'team', 'work', 'attendance', 'assign', 'clients', 'tasks', 'reports', 'settings', 'profile'];
   const PAGE_TAB  = { work: 'spreadsheet', reports: 'analytics', tasks: 'tasks', attendance: 'attendance' };
   const TAB_PAGE  = { spreadsheet: 'work', analytics: 'reports', tasks: 'tasks', attendance: 'attendance' };
-  const PAGE_NAME = { overview: 'Today', month: 'Month', team: 'Team', work: 'Work', attendance: 'Attendance', assign: 'Assignments', clients: 'Clients',
+  const PAGE_NAME = { people: 'Team', person: 'Team', overview: 'Today', month: 'Month', team: 'Team', work: 'Work', attendance: 'Attendance', assign: 'All tasks', clients: 'Clients',
                       tasks: 'Tasks & Targets', reports: 'Reports', settings: 'Settings', profile: 'Profile' };
+  // Which sidebar link is lit for each page (the sidebar only has Team, Clients, Attendance, Reports, Settings)
+  const NAV_OF    = { person: 'people', overview: 'people', month: 'people', team: 'people', work: 'people', profile: 'people', assign: 'settings', tasks: 'settings' };
   let currentPage = null;
-  let profileUser = null;   // username shown on /dashboard/team/<username>
+  let profileUser = null;   // username shown on /dashboard/profile/<username> (attendance, notes)
+  let personUser  = null;   // username shown on /dashboard/team/<username>
 
   function pageFromPath(pathname) {
     const [seg, sub] = pathname.replace(/^\/dashboard\/?/, '').split('/');
-    if (seg === 'team' && sub) { profileUser = decodeURIComponent(sub); return 'profile'; }
+    if (seg === 'team' && sub) { personUser = decodeURIComponent(sub); return 'person'; }
+    if (seg === 'profile' && sub) { profileUser = decodeURIComponent(sub); return 'profile'; }
     if (seg === 'assignments' || seg === 'tasks') return 'assign';
-    return PAGES.includes(seg) && seg !== 'profile' ? seg : 'overview';
+    if (seg === 'today') return 'overview';
+    if (!seg || seg === 'team') return 'people';
+    return PAGES.includes(seg) && !['profile', 'person', 'people'].includes(seg) ? seg : 'people';
   }
   function pageUrl(page) {
-    if (page === 'profile') return '/dashboard/team/' + encodeURIComponent(profileUser || '');
-    const base = page === 'overview' ? '/dashboard' : '/dashboard/' + (page === 'assign' ? 'assignments' : page);
+    if (page === 'profile') return '/dashboard/profile/' + encodeURIComponent(profileUser || '');
+    if (page === 'person') return '/dashboard/team/' + encodeURIComponent(personUser || '');
+    if (page === 'people') return '/dashboard';
+    const base = '/dashboard/' + (page === 'assign' ? 'assignments' : page === 'overview' ? 'today' : page);
     const m = members[activeMember];
     return page === 'work' && m ? base + '?member=' + encodeURIComponent(m.username) : base;
   }
 
   function navigate(page, { push = true } = {}) {
-    if (!PAGES.includes(page)) page = 'overview';
+    if (!PAGES.includes(page)) page = 'people';
     currentPage = page;
     activeTab   = PAGE_TAB[page] || page;
     document.querySelectorAll('.page').forEach(el => { el.hidden = el.id !== 'page-' + page; });
     if (page !== 'profile') restoreSpreadsheet();
     document.querySelectorAll('.sidebar-link').forEach(a => {
-      const on = a.dataset.page === (page === 'profile' ? 'team' : page);
+      const on = a.classList.contains('sidebar-link') && a.dataset.page === (NAV_OF[page] || page);
       a.classList.toggle('active', on);
       if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
-    const pm = page === 'profile' && members.find(x => x.username === profileUser);
+    if (page === 'profile') { personUser = profileUser; const bk = document.getElementById('pf-back'); if (bk) bk.href = '/dashboard/team/' + encodeURIComponent(profileUser || ''); }
+    const pm = (page === 'profile' && members.find(x => x.username === profileUser)) || (page === 'person' && members.find(x => x.username === personUser));
     document.title = (pm ? pm.display : PAGE_NAME[page]) + ' — Rank Orbit';
     if (push) history.pushState({ page }, '', pageUrl(page));
     closeSidebar();
     window.scrollTo(0, 0);
 
-    if (page === 'overview')        renderOverview();
+    if (page === 'people')          renderPeople();
+    else if (page === 'person')     renderPerson();
+    else if (page === 'overview')   renderOverview();
     else if (page === 'team')       renderTeam();
     else if (page === 'work')       { renderMemberTabs(); renderSpreadsheet({ jump: true }); }
     else if (page === 'attendance') initAttendanceTab();
@@ -3039,6 +3167,281 @@
       new Date(ym + '-01T00:00:00Z').toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' }) + (ym === now ? ' (so far)' : '') + '</option>').join('');
   }
 
+  /* ═══ Team (home): one card per person; a person's page with Today, Month, Tasks, Clients ═══ */
+  const pp = { mode: 'today', filter: 'all', q: '', today: null, month: null, monthYm: null, tab: 'today', board: null, monthData: null, personYm: null };
+  const ppUnit = u => u && u !== 'items' ? u : '';
+  const ppTime = iso => iso ? new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : null;
+  // Today, one person: which tasks are met, and how the card is coloured
+  function ppDay(r) {
+    const scored = r.tasks.filter(t => !t.note && t.target);
+    const met = scored.filter(t => t.done >= t.target).length;
+    const anything = r.lines > 0 || r.tasks.some(t => t.note && t.text);
+    const avg = scored.length ? Math.round(scored.reduce((a, t) => a + Math.min(100, t.done / t.target * 100), 0) / scored.length) : null;
+    const st = !r.tasks.length ? 'idle' : !anything ? 'none' : met === scored.length ? 'good' : (avg ?? 0) >= 60 ? 'warn' : 'bad';
+    return { scored, met, avg, st, left: scored.filter(t => t.done < t.target) };
+  }
+  const PP_LABEL = { idle: ['', 'No tasks yet'], none: ['bad', 'Nothing logged yet'], bad: ['bad', 'Behind'], warn: ['warn', 'In progress'], good: ['good', 'All targets met'] };
+  const ppMonthTone = s => s === null ? 'idle' : s >= 85 ? 'good' : s >= 60 ? 'warn' : 'bad';
+  function ppIcon(t) {
+    if (t.note) return t.text ? '<span class="pp-ic ok">&#10003;</span>' : '<span class="pp-ic na"></span>';
+    if (!t.target) return t.done ? '<span class="pp-ic ok">&#10003;</span>' : '<span class="pp-ic na"></span>';
+    if (t.done >= t.target) return '<span class="pp-ic ok">&#10003;</span>';
+    return t.done > 0 ? '<span class="pp-ic part"></span>' : '<span class="pp-ic zero"></span>';
+  }
+  const ppMonthIcon = pct => pct === null ? '<span class="pp-ic na"></span>' : pct >= 95 ? '<span class="pp-ic ok">&#10003;</span>' : pct > 0 ? '<span class="pp-ic part"></span>' : '<span class="pp-ic zero"></span>';
+  const ppBar = (pct, tone) => '<div class="pp-bar"><i class="' + tone + '" style="width:' + Math.max(0, Math.min(100, pct || 0)) + '%"></i></div>';
+  const ppDayTone = pct => pct >= 100 ? 'good' : pct > 0 ? 'warn' : 'bad';
+  const ppPctTone = pct => pct >= 95 ? 'good' : pct >= 60 ? 'warn' : 'bad';
+  const shiftOf = u => { const m = members.find(x => x.username === u); return m && m.shift ? (m.shift === 'night' ? 'Night shift' : 'Day shift') : ''; };
+
+  async function renderPeople({ quiet = false } = {}) {
+    const grid = document.getElementById('pp-grid');
+    document.querySelectorAll('[data-pp-mode]').forEach(b => b.classList.toggle('active', b.dataset.ppMode === pp.mode));
+    if (!quiet && !(pp.mode === 'today' ? pp.today : pp.month)) grid.innerHTML = '<div class="ov-loading">Loading&hellip;</div>';
+    try {
+      if (pp.mode === 'today') pp.today = await wlApi('/api/work/today');
+      else { pp.monthYm = todayISO().slice(0, 7); pp.month = await wlApi('/api/work/month?month=' + pp.monthYm); }
+    } catch (e) { if (!quiet) grid.innerHTML = '<div class="ov-loading">' + escHtml(e.message) + '</div>'; return; }
+    if (currentPage === 'people') drawPeople();
+  }
+  function drawPeople() {
+    const today = pp.mode === 'today', grid = document.getElementById('pp-grid');
+    const date = new Date(todayISO() + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+    document.getElementById('pp-eyebrow').textContent = today ? date : (pp.month ? pp.month.label + (pp.month.running ? ' · so far' : '') : 'This month');
+    document.getElementById('pp-sub').textContent = today ? 'Everyone’s tasks for today. People who are behind come first.' : 'Everyone’s month so far. The lowest score comes first.';
+    let all;
+    if (today) all = (pp.today ? pp.today.rows : []).map(r => ({ r, d: ppDay(r) }));
+    else all = (pp.month ? pp.month.rows : []).filter(r => r.active).map(r => ({ r, tone: ppMonthTone(r.score) }));
+    const groups = today
+      ? { all: () => true, behind: x => ['bad', 'warn'].includes(x.d.st), none: x => x.d.st === 'none', good: x => x.d.st === 'good' }
+      : { all: () => true, behind: x => x.r.score !== null && x.r.score < 85, good: x => x.r.score !== null && x.r.score >= 85 };
+    const names = today ? [['all', 'Everyone'], ['behind', 'Behind'], ['none', 'Nothing logged'], ['good', 'All targets met']]
+                        : [['all', 'Everyone'], ['behind', 'Under 85%'], ['good', '85% or more']];
+    if (!groups[pp.filter]) pp.filter = 'all';
+    const count = k => all.filter(groups[k]).length;
+    document.getElementById('pp-chips').innerHTML = names.map(([k, l]) =>
+      '<button type="button" class="pp-chip' + (pp.filter === k ? ' on' : '') + '" data-pp-filter="' + k + '">' + l + ' <b>' + count(k) + '</b></button>').join('');
+    const scored = all.filter(x => x.r.score !== null && x.r.score !== undefined);
+    document.getElementById('pp-summary').textContent = today
+      ? count('good') + ' done · ' + count('behind') + ' behind · ' + count('none') + ' nothing logged yet'
+      : (scored.length ? 'Team average ' + Math.round(scored.reduce((a, x) => a + x.r.score, 0) / scored.length) + '%' : 'No targets yet') + (pp.month && pp.month.rows[0] ? ' · ' + pp.month.rows[0].workdays + ' working days so far' : '');
+    const q = pp.q.trim().toLowerCase();
+    const rank = x => today ? ({ none: 0, bad: 1, warn: 2, good: 3, idle: 4 }[x.d.st] * 1000 + (x.d.avg ?? 0)) : (x.r.score ?? 1000);
+    const list = all.filter(groups[pp.filter]).filter(x => !q || x.r.display.toLowerCase().includes(q) || x.r.username.includes(q)).sort((a, b) => rank(a) - rank(b) || a.r.display.localeCompare(b.r.display));
+    grid.innerHTML = list.map(x => today ? ppCardToday(x) : ppCardMonth(x)).join('') || '<div class="ov-loading">' + (all.length ? 'No one matches.' : 'No team members yet. Add them in Settings.') + '</div>';
+  }
+  function ppCardToday({ r, d }) {
+    const [tone, label] = PP_LABEL[d.st];
+    const left = d.left.map(t => (t.target - t.done) + ' ' + ppUnit(t.unit) + ' ' + t.name);
+    const foot = d.st === 'idle' ? 'Give tasks on their page'
+      : left.length ? '<span class="pp-left">Left: ' + escHtml(left[0].replace(/\s+/g, ' ')) + (left.length > 1 ? ' +' + (left.length - 1) : '') + '</span>'
+      : (ppTime(r.lastUpdate) ? 'Last update ' + ppTime(r.lastUpdate) : 'All done');
+    return '<button type="button" class="pp-card st-' + d.st + '" data-pp-person="' + escHtml(r.username) + '">' +
+      '<div class="pp-head"><div><b>' + escHtml(r.display) + '</b><small>' + escHtml([(STATUS_CHIP[r.status] || STATUS_CHIP.offline)[1], shiftOf(r.username)].filter(Boolean).join(' · ')) + '</small>' +
+        '<span class="pp-status ' + tone + '">' + label + '</span></div>' +
+        '<div class="pp-big">' + (d.scored.length ? d.met + '/' + d.scored.length : '—') + '<small>targets met</small></div></div>' +
+      '<div class="pp-rows">' + (r.tasks.length ? r.tasks.map(t => '<div class="pp-row">' + ppIcon(t) + '<span class="nm">' + escHtml(t.name) + '</span><span class="v">' +
+          (t.note ? '<em>' + (t.text ? 'note added' : 'no note yet') + '</em>' : t.target ? t.done + ' <em>/ ' + t.target + '</em>' : t.done + ' <em>no target</em>') + '</span></div>').join('')
+        : '<div class="pp-row"><span class="pp-ic na"></span><span class="nm wl-flat">No tasks given yet</span><span></span></div>') + '</div>' +
+      '<div class="pp-foot"><span>' + foot + '</span><span class="go">Open &#8250;</span></div></button>';
+  }
+  function ppCardMonth({ r, tone }) {
+    const ts = r.taskList || [];
+    const weakest = ts.filter(t => t.pct !== null).sort((a, b) => a.pct - b.pct)[0];
+    return '<button type="button" class="pp-card st-' + tone + '" data-pp-person="' + escHtml(r.username) + '">' +
+      '<div class="pp-head"><div><b>' + escHtml(r.display) + '</b><small>Present ' + r.present + ' of ' + r.workdays + ' days</small></div>' +
+        '<div class="pp-big">' + (r.score === null ? '—' : r.score + '%') + '<small>month score</small></div></div>' +
+      '<div class="pp-rows">' + (ts.length ? ts.map(t => '<div class="pp-row">' + ppMonthIcon(t.pct) + '<span class="nm">' + escHtml(t.name) + '</span><span class="v">' +
+          (t.pct === null ? t.done + ' <em>no target</em>' : t.done + ' <em>/ ' + t.potential + ' · ' + Math.min(t.pct, 999) + '%</em>') + '</span></div>').join('')
+        : '<div class="pp-row"><span class="pp-ic na"></span><span class="nm wl-flat">Nothing logged this month</span><span></span></div>') + '</div>' +
+      '<div class="pp-foot"><span>' + (weakest && weakest.pct < 85 ? '<span class="pp-left">Weakest: ' + escHtml(weakest.name) + '</span>' : ts.length ? 'Every task on track' : '&nbsp;') + '</span><span class="go">Open &#8250;</span></div></button>';
+  }
+  document.getElementById('page-people').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.ppMode) { if (pp.mode !== b.dataset.ppMode) { pp.mode = b.dataset.ppMode; pp.filter = 'all'; renderPeople(); } }
+    else if (b.dataset.ppFilter) { pp.filter = b.dataset.ppFilter; drawPeople(); }
+    else if (b.dataset.ppPerson) openPerson(b.dataset.ppPerson, pp.mode === 'month' ? 'month' : 'today');
+  });
+  document.getElementById('pp-search').addEventListener('input', e => { pp.q = e.target.value; drawPeople(); });
+
+  /* ── One person ── */
+  async function renderPerson({ quiet = false } = {}) {
+    const u = personUser, m = members.find(x => x.username === u);
+    const body = document.getElementById('ps-body');
+    document.getElementById('ps-name').textContent = m ? m.display : u;
+    document.querySelectorAll('[data-ps-tab]').forEach(b => { b.classList.toggle('active', b.dataset.psTab === pp.tab); b.setAttribute('aria-selected', b.dataset.psTab === pp.tab); });
+    const sel = document.getElementById('ps-month');
+    if (!pp.personYm) pp.personYm = todayISO().slice(0, 7);
+    sel.hidden = !['month', 'clients'].includes(pp.tab);
+    if (!sel.hidden) monthOptions(sel, pp.personYm);
+    if (!m) { body.innerHTML = '<div class="ov-loading">This person isn’t on the team.</div>'; return; }
+    if (!quiet) body.innerHTML = '<div class="ov-loading">Loading&hellip;</div>';
+    const tab = pp.tab;
+    try {
+      if (tab === 'today') {
+        if (!quiet || !pp.today) pp.today = await wlApi('/api/work/today');
+        else pp.today = await wlApi('/api/work/today');
+        if (pp.tab !== tab || personUser !== u) return;
+        psToday(pp.today.rows.find(r => r.username === u), m);
+      } else if (tab === 'month' || tab === 'clients') {
+        const key = u + '|' + pp.personYm;
+        if (!pp.monthData || pp.monthData.key !== key) pp.monthData = { key, d: await wlApi('/api/work/month/' + encodeURIComponent(u) + '?month=' + pp.personYm) };
+        if (pp.tab !== tab || personUser !== u) return;
+        tab === 'month' ? psMonth(pp.monthData.d, m) : psClients(pp.monthData.d);
+      } else {
+        pp.board = await wlApi('/api/assign/board');
+        if (pp.tab !== tab || personUser !== u) return;
+        psTasks(m);
+      }
+    } catch (e) { if (!quiet) body.innerHTML = '<div class="ov-loading">' + escHtml(e.message) + '</div>'; }
+  }
+  function psSay(html) { return '<div class="card ps-say">' + html + '</div>'; }
+  function psToday(r, m) {
+    const eb = document.getElementById('ps-eyebrow'), body = document.getElementById('ps-body');
+    if (!r) { eb.textContent = shiftOf(m.username) || 'Team member'; body.innerHTML = psSay('<b>' + escHtml(m.display) + '</b> isn’t active, so there is nothing for today.'); return; }
+    const d = ppDay(r), name = escHtml(r.display);
+    const [chipCls, chipText] = STATUS_CHIP[r.status] || STATUS_CHIP.offline;
+    eb.textContent = [shiftOf(r.username), 'Today', d.scored.length ? d.met + ' of ' + d.scored.length + ' targets met' : null].filter(Boolean).join(' · ');
+    const sentence = d.st === 'idle' ? name + ' has no tasks yet. Give the first one in <b>Tasks &amp; targets</b>.'
+      : d.st === 'none' ? name + ' hasn’t logged anything today.'
+      : d.left.length ? name + ' has met <b>' + d.met + ' of ' + d.scored.length + '</b> targets. Still to do: ' + d.left.map(t => '<b>' + (t.target - t.done) + ' ' + escHtml(ppUnit(t.unit)) + '</b> of ' + escHtml(t.name)).join(', ') + '.'
+      : name + ' has met every target today.';
+    body.innerHTML = psSay(sentence + ' <span class="chip ' + chipCls + '">' + chipText + '</span>') +
+      '<div class="card ps-box"><div class="ps-box-h"><h2 class="card-heading">Today’s work</h2><span class="ov-hint">' + (ppTime(r.lastUpdate) ? 'Last update ' + ppTime(r.lastUpdate) : 'Nothing saved yet') + '</span></div>' +
+      (r.tasks.length ? r.tasks.map(t => {
+        if (t.note) return '<div class="ps-item">' + ppIcon(t) + '<div><h3>' + escHtml(t.name) + '</h3><span class="sub">Notes task</span></div>' +
+          '<div class="ps-lines">' + (t.text ? '<span class="ps-note">“' + escHtml(t.text) + '”</span>' : '<span class="wl-flat">No note yet</span>') + '</div><div class="ps-tot"></div></div>';
+        const pct = t.target ? Math.min(100, Math.round(t.done / t.target * 100)) : null;
+        return '<div class="ps-item">' + ppIcon(t) + '<div><h3>' + escHtml(t.name) + '</h3><span class="sub">' + (t.target ? 'Target ' + t.target + ' ' + escHtml(ppUnit(t.unit)) + ' a day' : 'No target') + '</span></div>' +
+          '<div class="ps-lines">' + (t.rows.length ? t.rows.map(x => '<span class="ps-ln">' + escHtml(x.client || 'No client') + '<b>' + x.value + '</b></span>').join('') : '<span class="wl-flat">Nothing yet</span>') +
+            (t.text ? '<span class="ps-note">“' + escHtml(t.text) + '”</span>' : '') + '</div>' +
+          '<div class="ps-tot wl-num">' + t.done + (t.target ? ' / ' + t.target : '') + '<small>' + escHtml(ppUnit(t.unit)) + '</small>' + (pct !== null ? ppBar(pct, ppDayTone(pct)) : '') + '</div></div>';
+      }).join('') : '<div class="ov-loading">No tasks yet.</div>') + '</div>';
+  }
+  function psMonth(d, m) {
+    const body = document.getElementById('ps-body');
+    document.getElementById('ps-eyebrow').textContent = [shiftOf(m.username), d.label + (d.running ? ' so far' : ''), d.score === null ? null : d.score + '%'].filter(Boolean).join(' · ');
+    const ts = d.tasks.filter(t => t.pct !== null).sort((a, b) => b.pct - a.pct);
+    const best = ts[0], worst = ts[ts.length - 1];
+    const heat = p => p === null ? '' : p >= 95 ? 'h-good' : p >= 70 ? 'h-ok' : p >= 45 ? 'h-warn' : 'h-bad';
+    body.innerHTML = psSay(d.score === null ? '<b>' + escHtml(m.display) + '</b> had no targets in ' + escHtml(d.label) + '. Present <b>' + d.present + ' of ' + d.workdays + '</b> working days.'
+        : '<b>' + d.score + '%</b> of the month’s targets' + (d.running ? ' so far' : '') + '. Present <b>' + d.present + ' of ' + d.workdays + '</b> working days.' +
+          (best ? ' Strongest: <b>' + escHtml(best.name) + '</b> (' + Math.min(best.pct, 999) + '%).' : '') +
+          (worst && worst !== best && worst.pct < 85 ? ' Needs attention: <b>' + escHtml(worst.name) + '</b> (' + worst.pct + '%).' : '') +
+          (d.prevScore !== null && d.prevScore !== undefined ? ' <span class="wl-flat">' + escHtml(d.prevLabel.split(' ')[0]) + ': ' + d.prevScore + '%</span>' : '')) +
+      '<div class="card ps-box"><div class="ps-box-h"><h2 class="card-heading">Day by day</h2></div><div class="ps-pad"><div class="mo-strip">' + d.daily.map(x =>
+        '<div class="mo-day" title="' + x.date + ': ' + (x.present ? (x.pct === null ? 'present' : x.pct + '%') : 'absent') + '"><i class="' + heat(x.present ? x.pct : null) + '"></i>' + (+x.date.slice(8)) + '</div>').join('') + '</div>' +
+        '<div class="mo-legend"><span><i class="h-good"></i>All targets met</span><span><i class="h-ok"></i>Most (70%+)</span><span><i class="h-warn"></i>About half</span><span><i class="h-bad"></i>Far behind</span><span><i style="background:var(--ro-surface-2)"></i>Absent / no target</span></div></div></div>' +
+      '<div class="card ps-box"><div class="ps-box-h"><h2 class="card-heading">Each task this month</h2><span class="ov-hint">Expected = daily target × days present</span></div>' +
+        '<div class="wl-scroll"><table class="wl-table ps-table"><thead><tr><th>Task</th><th>Daily target</th><th>Done</th><th>Expected</th><th style="min-width:160px">Of target</th></tr></thead><tbody>' +
+        (d.tasks.length ? d.tasks.map(t => '<tr><td style="font-weight:500">' + escHtml(t.name) + '</td>' +
+          '<td class="wl-num">' + (t.target === null ? '<span class="wl-flat">None</span>' : t.target + (t.targetChanged ? '*' : '') + ' <span class="unit">' + escHtml(ppUnit(t.unit)) + '</span>') + '</td>' +
+          '<td class="wl-num"><b>' + t.done + '</b></td><td class="wl-num">' + (t.potential || '<span class="wl-flat">—</span>') + '</td>' +
+          '<td>' + (t.pct === null ? '<span class="wl-flat">Counted, no target</span>' : '<div class="wl-scorecell"><span class="wl-num">' + t.pct + '%</span>' + ppBar(t.pct, ppPctTone(t.pct)) + '</div>') + '</td></tr>').join('')
+          : '<tr><td colspan="5" class="ov-loading">Nothing logged this month.</td></tr>') + '</tbody></table></div></div>' +
+      (d.tasks.some(t => t.targetChanged) ? '<p class="page-sub">* The target changed during the month. Each day counts with the target it had.</p>' : '');
+  }
+  function psClients(d) {
+    const rows = d.clientTasks || [];
+    document.getElementById('ps-body').innerHTML = '<div class="card ps-box"><div class="ps-box-h"><h2 class="card-heading">Clients in ' + escHtml(d.label) + '</h2><span class="ov-hint">' + d.clients.length + ' client' + (d.clients.length === 1 ? '' : 's') + '</span></div>' +
+      '<div class="wl-scroll"><table class="wl-table ps-table"><thead><tr><th>Client</th><th>Task</th><th>Done</th></tr></thead><tbody>' +
+      (rows.length ? rows.map((c, i) => '<tr><td' + (i && rows[i - 1].client === c.client ? ' class="wl-flat"' : ' style="font-weight:500"') + '>' + (i && rows[i - 1].client === c.client ? '' : escHtml(c.client)) + '</td>' +
+        '<td>' + escHtml(c.task) + '</td><td class="wl-num">' + c.total + ' <span class="unit">' + escHtml(ppUnit(c.unit)) + '</span></td></tr>').join('')
+        : '<tr><td colspan="3" class="ov-loading">No client work logged.</td></tr>') + '</tbody></table></div></div>';
+  }
+  function psTasks(m) {
+    const b = pp.board, u = m.username;
+    document.getElementById('ps-eyebrow').textContent = [shiftOf(u), 'Tasks & targets'].filter(Boolean).join(' · ');
+    const mine = b.library.filter(l => l.cells[u]);
+    const nextTxt = c => !c.next ? '' : c.next.ends ? 'Ends after ' + fmtDay(addDaysISO(c.next.from, -1)) : (c.notYet ? 'Starts ' : 'From ') + fmtDay(c.next.from) + ': ' + (c.next.target ?? 'no target');
+    document.getElementById('ps-body').innerHTML = '<div class="card ps-box"><div class="ps-box-h"><h2 class="card-heading">' + escHtml(m.display) + '’s tasks</h2>' +
+        '<div class="wl-tools"><button type="button" class="btn btn-ghost btn-sm" data-ps-act="copy">Copy from a teammate</button><button type="button" class="btn btn-primary btn-sm" data-ps-act="give">Give a task</button></div></div>' +
+      (mine.length ? mine.map(l => { const c = l.cells[u];
+        return '<div class="ps-asg"><div><h3>' + escHtml(l.name) + '</h3><span class="sub">' + (c.notYet ? 'Not started yet' : c.since ? 'Since ' + fmtDay(c.since) : 'Given earlier') + '</span></div>' +
+          '<div class="ps-tg wl-num">' + (c.notYet ? '<span class="wl-flat">—</span>' : l.note ? 'Notes' : c.target === null ? 'No target' : c.target + ' <span class="unit">' + escHtml(ppUnit(l.unit)) + '/day</span>') +
+            (c.next ? '<small><span class="ps-pill">' + escHtml(nextTxt(c)) + '</span></small>' : '') + '</div>' +
+          '<div class="ps-acts">' + (l.note ? '' : '<button type="button" class="btn btn-ghost btn-sm" data-ps-act="change" data-key="' + escHtml(l.key) + '">Change target</button>') +
+            (c.notYet ? '' : '<button type="button" class="btn btn-ghost btn-sm" data-ps-act="move" data-key="' + escHtml(l.key) + '">Move to&hellip;</button>') +
+            '<button type="button" class="btn btn-ghost btn-sm wl-danger" data-ps-act="remove" data-key="' + escHtml(l.key) + '">Remove</button></div></div>'; }).join('')
+        : '<div class="ov-loading">No tasks yet. Use “Give a task”.</div>') + '</div>' +
+      '<p class="page-sub">Changes start on the day you pick. Past days and months keep the targets they had. To see every person’s tasks in one table, open <a href="/dashboard/assignments" data-page="assign">All tasks at once</a>.</p>';
+  }
+  const psDone = (d, msg) => { pp.board = d; pp.today = null; pp.monthData = null; closeWl(); if (currentPage === 'person' && pp.tab === 'tasks') psTasks(members.find(x => x.username === personUser)); showToast(msg, 'success'); };
+  function psGive(u) {
+    const m = members.find(x => x.username === u), free = pp.board.library.filter(l => !l.cells[u]);
+    if (!free.length) { showToast('Every task is already given to ' + m.display + '. Add new tasks in All tasks at once.', 'info'); return; }
+    openWl({ sub: m.display, title: 'Give a task', ok: 'Give task',
+      body: '<div class="form-group"><label class="form-label" for="ps-key">Task</label><select class="inp" id="ps-key">' + free.map(l => '<option value="' + escHtml(l.key) + '">' + escHtml(l.name) + (l.note ? ' (notes)' : '') + '</option>').join('') + '</select></div>' +
+        '<div class="form-group" id="ps-target-box"><label class="form-label" for="wl-target">Daily target</label><input class="inp" id="wl-target" type="number" min="0" inputmode="numeric" placeholder="e.g. 10 (empty = no target)"></div>' + startsField(),
+      onOk: async () => {
+        const key = document.getElementById('ps-key').value, t = document.getElementById('wl-target').value, l = pp.board.library.find(x => x.key === key);
+        const from = document.getElementById('wl-from').value;
+        const d = await wlApi('/api/assign', 'PUT', { username: u, key, target: l.note || t === '' ? null : Number(t), from });
+        psDone(d, l.name + ' given to ' + m.display + (from === todayISO() ? ', starting today.' : ', from ' + fmtDay(from) + '.'));
+      } });
+    const key = document.getElementById('ps-key'), sync = () => { const l = pp.board.library.find(x => x.key === key.value); document.getElementById('ps-target-box').hidden = !!l.note; };
+    key.onchange = sync; sync();
+  }
+  function psChange(u, key) {
+    const m = members.find(x => x.username === u), l = pp.board.library.find(x => x.key === key), c = l.cells[u];
+    openWl({ sub: m.display + ' · ' + l.name, title: 'Change target', ok: 'Save',
+      body: '<p class="page-sub" style="margin:0">Now: ' + (c.notYet || c.target === null ? 'no target' : c.target + ' ' + escHtml(ppUnit(l.unit)) + ' a day') + '.</p>' +
+        '<div class="form-group"><label class="form-label" for="wl-target">New daily target (' + escHtml(ppUnit(l.unit) || 'per day') + ')</label><input class="inp" id="wl-target" type="number" min="0" inputmode="numeric" value="' + (c.target ?? '') + '" placeholder="empty = no target"></div>' + startsField(),
+      onOk: async () => {
+        const t = document.getElementById('wl-target').value, from = document.getElementById('wl-from').value;
+        const d = await wlApi('/api/assign', 'PUT', { username: u, key, target: t === '' ? null : Number(t), from });
+        psDone(d, l.name + ': ' + (t === '' ? 'no target' : t + ' a day') + (from === todayISO() ? ' from today.' : ' from ' + fmtDay(from) + '. Until then it stays the same.'));
+      } });
+  }
+  function psMove(u, key) {
+    const m = members.find(x => x.username === u), l = pp.board.library.find(x => x.key === key), c = l.cells[u];
+    const others = pp.board.members.filter(x => x.username !== u && !(l.cells[x.username] && !l.cells[x.username].notYet));
+    if (!others.length) { showToast('Everyone else already has ' + l.name + '.', 'info'); return; }
+    openWl({ sub: m.display, title: 'Move ' + l.name, ok: 'Move',
+      body: '<p class="page-sub" style="margin:0">' + escHtml(m.display) + '’s past days keep this task. The new person gets the same target.</p>' +
+        '<div class="form-group"><label class="form-label" for="ps-to">Move to</label><select class="inp" id="ps-to">' + others.map(o => '<option value="' + escHtml(o.username) + '">' + escHtml(o.display) + '</option>').join('') + '</select></div>' + startsField(),
+      onOk: async () => {
+        const to = document.getElementById('ps-to').value, from = document.getElementById('wl-from').value;
+        const d = await wlApi('/api/assign', 'PUT', { username: u, key, target: c.target ?? null, from, moveTo: to });
+        psDone(d, l.name + ' moved to ' + pp.board.members.find(x => x.username === to).display + (from === todayISO() ? ', starting today.' : ', from ' + fmtDay(from) + '.'));
+      } });
+  }
+  function psRemove(u, key) {
+    const m = members.find(x => x.username === u), l = pp.board.library.find(x => x.key === key);
+    openWl({ sub: m.display, title: 'Remove ' + l.name + '?', ok: 'Remove', danger: true,
+      body: '<p class="page-sub" style="margin:0">' + escHtml(m.display) + ' stops getting this task. Work already logged stays in past days and months.</p>' + startsField(),
+      onOk: async () => {
+        const from = document.getElementById('wl-from').value;
+        const d = await wlApi('/api/assign', 'DELETE', { username: u, key, from });
+        psDone(d, l.name + ' removed from ' + m.display + (from === todayISO() ? '.' : ' from ' + fmtDay(from) + '.'));
+      } });
+  }
+  function psCopy(u) {
+    const m = members.find(x => x.username === u), others = pp.board.members.filter(x => x.username !== u);
+    if (!others.length) return;
+    openWl({ sub: m.display, title: 'Copy tasks from a teammate', ok: 'Copy tasks',
+      body: '<p class="page-sub" style="margin:0">Gives ' + escHtml(m.display) + ' the same tasks and targets as someone else, starting today. Tasks ' + escHtml(m.display) + ' already has get that person’s target.</p>' +
+        '<div class="form-group"><label class="form-label" for="ps-src">Copy from</label><select class="inp" id="ps-src">' + others.map(o => {
+          const n = pp.board.library.filter(l => l.cells[o.username] && !l.cells[o.username].notYet).length;
+          return '<option value="' + escHtml(o.username) + '">' + escHtml(o.display) + ' · ' + n + ' task' + (n === 1 ? '' : 's') + '</option>'; }).join('') + '</select></div>',
+      onOk: async () => {
+        const source = document.getElementById('ps-src').value;
+        const d = await wlApi('/api/assign/copy', 'POST', { username: u, source });
+        psDone(d, 'Tasks copied from ' + pp.board.members.find(x => x.username === source).display + '.');
+      } });
+  }
+  document.getElementById('page-person').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    const u = personUser;
+    if (b.dataset.psTab) { if (pp.tab !== b.dataset.psTab) { pp.tab = b.dataset.psTab; renderPerson(); } return; }
+    if (b.id === 'ps-edit') return openMemberWork(u);
+    if (b.id === 'ps-more') return openOldProfile(u);
+    const a = b.dataset.psAct; if (!a || !pp.board) return;
+    if (a === 'give') psGive(u); else if (a === 'copy') psCopy(u);
+    else if (a === 'change') psChange(u, b.dataset.key); else if (a === 'move') psMove(u, b.dataset.key); else if (a === 'remove') psRemove(u, b.dataset.key);
+  });
+  document.getElementById('ps-month').addEventListener('change', e => { pp.personYm = e.target.value; renderPerson(); });
+
   /* ── Today: each member's work so far (on the Overview page) ── */
   async function loadWorkToday() {
     const box = document.getElementById('wt-list'); if (!box) return;
@@ -3060,7 +3463,7 @@
         '<div class="wt-score" style="color:var(--' + (r.score >= 95 ? 'ro-success' : r.lines ? 'ro-text' : 'ro-danger') + ')">' + (r.score === null ? '—' : r.score + '%') + '</div></div>';
     }).join('') || '<div class="ov-loading">No team members yet.</div>';
     box.querySelectorAll('.wt-row').forEach(el => {
-      const go = () => { wl.month = todayISO().slice(0, 7); openMonthMember(el.dataset.username, true); };
+      const go = () => openPerson(el.dataset.username, 'today');
       el.onclick = go; el.onkeydown = e => { if (e.key === 'Enter') go(); };
     });
   }
@@ -3357,11 +3760,20 @@
     finally { btns.forEach(b => { b.disabled = false; }); }
   }
 
-  function openProfile(username) {
+  function openProfile(username) { openPerson(username); }
+  function openOldProfile(username) {
     if (!members.some(m => m.username === username)) return;
     profileUser = username;
     closeSearch();
     navigate('profile');
+  }
+  function openPerson(username, tab) {
+    if (!members.some(m => m.username === username)) return;
+    if (personUser !== username) { pp.board = null; pp.monthData = null; }
+    personUser = username;
+    if (tab) pp.tab = tab;
+    closeSearch();
+    navigate('person');
   }
 
   /* Old tab API, kept for existing callers */
@@ -4890,6 +5302,8 @@
       await loadAll();
       if (activeTab === 'spreadsheet') renderSpreadsheet();
       if (currentPage === 'overview') { loadOverview(); loadWorkToday(); }
+      if (currentPage === 'people') renderPeople({ quiet: true });
+      if (currentPage === 'person' && pp.tab === 'today') renderPerson({ quiet: true });
       if (currentPage === 'team') { teamData = null; renderTeam(); }
     }, 30000);
   }

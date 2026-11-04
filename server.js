@@ -719,8 +719,8 @@ app.get(['/member', '/member/history'], (req, res) =>
 
 // Manager shell: /dashboard is Overview; each sidebar page has its own URL and the
 // same page renders it client-side.
-const DASHBOARD_PAGES = ['month', 'team', 'work', 'attendance', 'assignments', 'tasks', 'clients', 'reports', 'settings'];
-app.get(['/dashboard', '/dashboard/:page', '/dashboard/team/:username'], requireManager, (req, res, next) => {
+const DASHBOARD_PAGES = ['today', 'month', 'team', 'work', 'attendance', 'assignments', 'tasks', 'clients', 'reports', 'settings'];
+app.get(['/dashboard', '/dashboard/:page', '/dashboard/team/:username', '/dashboard/profile/:username'], requireManager, (req, res, next) => {
   if (req.params.page && !DASHBOARD_PAGES.includes(req.params.page)) return next();
   res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
@@ -1455,6 +1455,7 @@ app.get('/api/work/month', requireManager, async (req, res) => {
       return { username: m.username, display: m.display, active: m.active !== false, present: cur.present, workdays: cur.workdays,
         score: cur.score, prevScore: before && before.score, tasks: cur.tasks.length,
         met: scored.filter(t => t.pct >= 100).length, scoredTasks: scored.length,
+        taskList: cur.tasks.map(t => ({ taskId: t.taskId, name: titleCase(t.name), unit: t.unit, done: t.done, potential: t.potential, target: t.target, pct: t.pct })),
         weakest: scored.length && scored[0].pct < 85 ? { name: titleCase(scored[0].name), pct: scored[0].pct } : null };
     }).filter(Boolean);
     res.json({ month: ym, label: worklog.monthLabel(ym), prevLabel: worklog.monthLabel(prev), running: ym === today.slice(0, 7), rows });
@@ -1471,6 +1472,7 @@ app.get('/api/work/month/:username', requireManager, async (req, res) => {
   try {
     const { prev, tasksById, byUser } = await monthFor([m.username], ym);
     const cur = titled(worklog.monthOf(tasksById, byUser[m.username], ym, today)), before = titled(worklog.monthOf(tasksById, byUser[m.username], prev, today));
+    cur.clientTasks = cur.clientTasks.map(c => ({ ...c, task: titleCase(c.task) }));
     const prevBy = Object.fromEntries(((before && before.tasks) || []).map(t => [t.taskId, t]));
     cur.tasks.forEach(t => { const p = prevBy[t.taskId]; t.prevAvg = p ? p.avg : null; });
     res.json({ member: { username: m.username, display: m.display, active: m.active !== false }, prevLabel: worklog.monthLabel(prev),

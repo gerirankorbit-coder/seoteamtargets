@@ -68,15 +68,16 @@ For a throw-away local copy with test data only, use the staging setup instead
 | `/login`                  | Everyone       | Sign in                                                  |
 | `/member`                 | Team members   | My Space: My Day (attendance timer), Log Work (task · client · how many, auto-save), Note for Manager |
 | `/member/history`         | Team members   | My History: My Week, tasks and attendance (last 30 days) |
-| `/dashboard`              | Manager, assistant | Today: KPIs, Needs Attention, each member's work so far task by task |
-| `/dashboard/month`        | Manager, assistant | Month: team scores vs last month; click a member for the day-by-day and task report |
-| `/dashboard/team`         | Manager, assistant | Team table; `/dashboard/team/<username>` is a member profile |
-| `/dashboard/work`         | Manager, assistant | Monthly task grid per member, edit entries, CSV       |
+| `/dashboard`              | Manager, assistant | Team: one card per person with each task's done / target, Today or This month; people who are behind come first |
+| `/dashboard/team/<username>` | Manager, assistant | One person: Today (client lines), This month (day by day, each task), Tasks & targets (give, change, move, remove, copy from a teammate), Clients |
+| `/dashboard/profile/<username>` | Manager, assistant | The older member profile: attendance, private notes, entries |
+| `/dashboard/work`         | Manager, assistant | Monthly task grid per member, edit entries, CSV ("Edit past days" on a person) |
 | `/dashboard/attendance`   | Manager, assistant | Day, Month and Member views, edit with history, CSV  |
-| `/dashboard/assignments`  | Manager, assistant | Assignments: task library × members; give, retarget, move or remove a task from a date |
+| `/dashboard/assignments`  | Manager, assistant | All tasks at once: task library × members (linked from Settings) |
 | `/dashboard/clients`      | Manager, assistant | Clients: the shared client list and each client's work for a month |
 | `/dashboard/reports`      | Manager, assistant | Reports for a week, month or custom range, CSV        |
-| `/dashboard/settings`     | Manager, assistant | Team accounts                                         |
+| `/dashboard/today`, `/dashboard/month` | Manager, assistant | The earlier Today and Month pages, kept for old links (not in the sidebar) |
+| `/dashboard/settings`     | Manager, assistant | Team accounts, and the link to All tasks at once      |
 
 ---
 
@@ -93,7 +94,7 @@ Lines are stored in the day's entry under the task's ID, as `rows: [{ client, cl
 with a `total`. Older entries keep their shapes (`{ value }`, `{ links, text }` …) and every
 reader counts by shape, so old and new days add up the same way.
 
-**Assignments.** A task in the library (name, unit, group) is given to a member with a daily
+**Tasks & targets.** On a person's page (or in All tasks at once), a task in the library (name, unit, group) is given to a member with a daily
 target, from a date: today, tomorrow or the start of next month. Changes can't start in the
 past. Each change is kept as a dated assignment row (`assignments`), so a target change or a
 task moving to someone else never rewrites earlier days. Every task has a permanent ID:
