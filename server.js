@@ -51,6 +51,7 @@ const {
 } = require('./lib/tasks');
 const { buildOverview, localNow } = require('./lib/overview');
 const worklog = require('./lib/worklog');
+const rules   = require('./lib/rules');
 const { buildTeam, buildProfile, buildMySummary, loadMembers } = require('./lib/team');
 const { buildReport } = require('./lib/reports');
 
@@ -193,6 +194,7 @@ const TaskSchema = new mongoose.Schema({
   order:           { type: Number, default: 0 },
   unit:            { type: String },               // what is counted: links, posts, audits… (work log)
   group:           { type: String },               // library group on the Assignments page
+  archivedAt:      { type: String },               // the day it was archived (Settings → Tasks)
   legacyKey:       { type: String, required: true, unique: true },
 }, { timestamps: true });
 TaskSchema.index({ assignees: 1 });
@@ -213,6 +215,7 @@ mongoose.connection.once('open', async () => {
     await Promise.all([Task.init(), Config.init(), Client.init(), Assignment.init()]);
 
     if (!IS_PRODUCTION) await require('./lib/staging-seed').seedStagingData({ User, Entry, Attendance, Config, Task });
+    await syncRules(true);
 
     // Load Config documents
     const [taskDoc, pwDoc, baseDoc] = await Promise.all([
@@ -576,6 +579,10 @@ async function requireAuth(req, res, next) {
     return req.session.destroy(() => req.path.startsWith('/api/')
       ? res.status(401).json({ error: 'account_deactivated' }) : res.redirect('/login?reason=deactivated'));
   }
+  if (currentUser && currentUser.role && req.session.role && currentUser.role !== req.session.role) {
+    return req.session.destroy(() => req.path.startsWith('/api/')
+      ? res.status(401).json({ error: 'role_changed' }) : res.redirect('/login?reason=role_changed'));
+  }
   if (currentUser) {
     const currentVer = currentUser.passwordVersion || 1;
     const sessionVer = req.session.passwordVersion  || 1;
@@ -590,6 +597,18 @@ async function requireAuth(req, res, next) {
 // Several server instances run at once (Vercel), each with its own user cache. Before
 // manager pages and APIs the cache is re-read from MongoDB (at most every 5 s per
 // instance), so a member added, changed or removed on one instance shows on all of them.
+// Work rules (Settings → Work rules): every instance re-reads them every few seconds
+const RULES_SYNC_MS = 10 * 1000;
+let rulesSyncedAt = 0, rulesSyncing = null;
+function syncRules(force = false) {
+  if (!force && Date.now() - rulesSyncedAt < RULES_SYNC_MS) return Promise.resolve();
+  if (!rulesSyncing) rulesSyncing = Config.findOne({ key: 'workRules' }).lean()
+    .then(doc => { rules.set(doc && doc.value); rulesSyncedAt = Date.now(); })
+    .catch(err => console.error('Rules sync error:', err))
+    .finally(() => { rulesSyncing = null; });
+  return rulesSyncing;
+}
+
 const USERS_SYNC_MS = 5 * 1000;
 let usersSyncedAt = 0, usersSyncing = null;
 function syncUsersCache() {
@@ -703,6 +722,7 @@ app.use(requireAuth);
 // task's assignee list up to date (each instance, cheap and idempotent).
 let assignSyncedFor = null;
 app.use(async (req, res, next) => {
+  await syncRules();
   const today = localNow().date;
   if (assignSyncedFor !== today) {
     assignSyncedFor = today;
@@ -1171,6 +1191,45 @@ app.patch('/api/clients/:id', requireManager, async (req, res) => {
 });
 
 // Every line in a month (all members), resolved to a client of the list where possible
+// Two names for one client: every line logged for :id moves to body.into, then :id goes away
+app.post('/api/clients/:id/merge', requireManager, async (req, res) => {
+  try {
+    const [c, into] = await Promise.all([Client.findOne({ clientId: req.params.id }).lean(), Client.findOne({ clientId: String(req.body.into || '') }).lean()]);
+    if (!c || !into) return res.status(404).json({ error: 'Client not found' });
+    if (c.clientId === into.clientId) return res.status(400).json({ error: 'Pick a different client to merge into' });
+    let lines = 0;
+    const people = new Set();
+    for (const e of await Entry.find({}, { username: 1, date: 1, tasks: 1 }).lean()) {
+      const set = {};
+      for (const [k, v] of Object.entries(e.tasks || {})) {
+        if (k.startsWith('_') || !v || !Array.isArray(v.rows)) continue;
+        let hit = false;
+        const rows = v.rows.map(r => {
+          const mine = r.clientId ? r.clientId === c.clientId : worklog.looseName(r.client || '') === c.key;
+          if (!mine) return r;
+          hit = true; lines++;
+          return { ...r, client: into.name, clientId: into.clientId };
+        });
+        if (hit) set['tasks.' + k + '.rows'] = rows;
+      }
+      if (Object.keys(set).length) {
+        // FerretDB (staging) has no dotted keys: write the whole tasks object
+        const tasks = { ...e.tasks };
+        for (const [path, rows] of Object.entries(set)) { const k = path.split('.')[1]; tasks[k] = { ...tasks[k], rows }; }
+        await Entry.updateOne({ _id: e._id }, { $set: { tasks } });
+        people.add(e.username);
+      }
+    }
+    await Client.deleteOne({ clientId: c.clientId });
+    await AssignLog.create({ text: `Client ${c.name} merged into ${into.name} (${lines} line${lines === 1 ? '' : 's'} moved)`, by: actor(req), from: localNow().date });
+    await bumpRev([...people]);
+    res.json({ merged: c.name, into: publicClient(into), lines });
+  } catch (err) {
+    console.error('Client merge error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
 async function monthLines(ym) {
   const from = ym + '-01', to = worklog.monthEnd(ym);
   const [entries, tasks, clients] = await Promise.all([
@@ -1260,7 +1319,12 @@ async function boardData() {
     return { key: lib.key, name: titleCase(lib.name), unit: lib.unit, group: lib.group, note: lib.note, cells };
   });
   const groups = [...new Set(library.map(l => l.group))].sort((a, b) => (a === 'Other') - (b === 'Other') || a.localeCompare(b));
-  return { today, members: members.map(m => ({ username: m.username, display: m.display })), groups, library,
+  const archived = worklog.libraryOf(tasks).filter(l => !l.active).map(l => {
+    const had = new Set(); l.tasks.forEach(t => [...(t.assignees || []), ...(t.formerAssignees || [])].forEach(u => had.add(u)));
+    return { key: l.key, name: titleCase(l.name), unit: l.unit, group: l.group, note: l.note, had: had.size,
+             archivedAt: l.tasks.map(t => t.archivedAt).filter(Boolean).sort().pop() || null };
+  }).sort((a, b) => (b.archivedAt || '').localeCompare(a.archivedAt || '') || a.name.localeCompare(b.name));
+  return { today, members: members.map(m => ({ username: m.username, display: m.display })), groups, library, archived,
            log: log.map(l => ({ text: l.text, by: l.by, at: l.createdAt })) };
 }
 app.get('/api/assign/board', requireManager, async (req, res) => {
@@ -1318,7 +1382,13 @@ app.patch('/api/library/:key', requireManager, async (req, res) => {
       for (const t of lib.tasks) for (const u of new Set([...(t.assignees || [])]))
         await worklog.endAssignment({ Task, Assignment }, { username: u, taskId: t.taskId, from: today, by: actor(req) });
       await Assignment.deleteMany({ taskId: { $in: lib.taskIds }, from: { $gt: today } });
-      set.active = false;
+      set.active = false; set.archivedAt = today;
+    }
+    if (req.body.restore === true && !lib.active) {
+      const others = worklog.libraryOf(await Task.find({}).lean()).filter(l => l.key !== lib.key && l.active);
+      if (others.some(l => worklog.looseName(l.name) === worklog.looseName(set.name || lib.name)))
+        return res.status(409).json({ error: 'An active task already has this name. Rename one of them first.' });
+      set.active = true;
     }
     if (Object.keys(set).length) await Task.updateMany({ taskId: { $in: lib.taskIds } }, { $set: set });
     if (req.body.archive === true) {
@@ -1326,7 +1396,7 @@ app.patch('/api/library/:key', requireManager, async (req, res) => {
     }
     const changed = await worklog.syncAssignees({ Task, Assignment }, today);
     await bumpRev([...people, ...changed]);
-    const what = req.body.archive ? 'archived (history kept)' : [set.name && `renamed to ${set.name}`, set.unit && `counted in ${set.unit}`, set.group && `moved to ${set.group}`].filter(Boolean).join(', ');
+    const what = req.body.archive ? 'archived (history kept)' : set.active === true ? 'restored' : [set.name && `renamed to ${set.name}`, set.unit && `counted in ${set.unit}`, set.group && `moved to ${set.group}`].filter(Boolean).join(', ');
     if (what) await AssignLog.create({ text: `${titleCase(lib.name)}: ${what}`, by: actor(req), from: today });
     res.json(await boardData());
   } catch (err) {
@@ -1412,6 +1482,54 @@ app.post('/api/assign/copy', requireManager, async (req, res) => {
     res.json(await boardData());
   } catch (err) {
     console.error('Assign copy error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// One task to several people at once, or one target for everyone who has it.
+// body: { key, usernames: [...], target, from }
+app.put('/api/assign/many', requireManager, async (req, res) => {
+  const { key } = req.body;
+  const today = localNow().date, from = DAY_RE.test(req.body.from || '') ? req.body.from : today;
+  const target = req.body.target === '' || req.body.target == null ? null : Number(req.body.target);
+  const usernames = [...new Set(Array.isArray(req.body.usernames) ? req.body.usernames.map(String) : [])];
+  if (from < today) return res.status(400).json({ error: 'Changes start today or later, so past days keep their targets' });
+  if (target !== null && !(Number.isFinite(target) && target >= 0 && target <= 100000)) return res.status(400).json({ error: 'The daily target must be a number' });
+  if (!usernames.length) return res.status(400).json({ error: 'Pick at least one person' });
+  const members = Object.fromEntries(memberAccounts({ activeOnly: true }).map(m => [m.username, m]));
+  if (usernames.some(u => !members[u])) return res.status(404).json({ error: 'Member not found' });
+  try {
+    const lib = await libraryRow(key);
+    if (!lib || !lib.active) return res.status(404).json({ error: 'Task not found' });
+    const by = actor(req);
+    for (const username of usernames)
+      await worklog.setAssignment({ Task, Assignment }, { username, taskId: worklog.taskIdFor(lib, username), target: lib.note ? null : target, from, by });
+    await AssignLog.create({ text: `From ${from === today ? 'today' : from}: ${titleCase(lib.name)} for ${usernames.map(u => members[u].display).join(', ')}` +
+      (lib.note ? '' : target === null ? ', no target' : `, ${target} ${lib.unit}/day`), by, from });
+    const changed = await worklog.syncAssignees({ Task, Assignment }, today);
+    await bumpRev([...usernames, ...changed]);
+    res.json(await boardData());
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    console.error('Assign many error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Work rules (Settings → Work rules)
+app.get('/api/rules', requireManager, (req, res) => res.json({ ...rules.get(), today: localNow().date }));
+app.put('/api/rules', requireManagerOnly, async (req, res) => {
+  try {
+    const today = localNow().date;
+    await syncRules(true);
+    const next = rules.merge(rules.get(), req.body || {}, today);
+    await Config.updateOne({ key: 'workRules' }, { $set: { value: next } }, { upsert: true });
+    rules.set(next); rulesSyncedAt = Date.now();
+    await AssignLog.create({ text: 'Work rules updated', by: actor(req), from: today });
+    await bumpRev(memberAccounts({ activeOnly: true }).map(m => m.username));
+    res.json({ ...rules.get(), today });
+  } catch (err) {
+    console.error('Rules save error:', err);
     res.status(500).json({ error: 'Database error' });
   }
 });
@@ -1603,6 +1721,9 @@ app.post('/api/admin/members', requireManagerOnly, async (req, res) => {
   if (!dname) return res.status(400).json({ error: 'Full name is required' });
   // the database decides (this instance's cache may be stale)
   if (await refreshUser(uname)) return res.status(409).json({ error: 'Username already exists' });
+  const removedDoc = await Config.findOne({ key: 'removedUsers' }).lean();
+  if (((removedDoc && removedDoc.value) || []).includes(uname))
+    return res.status(409).json({ error: 'This username belonged to a removed member and their past work is still saved under it. Pick another username, e.g. ' + uname + '2' });
   if (await displayTaken(dname)) return res.status(409).json({ error: 'A member with this name already exists' });
   const userRole  = ['member', 'assistant'].includes(role) ? role : 'member';
   const userShift = SHIFTS.includes(shift) ? shift : null;
@@ -1637,15 +1758,27 @@ app.patch('/api/admin/members/:username', requireManagerOnly, async (req, res) =
     else return res.status(400).json({ error: 'Shift must be day or night' });
   }
   if (req.body.active !== undefined) set.active = req.body.active !== false;
+  if (req.body.role !== undefined && req.body.role !== acc.user.role) {
+    if (!['member', 'assistant'].includes(req.body.role)) return res.status(400).json({ error: 'Role must be member or assistant' });
+    set.role = req.body.role;
+  }
   if (!Object.keys(set).length && !Object.keys(unset).length) return res.status(400).json({ error: 'Nothing to change' });
   try {
     const update = {};
     if (Object.keys(set).length)   update.$set   = set;
     if (Object.keys(unset).length) update.$unset = unset;
     await User.updateOne({ username: acc.target }, update);
+    // A member who becomes an assistant stops getting tasks from today (past work stays)
+    if (set.role === 'assistant') {
+      const today = localNow().date;
+      await Assignment.deleteMany({ username: acc.target, from: { $gt: today } });
+      await Assignment.updateMany({ username: acc.target, $or: [{ to: null }, { to: { $gte: today } }] }, { $set: { to: addDay(today, -1) } });
+      await Task.updateMany({ assignees: acc.target }, { $pull: { assignees: acc.target }, $addToSet: { formerAssignees: acc.target } });
+      await AssignLog.create({ text: `${acc.user.display} is now an assistant; their tasks end today`, by: actor(req), from: today });
+    }
     await bumpRev(acc.target);
     const u = await refreshUser(acc.target);
-    res.json({ success: true, username: acc.target, display: u.display, shift: u.shift, active: u.active });
+    res.json({ success: true, username: acc.target, display: u.display, shift: u.shift, active: u.active, role: u.role });
   } catch (err) {
     console.error('Update member error:', err);
     res.status(500).json({ error: 'Database error' });
@@ -1726,7 +1859,8 @@ function shiftOpen(r) {
 async function memberDays(username) {
   const today = localNow().date, yesterday = addDay(today, -1);
   const y = await Attendance.findOne({ username, date: yesterday }, { startTime: 1, endTime: 1, sessions: 1 }).lean();
-  return { today, yesterday, editable: shiftOpen(y) ? [yesterday, today] : [today], nightShiftOpen: shiftOpen(y) };
+  const open = shiftOpen(y);
+  return { today, yesterday, editable: open || rules.get().editYesterday ? [yesterday, today] : [today], nightShiftOpen: open };
 }
 const LOCKED_MSG = 'This day is locked. Ask your manager if something needs to change.';
 

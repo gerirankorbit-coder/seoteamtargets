@@ -425,7 +425,8 @@
         try {
           const body = await res.clone().json();
           window.location.href = body.error === 'password_changed' ? '/login?reason=password_changed'
-            : body.error === 'account_deactivated' ? '/login?reason=deactivated' : '/login';
+            : body.error === 'account_deactivated' ? '/login?reason=deactivated'
+            : body.error === 'role_changed' ? '/login?reason=role_changed' : '/login';
         } catch { window.location.href = '/login'; }
       }
       return res;

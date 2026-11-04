@@ -1189,14 +1189,65 @@
   .ps-pill { font-family: var(--font-mono); font-size: 11px; padding: 2px 7px; background: var(--ro-warning-bg); color: var(--ro-warning-text); }
   .ps-acts { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
   .pp-attn { margin-bottom: 16px; }
-  .st-links { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
-  .st-links .card-heading { margin: 0 0 4px; }
   @media (max-width: 760px) {
     .pp-summary { margin-left: 0; }
     .ps-item { grid-template-columns: 16px minmax(0, 1fr) 90px; }
     .ps-item .ps-lines { grid-column: 2 / -1; grid-row: 2; }
     .ps-asg { grid-template-columns: minmax(0, 1fr) auto; }
     .ps-asg .ps-acts { grid-column: 1 / -1; justify-content: flex-start; }
+  }
+
+  /* ── Settings: tabs, Tasks, Work rules ── */
+  .st-tabs { border-bottom: 1px solid var(--ro-border); margin-bottom: 16px; }
+  #st-tasks, #st-rules { display: grid; gap: 16px; }
+  #st-tasks[hidden], #st-rules[hidden], #st-members[hidden] { display: none; }
+  .st-group { padding: 8px 18px; background: var(--ro-surface-2); font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--ro-muted); border-bottom: 1px solid var(--ro-border); }
+  .st-task { display: grid; grid-template-columns: minmax(170px, 1fr) minmax(0, 2fr) auto; gap: 16px; align-items: center; padding: 13px 18px; border-bottom: 1px solid var(--ro-border); }
+  .st-task:last-child { border-bottom: 0; }
+  .st-task h3 { font-size: 15px; font-weight: 600; margin: 0; }
+  .st-task .sub { font-size: 12px; color: var(--ro-muted); }
+  .st-people { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+  .st-pp { background: var(--ro-surface-2); padding: 3px 9px; font-size: 13px; white-space: nowrap; }
+  .st-pp b { font-family: var(--font-mono); font-weight: 500; font-size: 12px; margin-left: 6px; }
+  .st-pp.later { background: var(--ro-warning-bg); color: var(--ro-warning-text); }
+  .st-log { padding: 6px 18px 14px 36px; margin: 0; }
+  .st-checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+  .st-checks label { display: flex; align-items: center; gap: 8px; border: 1px solid var(--ro-border-2); padding: 7px 10px; font-size: 13px; cursor: pointer; }
+  .st-checks label:has(input:checked) { border-color: var(--ro-text); }
+  .st-checks label.has { color: var(--ro-dim); cursor: default; }
+  .st-checks input { accent-color: var(--ro-text); margin: 0; }
+  .st-rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 16px; align-items: start; }
+  .st-stack { display: grid; gap: 12px; }
+  .st-shift { display: grid; grid-template-columns: 60px minmax(120px, 1fr) minmax(120px, 1fr); gap: 10px; align-items: end; }
+  .st-shift > b { font-weight: 600; padding-bottom: 10px; }
+  .st-shift .form-label { display: grid; gap: 5px; margin: 0; }
+  .st-days { display: flex; flex-wrap: wrap; gap: 6px; }
+  .st-days label { border: 1px solid var(--ro-border-2); padding: 7px 12px; font-size: 13px; cursor: pointer; user-select: none; }
+  .st-days input { position: absolute; opacity: 0; pointer-events: none; }
+  .st-days label:has(input:checked) { background: var(--ro-text); color: var(--ro-bg); border-color: var(--ro-text); }
+  .st-days label:has(input:focus-visible) { outline: 2px solid var(--ro-mark); outline-offset: 2px; }
+  .st-hol { display: grid; grid-template-columns: 140px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--ro-border); font-size: 14px; }
+  .st-hol:last-child { border-bottom: 0; }
+  .st-rule { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--ro-border); font-size: 14px; }
+  .st-rule:last-child { border-bottom: 0; }
+  .st-rule small { display: block; color: var(--ro-muted); font-size: 12px; }
+  .st-inline { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ro-muted); white-space: nowrap; }
+  .st-num { width: 74px; text-align: right; font-family: var(--font-mono); }
+  .st-num-sm { width: 56px; }
+  .st-switch { position: relative; width: 38px; height: 22px; background: var(--ro-border-2); border: 0; padding: 0; cursor: pointer; flex-shrink: 0; }
+  .st-switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; background: var(--ro-surface); transition: left .15s; }
+  .st-switch[aria-checked="true"] { background: var(--ro-text); }
+  .st-switch[aria-checked="true"]::after { left: 19px; }
+  .st-switch:disabled { opacity: .5; cursor: default; }
+  .st-savebar { position: sticky; bottom: 12px; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 18px; background: var(--ro-text); color: var(--ro-bg); flex-wrap: wrap; z-index: 4; }
+  .st-savebar .btn-ghost { color: var(--ro-bg); border-color: color-mix(in srgb, var(--ro-bg) 40%, transparent); background: transparent; }
+  .st-savebar .st-save { background: var(--ro-bg); color: var(--ro-text); border-color: var(--ro-bg); }
+  @media (prefers-reduced-motion: reduce) { .st-switch::after { transition: none; } }
+  @media (max-width: 760px) {
+    .st-task { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+    .st-task .ps-acts { justify-content: flex-start; }
+    .st-shift { grid-template-columns: 1fr 1fr; } .st-shift > b { grid-column: 1 / -1; padding: 0; }
+    .st-hol { grid-template-columns: 110px minmax(0, 1fr) auto; }
   }
 </style>
 </head>
@@ -1639,12 +1690,17 @@
     </section>
     <section class="page" id="page-settings" hidden>
       <div class="page-head">
-        <div><h1 class="page-title">Settings</h1><p class="page-sub">Team accounts: add members, reset passwords, deactivate or remove.</p></div>
+        <div><p class="eyebrow">Settings</p><h1 class="page-title" id="st-title">Members</h1><p class="page-sub" id="st-sub">Add people, change their name, role or shift, reset a password, pause or remove an account.</p></div>
+        <div class="wl-tools" id="st-tools"></div>
       </div>
-      <div class="card st-links">
-        <div><h2 class="card-heading">All tasks at once</h2><p class="page-sub">The full table of who does which task, with every target. For day-to-day changes, open a person on the Team page instead.</p></div>
-        <a class="btn btn-ghost btn-sm" href="/dashboard/assignments" data-page="assign">Open the table &#8250;</a>
-      </div>
+      <nav class="ps-tabs st-tabs" role="tablist" aria-label="Settings">
+        <button type="button" role="tab" data-st-tab="members" class="active">Members</button>
+        <button type="button" role="tab" data-st-tab="tasks">Tasks</button>
+        <button type="button" role="tab" data-st-tab="rules">Work rules</button>
+      </nav>
+      <div id="st-tasks" hidden><div class="ov-loading">Loading&hellip;</div></div>
+      <div id="st-rules" hidden><div class="ov-loading">Loading&hellip;</div></div>
+      <div id="st-members">
       <div class="pw-alert" id="pw-alert" hidden></div>
       <div class="card team-table-card">
         <div class="team-filters">
@@ -1663,6 +1719,7 @@
         </div>
       </div>
       <p class="page-sub settings-foot" id="settings-foot"></p>
+      </div>
     </section>
     </main>
   </div>
@@ -1796,6 +1853,10 @@
           <option value="night">Night</option>
         </select>
       </div>
+      <div class="form-group">
+        <label class="form-label" for="am-copy">Start with the same tasks as</label>
+        <select class="inp" id="am-copy"><option value="">Nobody (give tasks later)</option></select>
+      </div>
       <div class="am-error" id="am-error"></div>
     </div>
     <div class="em-footer" style="display:flex">
@@ -1911,9 +1972,8 @@
       if (res.status === 401) {
         try {
           const body = await res.clone().json();
-          window.location.href = body.error === 'password_changed'
-            ? '/login?reason=password_changed'
-            : '/login';
+          window.location.href = body.error === 'password_changed' ? '/login?reason=password_changed'
+            : body.error === 'role_changed' ? '/login?reason=role_changed' : '/login';
         } catch { window.location.href = '/login'; }
       }
       return res;
@@ -2205,6 +2265,9 @@
   ══════════════════════════════════════════════════════════════ */
 
   function openAddMemberModal() {
+    const cp = document.getElementById('am-copy');
+    if (cp) cp.innerHTML = '<option value="">Nobody (give tasks later)</option>' + members.filter(m => m.active !== false)
+      .map(m => '<option value="' + escHtml(m.username) + '">' + escHtml(m.display) + '</option>').join('');
     ['am-display', 'am-username', 'am-password'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.value = '';
@@ -2255,11 +2318,17 @@
       });
       const data = await res.json();
       if (res.ok) {
+        const copyFrom = role === 'member' && document.getElementById('am-copy') ? document.getElementById('am-copy').value : '';
+        let copied = '';
+        if (copyFrom) {
+          try { await wlApi('/api/assign/copy', 'POST', { username: data.username, source: copyFrom }); copied = ' with the tasks of ' + ((members.find(m => m.username === copyFrom) || {}).display || copyFrom); }
+          catch (e) { showToast('Added, but the tasks were not copied: ' + e.message, 'error'); }
+        }
         closeAddMemberModal();
         await refreshAfterAccountChange();
         const idx = members.findIndex(x => x.username === data.username);
         if (idx >= 0) activeMember = idx; // Work opens on the new member
-        showToast(display + ' added successfully.', 'success');
+        showToast(display + ' added' + copied + '. They can sign in now.', 'success');
       } else {
         showAmError(data.error || 'Failed to add member.');
       }
@@ -2685,7 +2754,7 @@
       const dt       = new Date(y, mo - 1, d);
       const dow      = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dt.getDay()];
       const isToday  = date === today;
-      const isWeekend = dt.getDay() === 0 || dt.getDay() === 6;
+      const isWeekend = isOffDay(date);
 
       const modePill = r && r.workMode
         ? '<span class="att-mode-pill ' + r.workMode.toLowerCase() + '">' + escHtml(r.workMode) + '</span>'
@@ -2764,7 +2833,7 @@
       const date      = y + '-' + String(mo).padStart(2, '0') + '-' + String(d).padStart(2, '0');
       const dt        = new Date(y, mo - 1, d);
       const dow       = ['Su','Mo','Tu','We','Th','Fr','Sa'][dt.getDay()];
-      const isWeekend = dt.getDay() === 0 || dt.getDay() === 6;
+      const isWeekend = isOffDay(date);
       const isToday   = date === today;
       const thStyle   = isWeekend ? ' style="opacity:0.5"' : (isToday ? ' style="background:color-mix(in srgb, var(--gold) 7%, transparent)"' : '');
       dayHeaders.push('<th' + thStyle + '>' + String(d).padStart(2,'0') + '<br><span style="font-weight:400;font-size:9px">' + dow + '</span></th>');
@@ -2775,7 +2844,7 @@
       for (let d = 1; d <= daysInMonth; d++) {
         const date      = y + '-' + String(mo).padStart(2, '0') + '-' + String(d).padStart(2, '0');
         const dt        = new Date(y, mo - 1, d);
-        const isWeekend = dt.getDay() === 0 || dt.getDay() === 6;
+        const isWeekend = isOffDay(date);
         const isFuture  = date > today;
         const r         = (matrixData[m.username] || {})[date];
 
@@ -2862,7 +2931,7 @@
       const dt = new Date(date + 'T12:00:00');
       const r = (matrixData[m.username] || {})[date];
       if (r) return r.workMode || 'Present'; // a worked weekend day counts too
-      if (dt.getDay() === 0 || dt.getDay() === 6) return 'Weekend';
+      if (isOffDay(date)) return (window.RULES && (window.RULES.holidays || []).find(h => h.date === date) || {}).name || 'Weekend';
       if (date > today) return '';
       return 'Absent';
     })]));
@@ -3142,7 +3211,7 @@
     else if (page === 'assign')     renderAssignPage();
     else if (page === 'clients')    renderClientsPage();
     else if (page === 'reports')    renderReports();
-    else if (page === 'settings')   renderSettings();
+    else if (page === 'settings')   renderSettingsPage();
     else if (page === 'profile')    loadProfile();
   }
 
@@ -3456,6 +3525,202 @@
   });
   document.getElementById('ps-month').addEventListener('change', e => { pp.personYm = e.target.value; renderPerson(); });
 
+  /* ═══ Settings: Members, Tasks, Work rules ═══ */
+  const st = { tab: 'members', board: null, rules: null, draft: null };
+  const ST_HEAD = {
+    members: ['Members', 'Add people, change their name, role or shift, reset a password, pause or remove an account.'],
+    tasks:   ['Tasks', 'Every task the team does. Give one task to several people at once, change a target for everyone, archive a task or bring it back.'],
+    rules:   ['Work rules', 'Shift times, working days, holidays, and when someone shows up in Needs attention. Saved here, used everywhere.'],
+  };
+  function afterBoard(d) {
+    wl.board = d; renderAssignPage(d);
+    if (currentPage === 'settings' && st.tab === 'tasks') renderStTasks(d);
+    pp.board = null; pp.today = null; pp.monthData = null;
+  }
+  function renderSettingsPage() {
+    if (!ST_HEAD[st.tab]) st.tab = 'members';
+    document.querySelectorAll('[data-st-tab]').forEach(b => { b.classList.toggle('active', b.dataset.stTab === st.tab); b.setAttribute('aria-selected', b.dataset.stTab === st.tab); });
+    document.getElementById('st-title').textContent = ST_HEAD[st.tab][0];
+    document.getElementById('st-sub').textContent = ST_HEAD[st.tab][1];
+    for (const t of ['members', 'tasks', 'rules']) document.getElementById('st-' + t).hidden = t !== st.tab;
+    document.getElementById('st-tools').innerHTML = st.tab === 'tasks'
+      ? '<a class="btn btn-ghost btn-sm" href="/dashboard/assignments" data-page="assign">All tasks at once &#8250;</a><button type="button" class="btn btn-primary btn-sm" data-st-act="new-task">New task</button>' : '';
+    if (st.tab === 'members') renderSettings();
+    else if (st.tab === 'tasks') renderStTasks();
+    else renderStRules();
+  }
+
+  /* ── Tasks ── */
+  async function renderStTasks(data) {
+    const box = document.getElementById('st-tasks');
+    try { st.board = data || await wlApi('/api/assign/board'); wl.board = st.board; }
+    catch (e) { box.innerHTML = '<div class="ov-loading">' + escHtml(e.message) + '</div>'; return; }
+    const b = st.board, nameOf = u => (b.members.find(m => m.username === u) || { display: u }).display;
+    const people = l => b.members.filter(m => l.cells[m.username]).map(m => {
+      const c = l.cells[m.username], first = escHtml(m.display);
+      const later = c.notYet && c.next ? ' · from ' + fmtDay(c.next.from) : c.next && !c.next.ends ? ' → ' + (c.next.target ?? '—') + ' from ' + fmtDay(c.next.from) : '';
+      return '<span class="st-pp' + (c.notYet ? ' later' : '') + '" title="' + escHtml(m.display) + '">' + first + (l.note ? '' : '<b>' + (c.notYet ? (c.next && c.next.target) ?? '—' : c.target ?? '—') + '</b>') + escHtml(later) + '</span>';
+    }).join('') || '<span class="wl-flat">Nobody yet</span>';
+    box.innerHTML =
+      '<div class="card ps-box">' + (b.library.length ? b.groups.map(g => '<div class="st-group">' + escHtml(g) + '</div>' + b.library.filter(l => l.group === g).map(l => {
+        const n = b.members.filter(m => l.cells[m.username]).length;
+        return '<div class="st-task"><div><h3>' + escHtml(l.name) + '</h3><span class="sub">' + (l.note ? 'Notes, no number' : 'Counted in ' + escHtml(l.unit)) + ' · ' + n + ' ' + (n === 1 ? 'person' : 'people') + '</span></div>' +
+          '<div class="st-people">' + people(l) + '</div>' +
+          '<div class="ps-acts"><button type="button" class="btn btn-ghost btn-sm" data-st-act="give" data-key="' + escHtml(l.key) + '">Give to people</button>' +
+            (!l.note && n ? '<button type="button" class="btn btn-ghost btn-sm" data-st-act="target" data-key="' + escHtml(l.key) + '">Change target for everyone</button>' : '') +
+            '<button type="button" class="btn btn-ghost btn-sm" data-st-act="edit" data-key="' + escHtml(l.key) + '">Edit</button>' +
+            '<button type="button" class="btn btn-ghost btn-sm wl-danger" data-st-act="archive" data-key="' + escHtml(l.key) + '">Archive</button></div></div>';
+      }).join('')).join('') : '<div class="ov-loading">No tasks yet. Add the first one with “New task”.</div>') + '</div>' +
+      '<div class="card ps-box"><div class="ps-box-h"><div><h2 class="card-heading">Archived tasks</h2><p class="page-sub" style="margin:2px 0 0">Nobody gets these now. Their past work stays in reports. Bring one back any time.</p></div></div>' +
+        (b.archived && b.archived.length ? b.archived.map(a => '<div class="st-task"><div><h3>' + escHtml(a.name) + '</h3><span class="sub">' + (a.archivedAt ? 'Archived ' + fmtDay(a.archivedAt) : 'Archived') + ' · ' + escHtml(a.group) + '</span></div>' +
+          '<div class="st-people"><span class="wl-flat">' + a.had + ' ' + (a.had === 1 ? 'person' : 'people') + ' had it</span></div>' +
+          '<div class="ps-acts"><button type="button" class="btn btn-ghost btn-sm" data-st-act="restore" data-key="' + escHtml(a.key) + '">Restore</button></div></div>').join('')
+          : '<div class="ov-loading">No archived tasks.</div>') + '</div>' +
+      '<div class="card ps-box"><div class="ps-box-h"><h2 class="card-heading">Recent changes</h2></div><ul class="wl-log st-log">' +
+        (b.log.length ? b.log.slice(0, 12).map(l => '<li>' + escHtml(l.text) + ' <small>· ' + escHtml(l.by || '') + ', ' +
+          new Date(l.at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) + '</small></li>').join('') : '<li class="wl-flat" style="list-style:none;margin-left:-18px">No changes yet.</li>') + '</ul></div>';
+    void nameOf;
+  }
+  const checksHtml = (list, checked) => '<div class="st-checks">' + list.map(x => x.has
+    ? '<label class="has" title="Already has it">' + escHtml(x.display) + ' · has it</label>'
+    : '<label><input type="checkbox" name="st-u" value="' + escHtml(x.username) + '"' + (checked ? ' checked' : '') + '>' + escHtml(x.display) + (x.extra ? ' · ' + escHtml(x.extra) : '') + '</label>').join('') + '</div>';
+  const pickedUsers = () => [...document.querySelectorAll('#wl-body input[name="st-u"]:checked')].map(i => i.value);
+  function stGive(key) {
+    const b = st.board, l = b.library.find(x => x.key === key);
+    const list = b.members.map(m => ({ ...m, has: !!(l.cells[m.username] && !l.cells[m.username].notYet) }));
+    if (list.every(x => x.has)) { showToast('Everyone already has ' + l.name + '.', 'info'); return; }
+    openWl({ sub: l.name, title: 'Give to people', ok: 'Give task',
+      body: '<p class="page-sub" style="margin:0">Tick everyone who should do ' + escHtml(l.name) + '. People who already have it keep their target.</p>' + checksHtml(list) +
+        (l.note ? '' : '<div class="form-group"><label class="form-label" for="wl-target">Daily target (' + escHtml(l.unit) + ')</label><input class="inp" id="wl-target" type="number" min="0" inputmode="numeric" placeholder="e.g. 10 (empty = no target)"></div>') + startsField(),
+      onOk: async () => {
+        const usernames = pickedUsers(); if (!usernames.length) throw new Error('Tick at least one person.');
+        const t = document.getElementById('wl-target'), from = document.getElementById('wl-from').value;
+        const d = await wlApi('/api/assign/many', 'PUT', { key, usernames, target: t && t.value !== '' ? Number(t.value) : null, from });
+        closeWl(); afterBoard(d);
+        showToast(l.name + ' given to ' + usernames.length + ' ' + (usernames.length === 1 ? 'person' : 'people') + (from === todayISO() ? ', starting today.' : ', from ' + fmtDay(from) + '.'), 'success');
+      } });
+  }
+  function stTarget(key) {
+    const b = st.board, l = b.library.find(x => x.key === key);
+    const list = b.members.filter(m => l.cells[m.username]).map(m => ({ ...m, extra: 'now ' + (l.cells[m.username].target ?? '—') }));
+    const first = list.length ? l.cells[list[0].username].target : '';
+    openWl({ sub: l.name, title: 'Change target for everyone', ok: 'Change target',
+      body: '<p class="page-sub" style="margin:0">One daily target for everyone you tick. Past days keep the target they had.</p>' + checksHtml(list, true) +
+        '<div class="form-group"><label class="form-label" for="wl-target">New daily target (' + escHtml(l.unit) + ')</label><input class="inp" id="wl-target" type="number" min="0" inputmode="numeric" value="' + (first ?? '') + '" placeholder="empty = no target"></div>' + startsField(),
+      onOk: async () => {
+        const usernames = pickedUsers(); if (!usernames.length) throw new Error('Tick at least one person.');
+        const t = document.getElementById('wl-target').value, from = document.getElementById('wl-from').value;
+        const d = await wlApi('/api/assign/many', 'PUT', { key, usernames, target: t === '' ? null : Number(t), from });
+        closeWl(); afterBoard(d);
+        showToast(l.name + ': ' + (t === '' ? 'no target' : t + ' a day') + ' for ' + usernames.length + ' ' + (usernames.length === 1 ? 'person' : 'people') + (from === todayISO() ? ' from today.' : ' from ' + fmtDay(from) + '.'), 'success');
+      } });
+  }
+  function stArchive(key) {
+    const l = st.board.library.find(x => x.key === key), n = st.board.members.filter(m => l.cells[m.username]).length;
+    openWl({ sub: l.name, title: 'Archive ' + l.name + '?', ok: 'Archive', danger: true,
+      body: '<p class="page-sub" style="margin:0">' + (n ? n + ' ' + (n === 1 ? 'person stops' : 'people stop') + ' getting it' : 'Nobody has it') + ', starting today. Past work stays in reports. You can restore it later from Archived tasks.</p>',
+      onOk: async () => { const d = await wlApi('/api/library/' + encodeURIComponent(key), 'PATCH', { archive: true }); closeWl(); afterBoard(d); showToast(l.name + ' archived.', 'success'); } });
+  }
+  function stRestore(key) {
+    const a = st.board.archived.find(x => x.key === key);
+    openWl({ sub: a.name, title: 'Restore ' + a.name, ok: 'Restore',
+      body: '<p class="page-sub" style="margin:0">It goes back to the task list. Tick who gets it now, or nobody yet.</p>' + checksHtml(st.board.members) +
+        (a.note ? '' : '<div class="form-group"><label class="form-label" for="wl-target">Daily target (' + escHtml(a.unit) + ')</label><input class="inp" id="wl-target" type="number" min="0" inputmode="numeric" placeholder="e.g. 10 (empty = no target)"></div>') + startsField(),
+      onOk: async () => {
+        let d = await wlApi('/api/library/' + encodeURIComponent(key), 'PATCH', { restore: true });
+        const usernames = pickedUsers(), t = document.getElementById('wl-target'), from = document.getElementById('wl-from').value;
+        if (usernames.length) d = await wlApi('/api/assign/many', 'PUT', { key, usernames, target: t && t.value !== '' ? Number(t.value) : null, from });
+        closeWl(); afterBoard(d);
+        showToast(a.name + ' is back' + (usernames.length ? ', given to ' + usernames.length + ' ' + (usernames.length === 1 ? 'person' : 'people') : '') + '.', 'success');
+      } });
+  }
+
+  /* ── Work rules ── */
+  const DAY_NAMES = [[1, 'Mon'], [2, 'Tue'], [3, 'Wed'], [4, 'Thu'], [5, 'Fri'], [6, 'Sat'], [0, 'Sun']];
+  const fmtLongDay = iso => new Date(iso + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+  const rulesView = r => JSON.stringify({ shifts: r.shifts, workDays: r.workDays, holidays: r.holidays, late: r.late, lowPct: r.lowPct, lowDays: r.lowDays, noEntry: r.noEntry, noAttendance: r.noAttendance, editYesterday: r.editYesterday });
+  async function renderStRules() {
+    const box = document.getElementById('st-rules');
+    if (!st.rules) {
+      try { st.rules = await wlApi('/api/rules'); window.RULES = st.rules; } catch (e) { box.innerHTML = '<div class="ov-loading">' + escHtml(e.message) + '</div>'; return; }
+      st.draft = JSON.parse(rulesView(st.rules));
+    }
+    drawStRules();
+  }
+  function drawStRules() {
+    const R = st.draft, box = document.getElementById('st-rules'), dirty = rulesView(R) !== rulesView(st.rules), ro = !isManager;
+    const sw = (k, label) => '<button type="button" class="st-switch" role="switch" aria-label="' + escHtml(label) + '" aria-checked="' + !!R[k] + '" data-st-sw="' + k + '"' + (ro ? ' disabled' : '') + '></button>';
+    const dis = ro ? ' disabled' : '';
+    box.innerHTML = (ro ? '<p class="page-sub">Only the manager can change the work rules.</p>' : '') + '<div class="st-rules">' +
+      '<div class="card ps-box"><div class="ps-box-h"><div><h2 class="card-heading">Shift times</h2><p class="page-sub" style="margin:2px 0 0">Used for “not started” and “no entry after the shift”. Members without a shift follow the day shift.</p></div></div><div class="ps-pad st-stack">' +
+        ['day', 'night'].map(s => '<div class="st-shift"><b>' + (s === 'day' ? 'Day' : 'Night') + '</b>' +
+          '<label class="form-label">Starts<input class="inp" type="time" id="st-' + s + '-start" data-st-shift="' + s + '|start" value="' + R.shifts[s].start + '"' + dis + '></label>' +
+          '<label class="form-label">Ends<input class="inp" type="time" id="st-' + s + '-end" data-st-shift="' + s + '|end" value="' + R.shifts[s].end + '"' + dis + '></label></div>').join('') +
+        '<p class="page-sub" style="margin:0">A night shift that ends after midnight counts for the day it started.</p></div></div>' +
+      '<div class="card ps-box"><div class="ps-box-h"><div><h2 class="card-heading">Working days</h2><p class="page-sub" style="margin:2px 0 0">Days that count in month scores and reports. Work done on another day still counts.</p></div></div><div class="ps-pad st-stack">' +
+        '<div class="st-days">' + DAY_NAMES.map(([d, n]) => '<label><input type="checkbox" data-st-day="' + d + '"' + (R.workDays.includes(d) ? ' checked' : '') + dis + '>' + n + '</label>').join('') + '</div>' +
+        '<p class="page-sub" style="margin:0">' + R.workDays.length + ' working day' + (R.workDays.length === 1 ? '' : 's') + ' a week. A change starts today; past months keep the days they had.</p></div></div>' +
+      '<div class="card ps-box"><div class="ps-box-h"><div><h2 class="card-heading">Holidays</h2><p class="page-sub" style="margin:2px 0 0">Nobody is expected to work; the day does not count against anyone.</p></div></div><div class="ps-pad st-stack">' +
+        '<div>' + (R.holidays.length ? R.holidays.map(h => '<div class="st-hol"><span class="wl-num">' + escHtml(fmtLongDay(h.date)) + '</span><span>' + escHtml(h.name) + '</span>' +
+          (ro ? '<span></span>' : '<button type="button" class="btn btn-ghost btn-sm wl-danger" data-st-delhol="' + h.date + '">Remove</button>') + '</div>').join('') : '<p class="page-sub" style="margin:0">No holidays yet.</p>') + '</div>' +
+        (ro ? '' : '<div class="wl-row2"><div class="form-group"><label class="form-label" for="st-hol-d">Date</label><input class="inp" type="date" id="st-hol-d"></div>' +
+          '<div class="form-group"><label class="form-label" for="st-hol-n">Name</label><input class="inp" id="st-hol-n" maxlength="60" placeholder="e.g. Eid ul Fitr"></div></div>' +
+          '<div><button type="button" class="btn btn-ghost btn-sm" data-st-act="add-hol">Add holiday</button></div>') + '</div></div>' +
+      '<div class="card ps-box"><div class="ps-box-h"><div><h2 class="card-heading">Needs attention</h2><p class="page-sub" style="margin:2px 0 0">When someone shows up at the top of the Team page.</p></div></div><div class="ps-pad">' +
+        '<div class="st-rule"><span>Not started<small>No attendance and no work this long after their shift starts (working days only)</small></span><span class="st-inline"><input class="inp st-num" type="number" min="0" max="720" id="st-late" data-st-num="late" value="' + R.late + '"' + dis + '> min</span></div>' +
+        '<div class="st-rule"><span>Low target in a row<small>Under this % for this many working days</small></span><span class="st-inline"><input class="inp st-num" type="number" min="1" max="100" id="st-lowpct" data-st-num="lowPct" value="' + R.lowPct + '"' + dis + '>% for <input class="inp st-num st-num-sm" type="number" min="1" max="30" id="st-lowdays" data-st-num="lowDays" value="' + R.lowDays + '"' + dis + '> days</span></div>' +
+        '<div class="st-rule"><span>No work logged after the shift<small>Worked today but logged nothing by the end of the shift</small></span>' + sw('noEntry', 'No work logged after the shift') + '</div>' +
+        '<div class="st-rule"><span>Work logged without attendance<small>Logged work but never pressed Start Working</small></span>' + sw('noAttendance', 'Work logged without attendance') + '</div></div></div>' +
+      '<div class="card ps-box"><div class="ps-box-h"><div><h2 class="card-heading">Editing</h2><p class="page-sub" style="margin:2px 0 0">What members can still change themselves. You can always fix any day.</p></div></div><div class="ps-pad">' +
+        '<div class="st-rule"><span>Members can change yesterday<small>Off: only today (a night shift can still finish last night’s day)</small></span>' + sw('editYesterday', 'Members can change yesterday') + '</div></div></div>' +
+      '</div>' +
+      (dirty ? '<div class="st-savebar"><span>You have unsaved changes. They apply from today; past days keep the rules they had.</span><span class="wl-tools"><button type="button" class="btn btn-ghost btn-sm" data-st-act="discard">Discard</button><button type="button" class="btn btn-sm st-save" data-st-act="save-rules">Save rules</button></span></div>' : '');
+  }
+  async function saveRules() {
+    try {
+      st.rules = await wlApi('/api/rules', 'PUT', st.draft); window.RULES = st.rules;
+      st.draft = JSON.parse(rulesView(st.rules)); drawStRules();
+      pp.today = null; pp.attention = null;
+      showToast('Rules saved. They apply from today.', 'success');
+    } catch (e) { showToast(e.message, 'error'); }
+  }
+
+  document.getElementById('page-settings').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.stTab) { if (st.tab !== b.dataset.stTab) { st.tab = b.dataset.stTab; renderSettingsPage(); } return; }
+    if (b.dataset.stSw && !b.disabled) { st.draft[b.dataset.stSw] = !st.draft[b.dataset.stSw]; return drawStRules(); }
+    if (b.dataset.stDelhol) { st.draft.holidays = st.draft.holidays.filter(h => h.date !== b.dataset.stDelhol); return drawStRules(); }
+    const a = b.dataset.stAct, k = b.dataset.key;
+    if (a === 'new-task') openLibraryTask(null);
+    else if (a === 'give') stGive(k); else if (a === 'target') stTarget(k); else if (a === 'edit') openLibraryTask(k);
+    else if (a === 'archive') stArchive(k); else if (a === 'restore') stRestore(k);
+    else if (a === 'add-hol') {
+      const d = document.getElementById('st-hol-d').value, n = document.getElementById('st-hol-n').value.trim();
+      if (!d || !n) { showToast('Pick a date and write the holiday’s name.', 'info'); return; }
+      st.draft.holidays = st.draft.holidays.filter(h => h.date !== d).concat([{ date: d, name: n }]).sort((x, y) => x.date.localeCompare(y.date));
+      drawStRules();
+    } else if (a === 'discard') { st.draft = JSON.parse(rulesView(st.rules)); drawStRules(); showToast('Changes discarded.', 'info'); }
+    else if (a === 'save-rules') saveRules();
+  });
+  document.getElementById('page-settings').addEventListener('change', e => {
+    const el = e.target, d = el.dataset;
+    if (!st.draft || !el.closest('#st-rules')) return;
+    if (d.stShift) { const [s, k] = d.stShift.split('|'); if (el.value) st.draft.shifts[s][k] = el.value; }
+    else if (d.stDay !== undefined) { const n = +d.stDay; st.draft.workDays = el.checked ? [...new Set([...st.draft.workDays, n])].sort() : st.draft.workDays.filter(x => x !== n); }
+    else if (d.stNum) { const v = Math.round(Number(el.value)); if (Number.isFinite(v)) st.draft[d.stNum] = v; }
+    else return;
+    drawStRules();
+  });
+
+  /* Off days (Work rules): weekends and holidays show dimmed in the grids */
+  function isOffDay(iso) {
+    const R = window.RULES;
+    if (!R) return [0, 6].includes(new Date(iso + 'T00:00:00Z').getUTCDay());
+    if ((R.holidays || []).some(h => h.date === iso)) return true;
+    let wd = R.workDays; for (const h of R.daysHistory || []) if (h.from <= iso) wd = h.workDays;
+    return !wd.includes(new Date(iso + 'T00:00:00Z').getUTCDay());
+  }
+
   /* ── Today: each member's work so far (on the Overview page) ── */
   async function loadWorkToday() {
     const box = document.getElementById('wt-list'); if (!box) return;
@@ -3645,13 +3910,13 @@
         const body = { name: document.getElementById('wl-name').value, group: document.getElementById('wl-group').value };
         if (!(l && l.note)) body.unit = document.getElementById('wl-unit').value;
         const d = l ? await wlApi('/api/library/' + encodeURIComponent(l.key), 'PATCH', body) : await wlApi('/api/library', 'POST', body);
-        closeWl(); renderAssignPage(d); showToast(l ? 'Task saved.' : 'Task added. Now give it to people on the board.', 'success');
+        closeWl(); afterBoard(d); showToast(l ? 'Task saved.' : (currentPage === 'settings' ? 'Task added. Now use “Give to people”.' : 'Task added. Now give it to people on the board.'), 'success');
       },
     });
     const ar = document.getElementById('wl-archive');
     if (ar) ar.onclick = () => openWl({ sub: l.name, title: 'Archive this task?', ok: 'Archive', danger: true,
       body: '<p class="page-sub" style="margin:0">It stops for everyone from today and leaves the board. Past work and reports stay as they are.</p>',
-      onOk: async () => { const d = await wlApi('/api/library/' + encodeURIComponent(l.key), 'PATCH', { archive: true }); closeWl(); renderAssignPage(d); showToast('Task archived.', 'success'); } });
+      onOk: async () => { const d = await wlApi('/api/library/' + encodeURIComponent(l.key), 'PATCH', { archive: true }); closeWl(); afterBoard(d); showToast('Task archived. Bring it back any time from Archived tasks.', 'success'); } });
   }
   function openCopyTasks() {
     const b = wl.board; if (!b) return;
@@ -3704,7 +3969,7 @@
     box.innerHTML = '<div class="wl-cl-head"><div style="display:grid;gap:4px"><h2 class="card-heading" style="margin:0">' + escHtml(c.name) + (c.fromTeam ? '<span class="wl-new">new</span>' : '') + '</h2>' +
         '<span class="page-sub">' + escHtml(d.label) + (c.fromTeam ? ' · added by ' + escHtml(c.addedBy || 'the team') : '') + '</span>' +
         '<span class="wl-tools" style="margin-top:4px">' + (c.fromTeam ? '<button type="button" class="btn btn-ghost btn-sm" data-act="ok">Keep in the list</button>' : '') +
-        '<button type="button" class="btn btn-ghost btn-sm" data-act="rename">Rename</button><button type="button" class="btn btn-ghost btn-sm' + (c.active ? ' wl-danger' : '') + '" data-act="toggle">' + (c.active ? 'Archive' : 'Restore') + '</button></span></div>' +
+        '<button type="button" class="btn btn-ghost btn-sm" data-act="rename">Rename</button><button type="button" class="btn btn-ghost btn-sm" data-act="merge">Merge into&hellip;</button><button type="button" class="btn btn-ghost btn-sm' + (c.active ? ' wl-danger' : '') + '" data-act="toggle">' + (c.active ? 'Archive' : 'Restore') + '</button></span></div>' +
         '<div style="text-align:right"><span class="page-sub" style="font-size:12px">Units of work</span><div class="wl-num" style="font-size:26px;font-weight:700">' + d.total + '</div></div></div>' +
       (d.rows.length ? '<div class="wl-scroll"><table class="wl-table"><thead><tr><th>Task</th><th>Done by</th><th>Amount</th><th>Days</th></tr></thead><tbody>' + d.rows.map(r =>
         '<tr><td style="white-space:nowrap;font-weight:500">' + escHtml(r.taskName) + '</td><td>' + escHtml(r.display) + '</td><td class="wl-num"><b>' + r.units + '</b><span class="unit">' + escHtml(r.unit) + '</span></td><td class="wl-num">' + r.days + '</td></tr>').join('') + '</tbody></table></div>'
@@ -3715,6 +3980,20 @@
     box.querySelector('[data-act="rename"]').onclick = () => openWl({ sub: 'Client', title: 'Rename ' + c.name, ok: 'Rename',
       body: '<div class="form-group"><label class="form-label" for="wl-cname">Name</label><input class="inp" id="wl-cname" maxlength="80" value="' + escHtml(c.name) + '"></div><p class="page-sub" style="margin:0">Past entries keep counting for this client.</p>',
       onOk: async () => { await wlApi('/api/clients/' + encodeURIComponent(c.clientId), 'PATCH', { name: document.getElementById('wl-cname').value }); closeWl(); renderClientsPage(); showToast('Client renamed.', 'success'); } });
+    box.querySelector('[data-act="merge"]').onclick = () => {
+      const others = ((wl.clients && wl.clients.clients) || []).filter(x => x.clientId !== c.clientId && x.active)
+        .sort((a, b) => (b.name.toLowerCase().startsWith(c.name.split(' ')[0].toLowerCase()) - a.name.toLowerCase().startsWith(c.name.split(' ')[0].toLowerCase())) || a.name.localeCompare(b.name));
+      if (!others.length) { showToast('There is no other client to merge into.', 'info'); return; }
+      openWl({ sub: c.name, title: 'Merge ' + c.name, ok: 'Merge', danger: true,
+        body: '<p class="page-sub" style="margin:0">Every line ever logged for <b>' + escHtml(c.name) + '</b> moves to the client you pick, and ' + escHtml(c.name) + ' leaves the list. Use it when the same client was added twice.</p>' +
+          '<div class="form-group"><label class="form-label" for="wl-into">Merge into</label><select class="inp" id="wl-into">' + others.map(x => '<option value="' + escHtml(x.clientId) + '">' + escHtml(x.name) + '</option>').join('') + '</select></div>',
+        onOk: async () => {
+          const into = document.getElementById('wl-into').value;
+          const r = await wlApi('/api/clients/' + encodeURIComponent(c.clientId) + '/merge', 'POST', { into });
+          closeWl(); wl.client = into; renderClientsPage();
+          showToast(r.merged + ' merged into ' + r.into.name + ' (' + r.lines + ' line' + (r.lines === 1 ? '' : 's') + ' moved).', 'success');
+        } });
+    };
   }
   async function addClient(name) {
     const inp = document.getElementById('cl-new'); name = (name ?? inp.value).trim();
@@ -4314,9 +4593,15 @@
         body: '<div class="form-group"><label class="form-label" for="dlg-name">Full name</label><input class="inp" id="dlg-name" value="' + escHtml(a.display) + '" maxlength="60"></div>' +
               '<div class="form-group"><label class="form-label" for="dlg-shift">Shift</label><select class="inp" id="dlg-shift">' +
               [['', 'Not set'], ['day', 'Day'], ['night', 'Night']].map(([v, l]) => '<option value="' + v + '"' + ((a.shift || '') === v ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></div>' +
-              '<p class="muted">The username and role cannot change.</p>',
+              '<div class="form-group"><label class="form-label" for="dlg-role">Role</label><select class="inp" id="dlg-role">' +
+              [['member', 'Member'], ['assistant', 'Assistant']].map(([v, l]) => '<option value="' + v + '"' + (a.role === v ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></div>' +
+              '<p class="muted">An assistant sees the dashboard and can fix records, but cannot add or remove people. Changing the role signs them out once; a member who becomes an assistant stops getting tasks from today. The username cannot change.</p>',
         onOpen: () => setTimeout(() => document.getElementById('dlg-name').focus(), 30),
-        onOk: () => accJson(url, 'PATCH', { display: document.getElementById('dlg-name').value, shift: document.getElementById('dlg-shift').value }),
+        onOk: () => {
+          const body = { display: document.getElementById('dlg-name').value, shift: document.getElementById('dlg-shift').value };
+          if (document.getElementById('dlg-role').value !== a.role) body.role = document.getElementById('dlg-role').value;
+          return accJson(url, 'PATCH', body);
+        },
       });
       msg = 'Saved ' + a.display;
     } else if (act === 'password') {
@@ -4415,7 +4700,7 @@
       default: return null;
     }
   }
-  const isWeekendISO = iso => [0, 6].includes(new Date(iso + 'T00:00:00Z').getUTCDay());
+  const isWeekendISO = iso => isOffDay(iso); // off day or holiday (Work rules)
   const workAtt = {};            // "username|YYYY-MM" → { date: attendance record }
   async function loadWorkAttendance(username, month) {
     const key = username + '|' + month;
@@ -4623,7 +4908,7 @@
     document.getElementById('dp-title').textContent = done + ' of ' + tasks.length + ' task' + (tasks.length === 1 ? '' : 's') + (pct === null ? '' : ' · ' + pct + '% of target');
     document.getElementById('dp-sub').textContent = r && r.startTime
       ? 'Worked ' + r.startTime + '–' + (r.endTime || 'now') + ' · ' + (r.workMode || '') + (r.totalWorkingMinutes ? ' · ' + formatMins(r.totalWorkingMinutes) : '') + (r.totalCheckOutMinutes ? ' · ' + formatMins(r.totalCheckOutMinutes) + ' break' : '')
-      : (isWeekendISO(d) ? 'Weekend · no attendance' : 'No attendance recorded');
+      : (isWeekendISO(d) ? 'Day off · no attendance' : 'No attendance recorded');
     document.getElementById('dp-next').disabled = addDaysISO(d, 1) > todayISO();
 
     const body = tasks.map(t => {
@@ -5307,7 +5592,7 @@
     document.getElementById('topbar-date').textContent =
       new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
 
-    await loadAll();
+    await Promise.all([loadAll(), wlApi('/api/rules').then(r => { window.RULES = r; }).catch(() => {})]);
     const wanted = new URLSearchParams(location.search).get('member');
     activeMember  = Math.max(0, members.findIndex(m => m.username === wanted));
     editMemberIdx = 0;

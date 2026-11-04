@@ -38,13 +38,24 @@ For a throw-away local copy with test data only, use the staging setup instead
 
 ## Accounts
 
-- The **manager** adds team members, resets passwords, deactivates or removes accounts
-  from **Settings**. Resetting a password signs that person out on every device.
+- The **manager** runs everything from **Settings** (no code or database work needed):
+  - **Members:** add (optionally with the same tasks as a teammate), edit name, shift and
+    role (member ↔ assistant), reset a password, deactivate or remove. A password reset or a
+    role change signs that person out on every device. A removed member's username is not
+    handed out again, because their past work is still saved under it.
+  - **Tasks:** create, rename or recount a task for everyone, give one task to several
+    people at once, change a target for everyone who has it (from today, tomorrow or next
+    month), archive a task and restore it later. Recent changes are listed.
+  - **Work rules** (Config `workRules`): day and night shift times, working days (a change
+    starts today; past months keep theirs), holidays, the Needs attention thresholds, and
+    whether members may still change yesterday.
+  - **Clients:** add, rename, archive, and *Merge into…* for a client added twice (every
+    logged line moves to the other client).
 - **Assistants** use the manager dashboard and can reset member passwords, but cannot add,
   deactivate or remove accounts.
 - **Team members** use the Member Portal. Records are theirs to create, not to change:
   - they fill and update **today's** tasks (and yesterday's while a night shift that started
-    yesterday is still open); past and future days are read-only;
+    yesterday is still open, or always when Work rules allow it); other days are read-only;
   - attendance (start, break, resume, end) is stamped with the **server clock** in the team
     time zone (`APP_TIMEZONE`, default Asia/Karachi) — the browser's time is never used;
   - they cannot edit attendance times or past attendance notes, nor add, rename or retarget
@@ -131,7 +142,7 @@ All data is in MongoDB:
 | `assignments` | Member · task · daily target · from / to dates                   |
 | `assignlogs`  | The Assignments page's change list                               |
 | `corrections` | Members' correction requests and the manager's answers           |
-| `configs`     | Small settings and one-time migration records                    |
+| `configs`     | Work rules, small settings and one-time migration records        |
 
 ---
 
