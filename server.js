@@ -19,6 +19,9 @@ const IS_PRODUCTION = !(
   (gitRef && gitRef !== PROD_BRANCH)
 );
 const STAGING_DB_NAME = 'rankorbit_staging';
+// Staging on Vercel starts clean (no test accounts or TEST data); local staging keeps the
+// seeded test data the automated tests use. STAGING_CLEAN=1 forces the clean mode locally.
+const CLEAN_STAGING = !IS_PRODUCTION && (!!process.env.VERCEL || process.env.STAGING_CLEAN === '1');
 const MONGODB_URI     = process.env.MONGODB_URI;
 const MONGODB_DB_NAME = IS_PRODUCTION
   ? (process.env.MONGODB_DB_NAME || '')
@@ -60,6 +63,7 @@ const PORT = process.env.PORT || 3000;
 
 // ── MongoDB connection ─────────────────────────────────────────────────────
 let dbError = null, startupError = null; // last failures, shown by /api/staging/health
+let startupDone; const startupReady = new Promise(r => { startupDone = r; }); // the 'open' handler finished
 // Staging gives up after 8 s so a connection problem is reported within one
 // serverless request; production keeps the driver defaults.
 mongoose.connect(MONGODB_URI, {
@@ -214,7 +218,10 @@ mongoose.connection.once('open', async () => {
     // Unique indexes must exist before anything writes tasks (parallel cold starts).
     await Promise.all([Task.init(), Config.init(), Client.init(), Assignment.init()]);
 
-    if (!IS_PRODUCTION) await require('./lib/staging-seed').seedStagingData({ User, Entry, Attendance, Config, Task });
+    if (CLEAN_STAGING) {
+      const r = await require('./lib/clean-start').cleanStart({ db: mongoose.connection.db, Config, dbName: mongoose.connection.db.databaseName });
+      if (r.cleaned) console.log('✓ Staging emptied for a clean start:', JSON.stringify(r.emptied));
+    } else if (!IS_PRODUCTION) await require('./lib/staging-seed').seedStagingData({ User, Entry, Attendance, Config, Task });
     await syncRules(true);
 
     // Load Config documents
@@ -290,7 +297,7 @@ mongoose.connection.once('open', async () => {
   } catch (err) {
     startupError = err;
     console.error('Startup error:', err);
-  }
+  } finally { startupDone(); }
 });
 
 // ── Team accounts ──────────────────────────────────────────────────────────
@@ -381,7 +388,7 @@ function memberAccounts({ activeOnly = false } = {}) {
 function defaultTasksFor(username, display) {
   const codeName = (USERS[username] || {}).display; // TEAM is keyed by the original name
   if (TEAM[display] || TEAM[codeName]) return TEAM[display] || TEAM[codeName];
-  if (!IS_PRODUCTION) return require('./lib/staging-seed').TEST_TASKS[username] || null;
+  if (!IS_PRODUCTION && !CLEAN_STAGING) return require('./lib/staging-seed').TEST_TASKS[username] || null;
   return null;
 }
 
@@ -437,7 +444,7 @@ if (!IS_PRODUCTION) {
   const BANNER =
     '<div id="staging-banner" style="position:fixed;top:0;left:0;right:0;z-index:2147483647;' +
     'background:#f59e0b;color:#111;font:700 12px/22px Inter,\'Segoe UI\',Roboto,sans-serif;text-align:center;' +
-    'letter-spacing:.05em;pointer-events:none;opacity:.95">STAGING — test data only</div>' +
+    'letter-spacing:.05em;pointer-events:none;opacity:.95">' + (CLEAN_STAGING ? 'TEST VERSION — not the live site yet' : 'STAGING — test data only') + '</div>' +
     // keep the page (and its sticky/fixed bars) below the 22px banner
     '<style>body{padding-top:22px}.topbar,.app-topbar{top:22px!important}.sidebar{top:22px!important}.em-overlay{top:22px!important}</style>';
   const withBanner = html => /<body[^>]*>/i.test(html)
@@ -490,6 +497,38 @@ app.get('/login', (req, res) => {
   if (req.session.role === 'manager' || req.session.role === 'assistant') return res.redirect('/dashboard');
   if (req.session.role === 'member') return res.redirect('/member');
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+// ── First manager account (clean staging only) ───────────────────────────
+// A clean staging database has no accounts. The sign-in page then offers "Create the
+// manager account" once; as soon as one manager exists this is closed for good.
+async function setupNeeded() {
+  if (!CLEAN_STAGING) return false;
+  await Promise.race([startupReady, new Promise(r => setTimeout(r, 15000))]);
+  return !(await User.exists({ role: 'manager' }));
+}
+app.get('/api/setup', async (req, res) => {
+  try { res.json({ needed: await setupNeeded() }); } catch { res.json({ needed: false }); }
+});
+app.post('/api/setup', async (req, res) => {
+  try {
+    if (!(await setupNeeded())) return res.status(403).json({ error: 'A manager account already exists. Sign in instead.' });
+    const uname = String(req.body.username || '').toLowerCase().trim(), dname = String(req.body.display || '').trim().replace(/\s+/g, ' ').slice(0, 60);
+    const password = String(req.body.password || '');
+    if (dname.length < 2) return res.status(400).json({ error: 'Write your full name' });
+    if (!/^[a-z0-9._-]{3,30}$/.test(uname)) return res.status(400).json({ error: 'Username: 3–30 small letters, numbers, dots, underscores or hyphens' });
+    if (password.length < 8) return res.status(400).json({ error: 'Use a password of at least 8 characters' });
+    // Unique username index: two people pressing at once cannot both create one
+    await User.create({ username: uname, role: 'manager', display: dname, password: await hashPassword(password), passwordVersion: 1, active: true });
+    if (await User.countDocuments({ role: 'manager' }) > 1) { await User.deleteOne({ username: uname }); return res.status(403).json({ error: 'A manager account was just created. Sign in instead.' }); }
+    await refreshUser(uname);
+    console.log('✓ First manager account created:', uname);
+    res.json({ success: true, username: uname });
+  } catch (err) {
+    if (err.code === 11000) return res.status(409).json({ error: 'That username is taken' });
+    console.error('Setup error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
 });
 
 app.post('/api/login', async (req, res) => {

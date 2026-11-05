@@ -175,7 +175,7 @@
       <span>Opening the <strong id="role-label"></strong></span>
     </div>
 
-    <div class="form-fields">
+    <div class="form-fields" id="login-fields">
       <div class="form-group">
         <label class="form-label">Username</label>
         <input type="text" id="inp-username" class="inp-login" placeholder="e.g. ali.lodhi" autocomplete="username" autocapitalize="none" spellcheck="false">
@@ -183,6 +183,25 @@
       <div class="form-group">
         <label class="form-label">Password</label>
         <input type="password" id="inp-password" class="inp-login" placeholder="••••••••" autocomplete="current-password">
+      </div>
+    </div>
+
+    <div class="form-fields" id="setup-fields" hidden>
+      <div class="form-group">
+        <label class="form-label" for="su-display">Your full name</label>
+        <input type="text" id="su-display" class="inp-login" placeholder="e.g. Abdullah Saleem" autocomplete="name" maxlength="60">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="su-username">Username</label>
+        <input type="text" id="su-username" class="inp-login" placeholder="e.g. abdullah" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="30">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="su-password">Password</label>
+        <input type="password" id="su-password" class="inp-login" placeholder="At least 8 characters" autocomplete="new-password">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="su-password2">Password again</label>
+        <input type="password" id="su-password2" class="inp-login" placeholder="Same password" autocomplete="new-password">
       </div>
     </div>
 
@@ -227,7 +246,39 @@
     ind.hidden = false;
   }
 
+  // A clean test version has no accounts yet: create the manager account once
+  let setupMode = false;
+  fetch('/api/setup', { credentials: 'same-origin' }).then(r => r.json()).then(d => {
+    if (!d || !d.needed) return;
+    setupMode = true;
+    document.querySelector('.card-title').textContent = 'Create the manager account';
+    document.querySelector('.card-subtitle').textContent = 'This test version is empty. The first account you create here is the manager; then add your team from Settings.';
+    document.getElementById('setup-fields').hidden = false;
+    document.getElementById('login-fields').hidden = true;
+    document.getElementById('role-indicator').hidden = true;
+    document.getElementById('btn-signin').textContent = 'Create manager account';
+    document.getElementById('su-display').focus();
+  }).catch(() => {});
+
+  async function submitSetup() {
+    const display = document.getElementById('su-display').value.trim(), username = document.getElementById('su-username').value.trim().toLowerCase();
+    const password = document.getElementById('su-password').value, again = document.getElementById('su-password2').value;
+    if (!display || !username || !password) return showError('Fill in your name, a username and a password.');
+    if (password.length < 8) return showError('Use a password of at least 8 characters.');
+    if (password !== again) return showError('The two passwords are not the same.');
+    const btn = document.getElementById('btn-signin'); btn.disabled = true; hideError();
+    try {
+      const res = await fetch('/api/setup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ display, username, password }) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { showError(data.error || 'Could not create the account.'); if (res.status === 403) setTimeout(() => location.reload(), 1500); return; }
+      const lr = await (await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ username, password }) })).json();
+      window.location.href = lr.redirect || '/dashboard';
+    } catch { showError('Could not reach the server. Check your connection.'); }
+    finally { btn.disabled = false; }
+  }
+
   async function submitLogin() {
+    if (setupMode) return submitSetup();
     const username = document.getElementById('inp-username').value.trim();
     const password = document.getElementById('inp-password').value;
 

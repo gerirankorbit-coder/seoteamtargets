@@ -12,16 +12,23 @@ of that branch automatically. No dashboard setup is needed. The code detects the
 - **Separate database.** It uses the same connection string as the deployment, but the database
   name is forced in code to **`rankorbit_staging`**. The server also refuses to start if the name
   does not contain `staging`.
-- **Test accounts only.** The real employee list is not loaded. On first start the app seeds only
-  the test accounts and their TEST entries and attendance. Seeding uses upserts, so restarts never
-  duplicate anything.
-- **Banner.** Every page shows a fixed "STAGING — test data only" bar.
+- **Starts clean (for real testing by the team).** On Vercel the staging database is emptied
+  **once**, the first time this version starts (`lib/clean-start.js`; a `cleanStart` marker in
+  `configs` stops it from ever happening again, so everything created while testing stays).
+  No test accounts and no TEST data are seeded there. The real employee list from the code is
+  not loaded either.
+- **First manager account.** With no manager yet, the sign-in page shows **Create the manager
+  account** (name, username, password of 8+ characters). After that it is a normal sign-in page;
+  add the team, tasks and clients from the dashboard (Settings, Clients).
+- **Banner.** Every page shows a fixed "TEST VERSION — not the live site yet" bar.
+- **Local staging is unchanged:** `npm run dev:staging` still seeds the test accounts below for the
+  automated tests. `STAGING_CLEAN=1` runs the clean mode locally.
 
 **Where to find the URL:** on GitHub, open the latest commit on `staging-v2` and click the Vercel
 deployment's **Details** link. If Vercel asks you to log in, that is Vercel's preview protection:
 log in with your Vercel account and the page opens.
 
-## Test logins
+## Test logins (local staging only)
 
 The password for the test accounts is the value of `STAGING_TEST_PASSWORD` (on Vercel: the
 preview environment variable; locally: `.env.staging`). If it is not set, the default in

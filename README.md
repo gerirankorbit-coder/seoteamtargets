@@ -32,7 +32,9 @@ Environment variables are listed (names only) in `.env.example`. Production valu
 the Vercel project settings.
 
 For a throw-away local copy with test data only, use the staging setup instead
-(`npm run dev:staging`, `npm run seed:staging`) — see `STAGING.md`.
+(`npm run dev:staging`, `npm run seed:staging`) — see `STAGING.md`. The Vercel preview of
+`staging-v2` starts clean instead: no test data, and the sign-in page asks for the first manager
+account.
 
 ---
 
